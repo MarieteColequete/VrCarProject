@@ -1,0 +1,8 @@
+# Claude Code: the shared settings (.claude/settings.json) are committed; personal overrides,
+# session worktrees, and harness runtime state are not.
+.claude/*.local.json
+.claude/worktrees/
+.claude/scheduled_tasks.lock
+.claude/bin/*.preset-old-*
+*.preset-new-*
+CLAUDE.local.md

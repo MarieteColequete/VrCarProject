@@ -1,0 +1,5 @@
+{
+  "commands": [],
+  "gate": "godot --headless --path 'vr-project-[car-sim]' --import",
+  "version": []
+}
