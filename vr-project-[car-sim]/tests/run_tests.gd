@@ -7,6 +7,7 @@ extends SceneTree
 const RUNNER := preload("res://scenarios/scenes/exam_runner.tscn")
 const POLICY := preload("res://scenarios/data/default_policy.tres")
 const FAULTS := "res://scenarios/data/faults/%s.tres"
+const STEPS_FIXTURE := preload("res://tests/fixtures/steps_fixture.tscn")
 
 ## Lane centre and the stop junction's key positions along it (the car drives towards -Z).
 const LANE_X := 1.75
@@ -27,6 +28,8 @@ func _run() -> void:
 	await _test_driver_view()
 	await _test_debug_car_controls()
 	await _test_drives()
+	await _test_probe()
+	await _test_session()
 	print("\n%d passed, %d failed" % [_passed, _failed])
 	quit(1 if _failed > 0 else 0)
 
@@ -180,6 +183,16 @@ func _test_debug_car_controls() -> void:
 	_release_all()
 	_expect(car.current_speed < 0.0, "holding the brake stops the car, then reverses")
 
+	var probe := VehicleProbe.of(car)
+	Input.action_press(&"handbrake")
+	await physics_frame
+	await physics_frame
+	_expect(probe.handbrake == VehicleProbe.Toggle.ON, "the handbrake reaches the probe")
+	Input.action_release(&"handbrake")
+	await physics_frame
+	await physics_frame
+	_expect(probe.handbrake == VehicleProbe.Toggle.OFF, "releasing the handbrake reaches the probe")
+
 	car._unhandled_input(_action_event(&"toggle_view"))
 	_expect(car.chase_camera.current and not car.driver_view.active, "toggle_view shows the chase camera")
 	runner.queue_free()
@@ -199,11 +212,18 @@ func _at(z: float, x := LANE_X) -> Vector3:
 	return Vector3(x, 0.0, z)
 
 
-## Legs of a drive: {to: Vector3, speed: m/s} moves in a straight line, {wait: s} stays put.
-func _drive(legs: Array) -> ScenarioResult:
+## Legs of a drive: {to: Vector3, speed: m/s} moves in a straight line, facing the target, or
+## facing away from it with reverse = true; {wait: s} stays put. [param on_spawn] is called
+## with the runner once the car is placed, and [param on_end] just before it is freed.
+func _drive(legs: Array, scenario: PackedScene = null, on_spawn := Callable(),
+		on_end := Callable()) -> ScenarioResult:
 	var runner: ExamRunner = RUNNER.instantiate()
 	runner.print_results = false
+	if scenario:
+		runner.scenario_scene = scenario
 	root.add_child(runner)
+	if on_spawn.is_valid():
+		on_spawn.call(runner)
 	var car: Node3D = runner.car
 	car.input_enabled = false
 	var session := runner.session
@@ -222,7 +242,7 @@ func _drive(legs: Array) -> ScenarioResult:
 			var dir := target - pos
 			dir.y = 0.0
 			if dir.length() > 0.01:
-				car.look_at(pos + dir, Vector3.UP)
+				car.look_at(pos - dir if leg.get("reverse", false) else pos + dir, Vector3.UP)
 			car.global_position = pos.move_toward(target, leg.speed * dt)
 			await physics_frame
 	for i in 60:
@@ -232,6 +252,8 @@ func _drive(legs: Array) -> ScenarioResult:
 	if session.is_running():
 		session.abort()
 	var result := session.result
+	if on_end.is_valid():
+		on_end.call(runner)
 	runner.queue_free()
 	await process_frame
 	return result
@@ -271,3 +293,95 @@ func _test_drives() -> void:
 	r = await _drive([{to = _at(30.0), speed = 6.0}, {to = _at(42.0), speed = 5.0}])
 	_expect(r.reason == &"eliminated" and r.has_fault(&"wrong_way"),
 		"driving back against the lane is eliminating: " + r.summary())
+
+
+# --- Probe: footprint, direction, live state, gaze -----------------------------------------------
+
+func _test_probe() -> void:
+	var runner: ExamRunner = RUNNER.instantiate()
+	runner.print_results = false
+	root.add_child(runner)
+	var car: Node3D = runner.car
+	car.input_enabled = false
+	var probe := VehicleProbe.of(car)
+	car.look_at(car.global_position + Vector3(-1, 0, 0), Vector3.UP)
+	await physics_frame
+	var fwd := probe.forward()
+	var right := fwd.cross(Vector3.UP)
+	var expected_fl := car.global_position + fwd * probe.body_length * 0.5 - right * probe.body_width * 0.5
+	_expect(probe.corners()[0].is_equal_approx(expected_fl), "the front left corner follows the car's heading")
+	_expect(probe.wheels()[2].is_equal_approx(
+		car.global_position - fwd * probe.wheelbase * 0.5 + right * probe.track * 0.5),
+		"the rear right wheel sits at half the wheelbase and track")
+	car.global_position += Vector3(-0.5, 0, 0)
+	await physics_frame
+	await physics_frame
+	var moved := probe.wheels()[0] - probe.previous_wheels()[0]
+	_expect(moved.is_zero_approx(), "wheels at rest have no movement this tick")
+	car.global_position += Vector3(-0.2, 0, 0)
+	await physics_frame
+	moved = probe.wheels()[0] - probe.previous_wheels()[0]
+	_expect(moved.is_equal_approx(Vector3(-0.2, 0, 0)), "a wheel's movement this tick is the car's step")
+
+	var view: DriverView = car.driver_view
+	view.turn(0.5, 0.0)
+	_expect(probe.look_direction().is_equal_approx(view.look_direction())
+		and not probe.look_direction().is_equal_approx(probe.forward()),
+		"the probe looks where the driver view looks")
+	runner.queue_free()
+	await process_frame
+
+	var changes := [0]
+	var r := await _drive([
+		{to = _at(40.0), speed = 4.0}, {wait = 0.5},
+		{to = _at(43.0), speed = 2.0, reverse = true}, {wait = 0.5},
+		{to = _at(38.0), speed = 4.0}],
+		null, Callable(), func(done: ExamRunner) -> void:
+			changes[0] = VehicleProbe.of(done.car).direction_changes)
+	_expect(changes[0] == 2, "forward, reverse, forward is two direction changes (got %d)" % changes[0])
+	_expect(r.reason == &"aborted", "a manoeuvre short of the goal ends aborted: " + r.summary())
+
+
+# --- Session: steps, check windows, dedupe, plain data -------------------------------------------
+
+func _test_session() -> void:
+	var step_titles: Array[String] = []
+	var record_steps := func(runner: ExamRunner) -> void:
+		runner.session.step_changed.connect(func(step: ScenarioStep) -> void:
+			step_titles.append(step.title))
+
+	var r := await _drive([{to = Vector3(0, 0, -45), speed = 8.0}], STEPS_FIXTURE, record_steps)
+	_expect(r.reason == &"completed" and r.steps_completed == 2 and r.step_count == 2,
+		"both steps complete in order: " + r.summary())
+	_expect(step_titles.size() == 2 and step_titles[0] == "Reach the first marker",
+		"step_changed reports each step as it starts: %s" % [step_titles])
+	_expect(r.faults.size() == 1 and r.has_fault(&"speeding_serious"),
+		"a check limited to step two faults only in step two: " + r.summary())
+
+	r = await _drive([
+		{to = Vector3(0, 0, -20), speed = 8.0}, {to = Vector3(0, 0, -45), speed = 2.0}],
+		STEPS_FIXTURE)
+	_expect(r.reason == &"completed" and r.passed and r.faults.is_empty(),
+		"speeding only before its step is not a fault: " + r.summary())
+
+	var dict := r.to_dict()
+	_expect(dict.reason == "completed" and dict.passed and dict.steps_completed == 2
+		and dict.faults is Array, "to_dict carries the outcome as plain data")
+
+	var runner: ExamRunner = RUNNER.instantiate()
+	runner.print_results = false
+	root.add_child(runner)
+	await process_frame
+	_expect(runner.session.is_running(), "an autostarting runner's session is running after one frame")
+	var lane: FaultDef = load(FAULTS % "lane_drift")
+	var a := Node.new()
+	var b := Node.new()
+	runner.session.report_fault(lane, Vector3.ZERO, a)
+	runner.session.report_fault(lane, Vector3.ZERO, a)
+	runner.session.report_fault(lane, Vector3.ZERO, b)
+	_expect(runner.session.faults.size() == 2,
+		"a repeat from the same check within the window is dropped, another check's is kept")
+	a.free()
+	b.free()
+	runner.queue_free()
+	await process_frame

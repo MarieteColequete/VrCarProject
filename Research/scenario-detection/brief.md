@@ -1,6 +1,7 @@
 # Brief: scenario detection
 
-Resume point for the scenario and detection foundation (`vr-project-[car-sim]/scenarios/`).
+Resume point for the scenario and detection foundation (`vr-project-[car-sim]/scenarios/`). The
+phased plan for markings, parking, traffic, and the exam scenarios is `roadmap.md`.
 
 ## Findings that drive the design
 
@@ -32,3 +33,7 @@ Resume point for the scenario and detection foundation (`vr-project-[car-sim]/sc
 - Detection reads the car through an adapter; the driving branch's `car.gd` is not edited.
 - The work targets Forward Plus on `dev`; the driving branch's switch to the Mobile renderer is
   flagged for its merge.
+- Parking covers both choosing a legal, free spot and the quality of the manoeuvre.
+- The first scenarios after the stop junction: parking, lane change, pedestrian crossings and
+  traffic lights, and priority junctions.
+- Other road users start as scripted path followers; reactive AI follows once those are stable.

@@ -22,6 +22,8 @@ var current_speed := 0.0
 
 func _ready() -> void:
 	probe.indicator = VehicleProbe.Indicator.OFF
+	probe.handbrake = VehicleProbe.Toggle.OFF
+	probe.headlights = VehicleProbe.Toggle.OFF
 	driver_view.active = input_enabled
 
 
@@ -41,8 +43,10 @@ func _physics_process(delta: float) -> void:
 		return
 	var throttle := DriverInput.throttle()
 	var brake := DriverInput.brake()
+	var handbrake := DriverInput.handbrake()
+	probe.handbrake = VehicleProbe.Toggle.ON if handbrake else VehicleProbe.Toggle.OFF
 
-	if DriverInput.handbrake():
+	if handbrake:
 		current_speed = move_toward(current_speed, 0.0, braking * 1.5 * delta)
 	elif brake > 0.0 and current_speed > reverse_threshold:
 		current_speed = move_toward(current_speed, 0.0, braking * brake * delta)

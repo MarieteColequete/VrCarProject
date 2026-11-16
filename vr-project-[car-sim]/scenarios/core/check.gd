@@ -2,7 +2,11 @@
 class_name Check
 extends Node3D
 ## Base of every check placed in a scenario scene. A check watches the session's car and reports
-## faults; it only acts while the session is running.
+## faults; it only acts while the session is running, and, when [member active_steps] is set,
+## only during those steps.
+
+## The steps during which the check acts; empty for the whole attempt.
+@export var active_steps: Array[ScenarioStep] = []
 
 var session: ExamSession
 
@@ -20,7 +24,9 @@ func finalize() -> void:
 
 
 func is_live() -> bool:
-	return session != null and session.is_running()
+	if session == null or not session.is_running():
+		return false
+	return active_steps.is_empty() or active_steps.has(session.current_step())
 
 
 func probe() -> VehicleProbe:
@@ -29,7 +35,7 @@ func probe() -> VehicleProbe:
 
 func report(fault: FaultDef, at: Vector3) -> void:
 	if session:
-		session.report_fault(fault, at)
+		session.report_fault(fault, at, self)
 
 
 func _on_bound() -> void:

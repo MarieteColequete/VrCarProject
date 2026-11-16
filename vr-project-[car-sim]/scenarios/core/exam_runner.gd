@@ -44,7 +44,15 @@ func load_scenario(scene: PackedScene) -> void:
 	assert(probe != null, "The car scene needs a VehicleProbe child")
 	probe.reset()
 	scenario_loaded.emit(scenario, car)
-	session.setup(scenario, probe)
+	# The session starts on the next idle step, so a listener connected right after the runner
+	# entered the tree still gets briefing_started, started, and the first step_changed.
+	_start_session.call_deferred(scenario, probe)
+
+
+func _start_session(p_scenario: Scenario, probe: VehicleProbe) -> void:
+	if p_scenario != scenario or not is_instance_valid(probe):
+		return
+	session.setup(p_scenario, probe)
 	if autostart:
 		session.begin()
 

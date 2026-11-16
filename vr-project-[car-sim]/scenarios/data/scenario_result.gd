@@ -11,6 +11,9 @@ var failing_tier: StringName
 var faults: Array[FaultRecord] = []
 ## Seconds the session ran.
 var duration := 0.0
+## How many of the scenario's steps were done, out of [member step_count].
+var steps_completed := 0
+var step_count := 0
 
 
 func count_tier(tier: StringName) -> int:
@@ -26,6 +29,28 @@ func has_fault(id: StringName) -> bool:
 		if fault.def.id == id:
 			return true
 	return false
+
+
+## The result as plain data, for the UI and for saving attempts.
+func to_dict() -> Dictionary:
+	var fault_list := []
+	for fault in faults:
+		fault_list.append({
+			id = String(fault.def.id),
+			title = fault.def.title,
+			tier = String(fault.def.tier),
+			time = fault.time,
+			position = [fault.position.x, fault.position.y, fault.position.z],
+		})
+	return {
+		reason = String(reason),
+		passed = passed,
+		failing_tier = String(failing_tier),
+		duration = duration,
+		steps_completed = steps_completed,
+		step_count = step_count,
+		faults = fault_list,
+	}
 
 
 func summary() -> String:
