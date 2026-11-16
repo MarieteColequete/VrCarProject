@@ -19,3 +19,8 @@ public-facing: the public documentation stays in `README.md` and `CLAUDE.md`. Th
 - The main paper is planned; `CLAUDE.md` names it once it exists.
 - The `driving-mechanics` branch sets `renderer/rendering_method="mobile"`, against the Forward
   Plus pin in `CLAUDE.md`.
+- `car.gd` on `driving-mechanics` reads raw keys and has its own mouse look and `XROrigin3D`; on
+  merge it reads `DriverInput` and carries a `DriverView` instead, so keyboard, gamepad, and VR
+  share one set of bindings and one camera rig.
+- The car control layout is still to be agreed; a wheel's full-range steering axis and pedals may
+  need actions of their own.

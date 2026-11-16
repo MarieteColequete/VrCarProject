@@ -3,6 +3,28 @@
 A car driving simulator for virtual reality, built with Godot 4.7 and OpenXR, that turns the
 situations of the practical driving exam into scenarios driven in VR.
 
+## Controls
+
+The simulator is built for a headset and a driving wheel, and it also plays flat on a monitor with a
+keyboard and mouse or a gamepad. Bindings are input actions in `project.godot`, so a device is
+added or remapped there without code changes; car scripts read them through `DriverInput`.
+
+| Action | Keyboard and mouse | Gamepad |
+|---|---|---|
+| Throttle | W, Up | Right trigger |
+| Brake, then reverse once stopped | S, Down | Left trigger |
+| Steer | A and D, Left and Right | Left stick |
+| Handbrake | Space | A (Cross) |
+| Indicators | Q and E | Left and right shoulder |
+| Look around | Mouse | Right stick |
+| Recentre the view | C | Right stick click |
+| Driver or chase view | V | Select |
+| Free the mouse, recapture it | Escape, click | |
+
+`DriverView` is the driver's head in a car scene. With an OpenXR headset running, the headset turns
+the view; otherwise the mouse and the right stick turn a flat camera within a seated driver's
+range, and its `look_direction()` is the same in both modes.
+
 ## Scenarios
 
 A scenario is a scene under `vr-project-[car-sim]/scenarios/scenes/` whose root carries the

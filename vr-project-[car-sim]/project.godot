@@ -19,6 +19,65 @@ config/icon="res://icon.svg"
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
+[input]
+
+throttle={
+"deadzone": 0.05,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":87), Object(InputEventKey,"device":-1,"physical_keycode":4194320), Object(InputEventJoypadMotion,"device":-1,"axis":5,"axis_value":1.0)]
+}
+brake={
+"deadzone": 0.05,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":83), Object(InputEventKey,"device":-1,"physical_keycode":4194322), Object(InputEventJoypadMotion,"device":-1,"axis":4,"axis_value":1.0)]
+}
+steer_left={
+"deadzone": 0.15,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":65), Object(InputEventKey,"device":-1,"physical_keycode":4194319), Object(InputEventJoypadMotion,"device":-1,"axis":0,"axis_value":-1.0)]
+}
+steer_right={
+"deadzone": 0.15,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":68), Object(InputEventKey,"device":-1,"physical_keycode":4194321), Object(InputEventJoypadMotion,"device":-1,"axis":0,"axis_value":1.0)]
+}
+handbrake={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":32), Object(InputEventJoypadButton,"device":-1,"button_index":0,"pressed":true)]
+}
+indicator_left={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":81), Object(InputEventJoypadButton,"device":-1,"button_index":9,"pressed":true)]
+}
+indicator_right={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":69), Object(InputEventJoypadButton,"device":-1,"button_index":10,"pressed":true)]
+}
+look_left={
+"deadzone": 0.15,
+"events": [Object(InputEventJoypadMotion,"device":-1,"axis":2,"axis_value":-1.0)]
+}
+look_right={
+"deadzone": 0.15,
+"events": [Object(InputEventJoypadMotion,"device":-1,"axis":2,"axis_value":1.0)]
+}
+look_up={
+"deadzone": 0.15,
+"events": [Object(InputEventJoypadMotion,"device":-1,"axis":3,"axis_value":-1.0)]
+}
+look_down={
+"deadzone": 0.15,
+"events": [Object(InputEventJoypadMotion,"device":-1,"axis":3,"axis_value":1.0)]
+}
+look_reset={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":67), Object(InputEventJoypadButton,"device":-1,"button_index":8,"pressed":true)]
+}
+toggle_view={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":86), Object(InputEventJoypadButton,"device":-1,"button_index":4,"pressed":true)]
+}
+release_mouse={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"device":-1,"physical_keycode":4194305)]
+}
+
 [layer_names]
 
 3d_physics/layer_1="world"
