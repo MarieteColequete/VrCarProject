@@ -40,13 +40,18 @@ Checks are nodes placed in the scene, each watching one rule:
 | `SpeedLimitCheck` | The speed limit over a zone, with a grace time and a serious margin |
 | `RouteCheck` | Staying in the lane of a `Path3D` centreline, on the road, and not against traffic |
 | `LineCheck` | Crossing a solid line, crossing a dashed line without indicating that way, riding on a line, mounting a kerb |
+| `ParkingCheck` | Once settled in a `ParkingBay`: overhanging it, facing the wrong way, too many direction changes, taking too long |
+| `ParkingChoiceCheck` | Once settled: parking in a `NoParkingZone` or by a no-parking line, in a reserved bay, or in an occupied one |
 | `ContactCheck` | No contact with obstacles or pedestrians |
 | `GoalCheck` | Reaching the goal zone completes the attempt |
 
 Zones are `TriggerZone` areas with a collision shape drawn in the editor. Road markings are
 `RoadMarking` paths (solid, dashed, double solid, stop and give way lines, zebra, bay edge,
 no-parking line, kerb): the curve draws the paint and is also what `LineCheck` judges, on the
-car's wheels rather than its centre. A scenario can run as ordered `ScenarioStep`s, each ended by
+car's wheels rather than its centre. A `ParkingBay` is a parking space, nose-in, reversed, or
+either, that may be reserved or occupied; a kerbside space for parallel parking is a bay along the
+road. The car counts as parked once it stops with the handbrake on, or stays stopped for a few
+seconds. A scenario can run as ordered `ScenarioStep`s, each ended by
 its own `GoalCheck`, and a check can be limited to some steps. Each fault a check reports
 is a `FaultDef` resource in `scenarios/data/faults/`, naming a severity tier. A `ScoringPolicy`
 resource defines the tiers, which of them eliminate at once, and how many faults of each an
@@ -62,5 +67,5 @@ UI; `finished` carries a `ScenarioResult` with the outcome and every fault.
 The scenario tests run headless:
 
 ```
-godot --headless --path 'vr-project-[car-sim]' -s res://tests/run_tests.gd
+godot --headless --fixed-fps 60 --path 'vr-project-[car-sim]' -s res://tests/run_tests.gd
 ```

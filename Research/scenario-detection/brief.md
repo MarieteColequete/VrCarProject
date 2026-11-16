@@ -14,8 +14,11 @@ phased plan for markings, parking, traffic, and the exam scenarios is `roadmap.m
   baked offset and a finite difference along the curve (S2). The tangent is computed by
   difference rather than from `sample_baked_with_rotation`, to avoid depending on its axis
   convention.
-- Scripted drives move the car one step per physics tick, so tests are deterministic and take
-  well under a second (S1, S2).
+- Scripted drives move the car one step per physics tick, so tests are deterministic. A
+  headless run still syncs physics ticks to the wall clock; `--fixed-fps 60` removes the sync, and
+  the whole suite, minutes of simulated driving, runs in about 15 seconds (S1, S2).
+- The probe judges "stopped" on ground speed in any direction, not forward speed: a car sliding
+  sideways is moving (S2).
 
 ## Open questions
 

@@ -56,6 +56,8 @@ var direction := Direction.STOPPED
 ## How many times the car has moved off in the opposite direction to its last movement since the
 ## last [method reset]; the manoeuvre count of parking.
 var direction_changes := 0
+## Seconds the car has been stopped without a break; 0 while it moves.
+var stopped_for := 0.0
 
 ## World-space velocity, metres per second.
 var velocity := Vector3.ZERO
@@ -116,6 +118,7 @@ func reset() -> void:
 	direction = Direction.STOPPED
 	_last_moving = Direction.STOPPED
 	direction_changes = 0
+	stopped_for = 0.0
 	_wheels = PackedVector3Array()
 	_previous_wheels = PackedVector3Array()
 
@@ -132,16 +135,15 @@ func _physics_process(delta: float) -> void:
 	_last_position = pos
 	_has_last = true
 	_update_direction()
+	stopped_for = stopped_for + delta if direction == Direction.STOPPED else 0.0
 	_previous_wheels = _wheels if not _wheels.is_empty() else wheels()
 	_wheels = wheels()
 
 
 func _update_direction() -> void:
 	var now := Direction.STOPPED
-	if speed > stop_speed:
-		now = Direction.FORWARD
-	elif speed < -stop_speed:
-		now = Direction.REVERSE
+	if not is_stopped():
+		now = Direction.REVERSE if speed < 0.0 else Direction.FORWARD
 	if now == direction:
 		return
 	direction = now
@@ -153,6 +155,14 @@ func _update_direction() -> void:
 		direction_changes += 1
 		direction_changed.emit(now)
 	_last_moving = now
+
+
+## True when the car has come to rest as if parked: stopped with the handbrake on, or stopped for
+## at least [param settle_time] seconds.
+func is_settled(settle_time: float) -> bool:
+	if direction != Direction.STOPPED:
+		return false
+	return handbrake == Toggle.ON or stopped_for >= settle_time
 
 
 ## Seconds the indicator has shown [param side] without a break; 0 when it shows something else.
@@ -207,8 +217,10 @@ func speed_kmh() -> float:
 	return absf(speed) * 3.6
 
 
+## True when the car's ground speed, in any direction, is below [member stop_speed]; a car
+## sliding sideways is not stopped.
 func is_stopped() -> bool:
-	return absf(speed) < stop_speed
+	return Vector2(velocity.x, velocity.z).length() < stop_speed
 
 
 func _on_hull_body_entered(body: Node3D) -> void:

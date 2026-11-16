@@ -45,8 +45,9 @@ binary is on `PATH` as `godot`.
 
 ```
 godot --headless --path 'vr-project-[car-sim]' --import   import and scan the project, then quit (the stop gate)
-godot --headless --path 'vr-project-[car-sim]' -s res://tests/run_tests.gd
-                                                          run the scenario tests (exit 1 on failure)
+godot --headless --fixed-fps 60 --path 'vr-project-[car-sim]' -s res://tests/run_tests.gd
+                                                          run the scenario tests (exit 1 on failure;
+                                                          --fixed-fps 60 runs them faster than real time)
 godot --path 'vr-project-[car-sim]' --editor              open the project in the editor
 sh .claude/bin/preset status                              the branch, its commits, the version, and the hook
 ```

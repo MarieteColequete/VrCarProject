@@ -1,14 +1,18 @@
 extends SceneTree
 ## Headless tests of the scenario system. Run from the repository root:
-##   godot --headless --path 'vr-project-[car-sim]' -s res://tests/run_tests.gd
-## Exits 0 when every test passes, 1 otherwise. Drives move the car along fixed legs, one step
-## per physics tick, so results do not depend on the machine's speed.
+##   godot --headless --fixed-fps 60 --path 'vr-project-[car-sim]' -s res://tests/run_tests.gd
+## Exits 0 when every test passes, 1 otherwise; TESTS_VERBOSE=1 also prints each pass. Drives
+## move the car along fixed legs, one step per physics tick, so results do not depend on the
+## machine's speed. --fixed-fps 60 makes each frame one tick without waiting for the clock, so
+## minutes of simulated driving run in seconds.
 
 const RUNNER := preload("res://scenarios/scenes/exam_runner.tscn")
 const POLICY := preload("res://scenarios/data/default_policy.tres")
 const FAULTS := "res://scenarios/data/faults/%s.tres"
 const STEPS_FIXTURE := preload("res://tests/fixtures/steps_fixture.tscn")
 const LINES_FIXTURE := preload("res://tests/fixtures/lines_fixture.tscn")
+const BAY_PARKING := preload("res://scenarios/scenes/bay_parking/bay_parking.tscn")
+const PARALLEL_PARKING := preload("res://scenarios/scenes/parallel_parking/parallel_parking.tscn")
 
 ## Lane centre and the stop junction's key positions along it (the car drives towards -Z).
 const LANE_X := 1.75
@@ -33,6 +37,8 @@ func _run() -> void:
 	await _test_session()
 	await _test_markings()
 	await _test_lines()
+	await _test_bay_parking()
+	await _test_parallel_parking()
 	print("\n%d passed, %d failed" % [_passed, _failed])
 	quit(1 if _failed > 0 else 0)
 
@@ -40,6 +46,8 @@ func _run() -> void:
 func _expect(condition: bool, what: String) -> void:
 	if condition:
 		_passed += 1
+		if OS.has_environment("TESTS_VERBOSE"):
+			print("ok: ", what)
 	else:
 		_failed += 1
 		printerr("FAIL: ", what)
@@ -216,7 +224,8 @@ func _at(z: float, x := LANE_X) -> Vector3:
 
 
 ## Legs of a drive: {to: Vector3, speed: m/s} moves in a straight line, facing the target, or
-## facing away from it with reverse = true; {wait: s} stays put; {indicator: Indicator} sets the
+## facing away from it with reverse = true, or keeping its heading with crab = true; {wait: s}
+## stays put; {turn: degrees} turns in place (positive is left); {indicator: Indicator} sets the
 ## probe's indicator. [param on_spawn] is called
 ## with the runner once the car is placed, and [param on_end] just before it is freed.
 func _drive(legs: Array, scenario: PackedScene = null, on_spawn := Callable(),
@@ -237,6 +246,10 @@ func _drive(legs: Array, scenario: PackedScene = null, on_spawn := Callable(),
 		if leg.has("indicator"):
 			VehicleProbe.of(car).indicator = leg.indicator
 			continue
+		if leg.has("turn"):
+			car.rotate_y(deg_to_rad(leg.turn))
+			await physics_frame
+			continue
 		if leg.has("wait"):
 			var waited := 0.0
 			while waited < leg.wait and session.is_running():
@@ -248,7 +261,7 @@ func _drive(legs: Array, scenario: PackedScene = null, on_spawn := Callable(),
 			var pos := car.global_position
 			var dir := target - pos
 			dir.y = 0.0
-			if dir.length() > 0.01:
+			if dir.length() > 0.01 and not leg.get("crab", false):
 				car.look_at(pos - dir if leg.get("reverse", false) else pos + dir, Vector3.UP)
 			car.global_position = pos.move_toward(target, leg.speed * dt)
 			await physics_frame
@@ -483,3 +496,86 @@ func _test_lines() -> void:
 		{to = Vector3(3.0, 0, -100), speed = 8.0}], LINES_FIXTURE)
 	_expect(r.faults.size() == 1 and r.has_fault(&"kerb_mounted"),
 		"crossing the kerb is one serious fault: " + r.summary())
+
+
+# --- Parking ---------------------------------------------------------------------------------------
+
+## The free bay of the bay parking scenario, entered from the aisle at x = 3.
+const FREE_BAY := Vector3(5.5, 0, -7.5)
+
+
+func _reverse_into(bay: Vector3) -> Array:
+	return [{to = Vector3(0, 0, bay.z), speed = 5.0}, {to = bay, speed = 2.0, reverse = true}]
+
+
+func _test_bay_parking() -> void:
+	var scene := BAY_PARKING.instantiate()
+	var into: Vector3 = -scene.get_node("Bays/Bay2").transform.basis.z
+	_expect(into.is_equal_approx(Vector3.RIGHT), "the car park's bays open onto the aisle")
+	scene.free()
+
+	var r := await _drive(_reverse_into(FREE_BAY) + [{wait = 3.0}], BAY_PARKING)
+	_expect(r.reason == &"completed" and r.passed and r.faults.is_empty(),
+		"reversing straight into a free bay is clean: " + r.summary())
+
+	r = await _drive(_reverse_into(Vector3(4.0, 0, -7.5)) + [{wait = 3.0}], BAY_PARKING)
+	_expect(r.reason == &"completed" and r.faults.size() == 1
+		and r.has_fault(&"parking_overhang_serious"),
+		"stopping half out of the bay is a serious overhang: " + r.summary())
+
+	r = await _drive(_reverse_into(FREE_BAY) + [{turn = 12.0}, {wait = 3.0}], BAY_PARKING)
+	_expect(r.reason == &"completed" and r.has_fault(&"parking_misaligned"),
+		"ending 12 degrees off is crooked: " + r.summary())
+
+	r = await _drive([
+		{to = Vector3(0, 0, -7.5), speed = 5.0}, {to = Vector3(2, 0, -7.5), speed = 2.0, reverse = true},
+		{to = Vector3(1, 0, -7.5), speed = 2.0}, {to = Vector3(3, 0, -7.5), speed = 2.0, reverse = true},
+		{to = Vector3(2, 0, -7.5), speed = 2.0}, {to = FREE_BAY, speed = 2.0, reverse = true},
+		{wait = 3.0}], BAY_PARKING)
+	_expect(r.reason == &"completed" and r.faults.size() == 1
+		and r.has_fault(&"parking_too_many_manoeuvres"),
+		"five direction changes is too many manoeuvres: " + r.summary())
+
+	r = await _drive([{wait = 50.0}] + _reverse_into(FREE_BAY) + [{wait = 3.0}], BAY_PARKING)
+	_expect(r.reason == &"completed" and r.faults.size() == 1 and r.has_fault(&"parking_too_slow"),
+		"taking longer than the limit is too slow: " + r.summary())
+
+	r = await _drive(_reverse_into(Vector3(5.5, 0, -12.5)) + [{wait = 6.0}], BAY_PARKING)
+	_expect(r.reason == &"aborted" and r.faults.size() == 1 and r.has_fault(&"parking_reserved"),
+		"the reserved bay is a fault and does not complete the step: " + r.summary())
+
+	r = await _drive([{to = Vector3(0, 0, -26), speed = 5.0}, {wait = 6.0}], BAY_PARKING)
+	_expect(r.faults.size() == 1 and r.has_fault(&"parking_illegal"),
+		"settling in the fire lane is illegal parking: " + r.summary())
+
+	r = await _drive([{to = Vector3(-2.0, 0, -15), speed = 5.0}, {wait = 6.0}], BAY_PARKING)
+	_expect(r.faults.size() == 1 and r.has_fault(&"parking_illegal"),
+		"settling on the yellow line is illegal parking: " + r.summary())
+
+	r = await _drive([{to = Vector3(0, 0, -15), speed = 5.0}, {wait = 3.0},
+		{to = Vector3(0, 0, -7.5), speed = 2.0, reverse = true},
+		{to = FREE_BAY, speed = 2.0, reverse = true}, {wait = 3.0}], BAY_PARKING)
+	_expect(r.reason == &"completed" and r.faults.is_empty(),
+		"a short stop in the aisle is neither parking nor a fault: " + r.summary())
+
+
+func _test_parallel_parking() -> void:
+	var gap := Vector3(4.65, 0, -21.25)
+	var r := await _drive([
+		{to = Vector3(1.75, 0, gap.z), speed = 6.0}, {to = gap, speed = 1.0, crab = true},
+		{wait = 3.0}], PARALLEL_PARKING)
+	_expect(r.reason == &"completed" and r.faults.is_empty(),
+		"parking in the gap by the kerb is clean: " + r.summary())
+
+	r = await _drive([
+		{to = Vector3(1.75, 0, gap.z), speed = 6.0}, {to = Vector3(3.9, 0, gap.z), speed = 1.0, crab = true},
+		{wait = 3.0}], PARALLEL_PARKING)
+	_expect(r.reason == &"completed" and r.faults.size() == 1
+		and r.has_fault(&"parking_overhang_serious"),
+		"stopping with half the car in the road is a serious overhang: " + r.summary())
+
+	r = await _drive([
+		{to = Vector3(1.75, 0, -8), speed = 6.0}, {to = Vector3(4.65, 0, -8), speed = 1.0, crab = true},
+		{wait = 6.0}], PARALLEL_PARKING)
+	_expect(r.faults.size() == 1 and r.has_fault(&"parking_illegal"),
+		"parking along the no-parking line is illegal: " + r.summary())

@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="FaultDef" format=3]
+
+[ext_resource type="Script" path="res://scenarios/data/fault_def.gd" id="1_fault"]
+
+[resource]
+script = ExtResource("1_fault")
+id = &"parking_illegal"
+title = "Parked where parking is not allowed"
+description = "The vehicle was parked in a no-parking area or on a no-parking line."
+tier = &"serious"

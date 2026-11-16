@@ -8,7 +8,7 @@ public-facing: the public documentation stays in `README.md` and `CLAUDE.md`. Th
 
 | Topic | Folder | Status |
 |---|---|---|
-| Scenario detection | `scenario-detection/` | Phases 1 and 2 of six built; five questions open |
+| Scenario detection | `scenario-detection/` | Phases 1 to 3 of six built; five questions open |
 
 ## Open flags for the author
 

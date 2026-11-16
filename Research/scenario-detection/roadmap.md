@@ -26,7 +26,7 @@ own branch). That is decided per phase, on order.
 - **Each new check gets scripted drives** in `tests/run_tests.gd`: one passing and one failing
   per rule.
 
-Status: phase 1 and phase 2 are built.
+Status: phases 1 to 3 are built.
 
 ## Phase 1: probe and engine upgrades (needed by everything below)
 
@@ -215,7 +215,7 @@ Deterministic timing, from triggers and a seed, keeps the scripted drives reprod
 ## Verification
 
 - Every phase adds scripted drives to the headless runner, a passing and a failing case per rule:
-  `godot --headless --path 'vr-project-[car-sim]' -s res://tests/run_tests.gd`. The import gate
+  `godot --headless --fixed-fps 60 --path 'vr-project-[car-sim]' -s res://tests/run_tests.gd`. The import gate
   passes too.
 - Each new scenario is also driven by hand (keyboard and gamepad, then a headset), and the printed
   `ScenarioResult` is compared with the expected faults.

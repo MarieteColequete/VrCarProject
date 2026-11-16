@@ -1,0 +1,224 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenarios/core/scenario.gd" id="scenario"]
+[ext_resource type="Script" path="res://scenarios/data/scenario_definition.gd" id="definition"]
+[ext_resource type="Resource" path="res://scenarios/data/default_policy.tres" id="policy"]
+[ext_resource type="PackedScene" path="res://scenarios/scenes/debug_car.tscn" id="car"]
+[ext_resource type="Script" path="res://scenarios/core/scenario_step.gd" id="step"]
+[ext_resource type="Script" path="res://scenarios/road/parking_bay.gd" id="bay"]
+[ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="marking"]
+[ext_resource type="Script" path="res://scenarios/road/no_parking_zone.gd" id="nopark"]
+[ext_resource type="Script" path="res://scenarios/checks/parking_check.gd" id="parking"]
+[ext_resource type="Script" path="res://scenarios/checks/parking_choice_check.gd" id="choice"]
+[ext_resource type="Script" path="res://scenarios/checks/contact_check.gd" id="contact"]
+[ext_resource type="Script" path="res://scenarios/checks/line_check.gd" id="lines"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/parking_overhang_minor.tres" id="f_parking_overhang_minor"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/parking_overhang_serious.tres" id="f_parking_overhang_serious"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/parking_misaligned.tres" id="f_parking_misaligned"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/parking_too_many_manoeuvres.tres" id="f_parking_too_many_manoeuvres"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/parking_too_slow.tres" id="f_parking_too_slow"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/parking_illegal.tres" id="f_parking_illegal"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/parking_reserved.tres" id="f_parking_reserved"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/parking_occupied.tres" id="f_parking_occupied"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/contact_obstacle.tres" id="f_contact_obstacle"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/contact_pedestrian.tres" id="f_contact_pedestrian"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/line_solid_crossed.tres" id="f_line_solid_crossed"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/no_indicator.tres" id="f_no_indicator"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/line_straddled.tres" id="f_line_straddled"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/kerb_mounted.tres" id="f_kerb_mounted"]
+
+[sub_resource type="Resource" id="Definition"]
+script = ExtResource("definition")
+title = "Parallel parking"
+briefing = "Drive along the street and park in the gap between the two parked cars, close to the kerb. The kerb before the cars has a no-parking line."
+time_limit = 120.0
+policy = ExtResource("policy")
+car_scene = ExtResource("car")
+
+[sub_resource type="BoxShape3D" id="Shape_ground"]
+size = Vector3(60, 0.2, 90)
+
+[sub_resource type="PlaneMesh" id="Mesh_ground"]
+size = Vector2(60, 90)
+
+[sub_resource type="StandardMaterial3D" id="Material_ground"]
+albedo_color = Color(0.3, 0.5, 0.25, 1)
+
+[sub_resource type="BoxMesh" id="Mesh_road"]
+size = Vector3(9.3, 0.02, 80)
+
+[sub_resource type="StandardMaterial3D" id="Material_asphalt"]
+albedo_color = Color(0.2, 0.2, 0.22, 1)
+
+[sub_resource type="BoxShape3D" id="Shape_parked"]
+size = Vector3(1.8, 1.4, 4.2)
+
+[sub_resource type="BoxMesh" id="Mesh_parked"]
+size = Vector3(1.8, 1.4, 4.2)
+
+[sub_resource type="StandardMaterial3D" id="Material_parked"]
+albedo_color = Color(0.7, 0.2, 0.15, 1)
+
+[sub_resource type="Environment" id="Environment_sky"]
+background_mode = 1
+background_color = Color(0.55, 0.7, 0.85, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.8, 0.8, 0.85, 1)
+ambient_light_energy = 0.6
+
+[sub_resource type="Curve3D" id="Curve_KerbRight"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 5.8, 0, 15, 0, 0, 0, 0, 0, 0, 5.8, 0, -60),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_KerbLeft"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -3.5, 0, 15, 0, 0, 0, 0, 0, 0, -3.5, 0, -60),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_CentreLine"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0, 0, 0, 0, 0, 0, -60),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_KerbNoParking"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 5.6, 0, -2, 0, 0, 0, 0, 0, 0, 5.6, 0, -12),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[node name="ParallelParking" type="Node3D" node_paths=PackedStringArray("spawn_point")]
+script = ExtResource("scenario")
+definition = SubResource("Definition")
+spawn_point = NodePath("SpawnPoint")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.8660254, -0.35355338, 0.35355338, 0, 0.70710677, 0.70710677, -0.5, -0.61237246, 0.61237246, 0, 20, 0)
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_sky")
+
+[node name="Ground" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -20)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
+shape = SubResource("Shape_ground")
+
+[node name="Grass" type="MeshInstance3D" parent="Ground"]
+mesh = SubResource("Mesh_ground")
+surface_material_override/0 = SubResource("Material_ground")
+
+[node name="Asphalt" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.15, 0.01, -20)
+mesh = SubResource("Mesh_road")
+surface_material_override/0 = SubResource("Material_asphalt")
+
+[node name="SpawnPoint" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 0)
+
+[node name="Steps" type="Node" parent="."]
+
+[node name="Park" type="Node" parent="Steps"]
+script = ExtResource("step")
+title = "Park in the gap"
+instruction = "Park in the gap between the two parked cars, parallel to the kerb."
+
+[node name="Bays" type="Node3D" parent="."]
+
+[node name="Bay1" type="Node3D" parent="Bays"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.65, 0, -21.25)
+script = ExtResource("bay")
+size = Vector2(2.3, 6.3)
+facing = 0
+reserved = false
+draw_edges = false
+
+[node name="ParkedCars" type="Node3D" parent="."]
+
+[node name="Parked1" type="StaticBody3D" parent="ParkedCars"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.65, 0.75, -16)
+collision_layer = 4
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ParkedCars/Parked1"]
+shape = SubResource("Shape_parked")
+
+[node name="Mesh" type="MeshInstance3D" parent="ParkedCars/Parked1"]
+mesh = SubResource("Mesh_parked")
+surface_material_override/0 = SubResource("Material_parked")
+
+[node name="Parked2" type="StaticBody3D" parent="ParkedCars"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.65, 0.75, -26.5)
+collision_layer = 4
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ParkedCars/Parked2"]
+shape = SubResource("Shape_parked")
+
+[node name="Mesh" type="MeshInstance3D" parent="ParkedCars/Parked2"]
+mesh = SubResource("Mesh_parked")
+surface_material_override/0 = SubResource("Material_parked")
+
+[node name="Markings" type="Node3D" parent="."]
+
+[node name="KerbRight" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_KerbRight")
+script = ExtResource("marking")
+kind = 8
+
+[node name="KerbLeft" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_KerbLeft")
+script = ExtResource("marking")
+kind = 8
+
+[node name="CentreLine" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_CentreLine")
+script = ExtResource("marking")
+kind = 1
+
+[node name="KerbNoParking" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_KerbNoParking")
+script = ExtResource("marking")
+kind = 7
+
+[node name="Checks" type="Node3D" parent="."]
+
+[node name="ParkingCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("step", "active_steps")]
+script = ExtResource("parking")
+step = NodePath("../../Steps/Park")
+active_steps = [NodePath("../../Steps/Park")]
+max_direction_changes = 3
+time_limit = 0.0
+overhang_minor_fault = ExtResource("f_parking_overhang_minor")
+overhang_serious_fault = ExtResource("f_parking_overhang_serious")
+misaligned_fault = ExtResource("f_parking_misaligned")
+manoeuvres_fault = ExtResource("f_parking_too_many_manoeuvres")
+too_slow_fault = ExtResource("f_parking_too_slow")
+
+[node name="ParkingChoiceCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("active_steps")]
+script = ExtResource("choice")
+active_steps = [NodePath("../../Steps/Park")]
+illegal_fault = ExtResource("f_parking_illegal")
+reserved_fault = ExtResource("f_parking_reserved")
+occupied_fault = ExtResource("f_parking_occupied")
+
+[node name="ContactCheck" type="Node3D" parent="Checks"]
+script = ExtResource("contact")
+obstacle_fault = ExtResource("f_contact_obstacle")
+pedestrian_fault = ExtResource("f_contact_pedestrian")
+
+[node name="LineCheck" type="Node3D" parent="Checks"]
+script = ExtResource("lines")
+solid_fault = ExtResource("f_line_solid_crossed")
+no_indicator_fault = ExtResource("f_no_indicator")
+straddle_fault = ExtResource("f_line_straddled")
+kerb_fault = ExtResource("f_kerb_mounted")
