@@ -16,6 +16,7 @@ const PARALLEL_PARKING := preload("res://scenarios/scenes/parallel_parking/paral
 const TRAFFIC_FIXTURE := preload("res://tests/fixtures/traffic_fixture.tscn")
 const TRAFFIC_LIGHTS := preload("res://scenarios/scenes/traffic_lights/traffic_lights.tscn")
 const PEDESTRIAN_CROSSING := preload("res://scenarios/scenes/pedestrian_crossing/pedestrian_crossing.tscn")
+const LANE_CHANGE := preload("res://scenarios/scenes/lane_change_overtake/lane_change_overtake.tscn")
 
 ## Lane centre and the stop junction's key positions along it (the car drives towards -Z).
 const LANE_X := 1.75
@@ -48,6 +49,7 @@ func _run() -> void:
 	await _test_traffic_drives()
 	await _test_traffic_lights()
 	await _test_pedestrian_crossing()
+	await _test_lane_change()
 	print("\n%d passed, %d failed" % [_passed, _failed])
 	quit(1 if _failed > 0 else 0)
 
@@ -235,7 +237,7 @@ func _at(z: float, x := LANE_X) -> Vector3:
 ## Legs of a drive: {to: Vector3, speed: m/s} moves in a straight line, facing the target, or
 ## facing away from it with reverse = true, or keeping its heading with crab = true; {wait: s}
 ## stays put; {turn: degrees} turns in place (positive is left); {indicator: Indicator} sets the
-## probe's indicator. [param on_spawn] is called
+## probe's indicator; {look: degrees} turns the driver's view to that angle (positive is left). [param on_spawn] is called
 ## with the runner once the car is placed, and [param on_end] just before it is freed.
 func _drive(legs: Array, scenario: PackedScene = null, on_spawn := Callable(),
 		on_end := Callable()) -> ScenarioResult:
@@ -254,6 +256,10 @@ func _drive(legs: Array, scenario: PackedScene = null, on_spawn := Callable(),
 	for leg: Dictionary in legs:
 		if leg.has("indicator"):
 			VehicleProbe.of(car).indicator = leg.indicator
+			continue
+		if leg.has("look"):
+			car.driver_view.reset_look()
+			car.driver_view.turn(deg_to_rad(leg.look), 0.0)
 			continue
 		if leg.has("turn"):
 			car.rotate_y(deg_to_rad(leg.turn))
@@ -812,3 +818,54 @@ func _test_pedestrian_crossing() -> void:
 		{to = Vector3(1.75, 0, -105), speed = 8.0}], PEDESTRIAN_CROSSING)
 	_expect(r.reason == &"completed" and r.faults.size() == 1 and r.has_fault(&"crossing_stopped_on"),
 		"stopping on the empty crossing is one minor fault: " + r.summary())
+
+
+# --- Exam scenarios: lane change and overtaking -----------------------------------------------------
+
+func _overtake(mirror := true, shoulder := true) -> Array:
+	var left := VehicleProbe.Indicator.LEFT
+	var right := VehicleProbe.Indicator.RIGHT
+	var legs: Array = [{indicator = left}, {to = Vector3(1.75, 0, 60), speed = 12.0}]
+	if mirror:
+		legs.append({look = 35.0})
+	legs.append({to = Vector3(1.75, 0, 52), speed = 12.0})
+	if shoulder:
+		legs.append({look = 110.0})
+	legs += [
+		{to = Vector3(1.75, 0, 50), speed = 12.0}, {look = 0.0},
+		{to = Vector3(-1.75, 0, 38), speed = 12.0}, {to = Vector3(-1.75, 0, 20), speed = 12.0},
+		{indicator = right}, {look = -35.0}, {to = Vector3(-1.75, 0, 14), speed = 12.0},
+		{look = -110.0}, {to = Vector3(-1.75, 0, 8), speed = 12.0}, {look = 0.0},
+		{to = Vector3(1.75, 0, -6), speed = 12.0}, {indicator = VehicleProbe.Indicator.OFF},
+		{to = Vector3(1.75, 0, -195), speed = 12.0}]
+	return legs
+
+
+func _test_lane_change() -> void:
+	var gaze := GazeCheck.new()
+	_expect(gaze.require_shoulder and gaze.mirror_angle < gaze.shoulder_angle,
+		"lane changes need a mirror look and a wider shoulder look by default")
+	gaze.free()
+
+	var r := await _drive([{to = Vector3(1.75, 0, -195), speed = 4.0}], LANE_CHANGE)
+	_expect(r.reason == &"completed" and r.faults.is_empty(),
+		"following the slow vehicle at a distance is clean: " + r.summary())
+
+	r = await _drive(_overtake(), LANE_CHANGE)
+	_expect(r.reason == &"completed" and r.faults.is_empty(),
+		"overtaking on the dashed line with mirror, shoulder, and indicator both ways is clean: "
+		+ r.summary())
+
+	r = await _drive(_overtake(false, true), LANE_CHANGE)
+	_expect(r.reason == &"completed" and r.faults.size() == 1 and r.has_fault(&"no_mirror_check"),
+		"pulling out without the mirror is one minor fault: " + r.summary())
+
+	r = await _drive(_overtake(true, false), LANE_CHANGE)
+	_expect(r.reason == &"completed" and r.faults.size() == 1 and r.has_fault(&"no_shoulder_check"),
+		"pulling out without the shoulder check is one minor fault: " + r.summary())
+
+	r = await _drive([
+		{to = Vector3(1.75, 0, 35.3), speed = 12.0}, {to = Vector3(1.75, 0, -4.7), speed = 4.0}],
+		LANE_CHANGE)
+	_expect(r.faults.size() == 1 and r.has_fault(&"following_too_close"),
+		"sitting 1.5 s behind the slow vehicle is following too closely: " + r.summary())

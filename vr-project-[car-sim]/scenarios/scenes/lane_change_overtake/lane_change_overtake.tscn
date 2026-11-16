@@ -1,0 +1,197 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenarios/core/scenario.gd" id="scenario"]
+[ext_resource type="Script" path="res://scenarios/data/scenario_definition.gd" id="definition"]
+[ext_resource type="Resource" path="res://scenarios/data/default_policy.tres" id="policy"]
+[ext_resource type="PackedScene" path="res://scenarios/scenes/debug_car.tscn" id="car"]
+[ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="marking"]
+[ext_resource type="Script" path="res://scenarios/traffic/scripted_agent.gd" id="agent"]
+[ext_resource type="Script" path="res://scenarios/checks/trigger_zone.gd" id="zone"]
+[ext_resource type="Script" path="res://scenarios/checks/line_check.gd" id="lines"]
+[ext_resource type="Script" path="res://scenarios/checks/gaze_check.gd" id="gaze"]
+[ext_resource type="Script" path="res://scenarios/checks/following_distance_check.gd" id="following"]
+[ext_resource type="Script" path="res://scenarios/checks/contact_check.gd" id="contact"]
+[ext_resource type="Script" path="res://scenarios/checks/goal_check.gd" id="goal"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/line_solid_crossed.tres" id="f_line_solid_crossed"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/no_indicator.tres" id="f_no_indicator"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/line_straddled.tres" id="f_line_straddled"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/kerb_mounted.tres" id="f_kerb_mounted"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/no_mirror_check.tres" id="f_no_mirror_check"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/no_shoulder_check.tres" id="f_no_shoulder_check"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/following_too_close.tres" id="f_following_too_close"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/contact_obstacle.tres" id="f_contact_obstacle"]
+[ext_resource type="Resource" path="res://scenarios/data/faults/contact_pedestrian.tres" id="f_contact_pedestrian"]
+
+[sub_resource type="Resource" id="Definition"]
+script = ExtResource("definition")
+title = "Lane change and overtaking"
+briefing = "A slow vehicle is ahead. Keep a safe distance, and overtake only where the centre line is dashed: check the mirror and over the shoulder, and indicate, before pulling out and before moving back in."
+time_limit = 120.0
+policy = ExtResource("policy")
+car_scene = ExtResource("car")
+
+[sub_resource type="Environment" id="Environment_sky"]
+background_mode = 1
+background_color = Color(0.55, 0.7, 0.85, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.8, 0.8, 0.85, 1)
+ambient_light_energy = 0.6
+
+[sub_resource type="BoxShape3D" id="Shape_ground"]
+size = Vector3(100, 0.2, 320)
+
+[sub_resource type="PlaneMesh" id="Mesh_ground"]
+size = Vector2(100, 320)
+
+[sub_resource type="StandardMaterial3D" id="Material_ground"]
+albedo_color = Color(0.3, 0.5, 0.25, 1)
+
+[sub_resource type="BoxMesh" id="Mesh_road"]
+size = Vector3(7, 0.02, 300)
+
+[sub_resource type="StandardMaterial3D" id="Material_asphalt"]
+albedo_color = Color(0.2, 0.2, 0.22, 1)
+
+[sub_resource type="BoxShape3D" id="Shape_goal"]
+size = Vector3(12, 3, 4)
+
+[sub_resource type="Curve3D" id="Curve_CentreDashed"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, 85, 0, 0, 0, 0, 0, 0, 0, 0, -60),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_CentreSolid"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, -60, 0, 0, 0, 0, 0, 0, 0, 0, -120),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_CentreDashedAfter"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, -120, 0, 0, 0, 0, 0, 0, 0, 0, -205),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_KerbRight"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 3.5, 0, 85, 0, 0, 0, 0, 0, 0, 3.5, 0, -205),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_KerbLeft"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -3.5, 0, 85, 0, 0, 0, 0, 0, 0, -3.5, 0, -205),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_Slow"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 1.75, 0, 40, 0, 0, 0, 0, 0, 0, 1.75, 0, -260),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[node name="LaneChangeOvertake" type="Node3D" node_paths=PackedStringArray("spawn_point")]
+script = ExtResource("scenario")
+definition = SubResource("Definition")
+spawn_point = NodePath("SpawnPoint")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.8660254, -0.35355338, 0.35355338, 0, 0.70710677, 0.70710677, -0.5, -0.61237246, 0.61237246, 0, 20, 0)
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_sky")
+
+[node name="Ground" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -60)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
+shape = SubResource("Shape_ground")
+
+[node name="Grass" type="MeshInstance3D" parent="Ground"]
+mesh = SubResource("Mesh_ground")
+surface_material_override/0 = SubResource("Material_ground")
+
+[node name="Road" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -60)
+mesh = SubResource("Mesh_road")
+surface_material_override/0 = SubResource("Material_asphalt")
+
+[node name="SpawnPoint" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 80)
+
+[node name="Markings" type="Node3D" parent="."]
+
+[node name="CentreDashed" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_CentreDashed")
+script = ExtResource("marking")
+kind = 1
+
+[node name="CentreSolid" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_CentreSolid")
+script = ExtResource("marking")
+kind = 0
+
+[node name="CentreDashedAfter" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_CentreDashedAfter")
+script = ExtResource("marking")
+kind = 1
+
+[node name="KerbRight" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_KerbRight")
+script = ExtResource("marking")
+kind = 8
+
+[node name="KerbLeft" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_KerbLeft")
+script = ExtResource("marking")
+kind = 8
+
+[node name="SlowPath" type="Path3D" parent="."]
+curve = SubResource("Curve_Slow")
+
+[node name="SlowVehicle" type="AnimatableBody3D" parent="." node_paths=PackedStringArray("path")]
+script = ExtResource("agent")
+path = NodePath("../SlowPath")
+speed = 4.0
+
+[node name="LineCheck" type="Node3D" parent="."]
+script = ExtResource("lines")
+solid_fault = ExtResource("f_line_solid_crossed")
+no_indicator_fault = ExtResource("f_no_indicator")
+straddle_fault = ExtResource("f_line_straddled")
+kerb_fault = ExtResource("f_kerb_mounted")
+
+[node name="GazeCheck" type="Node3D" parent="."]
+script = ExtResource("gaze")
+mirror_fault = ExtResource("f_no_mirror_check")
+shoulder_fault = ExtResource("f_no_shoulder_check")
+
+[node name="FollowingDistanceCheck" type="Node3D" parent="." node_paths=PackedStringArray("agents")]
+script = ExtResource("following")
+agents = [NodePath("../SlowVehicle")]
+fault = ExtResource("f_following_too_close")
+
+[node name="ContactCheck" type="Node3D" parent="."]
+script = ExtResource("contact")
+obstacle_fault = ExtResource("f_contact_obstacle")
+pedestrian_fault = ExtResource("f_contact_pedestrian")
+
+[node name="GoalCheck" type="Node3D" parent="." node_paths=PackedStringArray("zone")]
+script = ExtResource("goal")
+zone = NodePath("Zone")
+
+[node name="Zone" type="Area3D" parent="GoalCheck"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 1.5, -190)
+script = ExtResource("zone")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="GoalCheck/Zone"]
+shape = SubResource("Shape_goal")
