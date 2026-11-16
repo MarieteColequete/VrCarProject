@@ -1,2 +1,39 @@
 # VrCarProject
 
+A car driving simulator for virtual reality, built with Godot 4.7 and OpenXR, that turns the
+situations of the practical driving exam into scenarios driven in VR.
+
+## Scenarios
+
+A scenario is a scene under `vr-project-[car-sim]/scenarios/scenes/` whose root carries the
+`Scenario` script. It holds the world, a `Marker3D` spawn point, and the checks that judge the
+drive. Its `ScenarioDefinition` gives the title, the briefing, the time limit, the scoring policy,
+and the car scene to spawn.
+
+Checks are nodes placed in the scene, each watching one rule:
+
+| Check | Rule |
+|---|---|
+| `StopCheck` | A complete stop inside the approach zone before the line zone is entered |
+| `SpeedLimitCheck` | The speed limit over a zone, with a grace time and a serious margin |
+| `RouteCheck` | Staying in the lane of a `Path3D` centreline, on the road, and not against traffic |
+| `ContactCheck` | No contact with obstacles or pedestrians |
+| `GoalCheck` | Reaching the goal zone completes the attempt |
+
+Zones are `TriggerZone` areas with a collision shape drawn in the editor. Each fault a check reports
+is a `FaultDef` resource in `scenarios/data/faults/`, naming a severity tier. A `ScoringPolicy`
+resource defines the tiers, which of them eliminate at once, and how many faults of each an
+attempt may collect and still pass; `default_policy.tres` is a generic policy, and a particular
+exam is another policy file.
+
+The car only needs a `VehicleProbe` child, which derives speed and heading from the car's motion
+and reports contact. `ExamRunner` (`scenarios/scenes/exam_runner.tscn`) spawns a scenario and its
+car and runs an `ExamSession`. The session's signals (`briefing_started`, `started`,
+`fault_committed`, `finished`) and methods (`begin`, `abort`, `restart`) are the interface for the
+UI; `finished` carries a `ScenarioResult` with the outcome and every fault.
+
+The scenario tests run headless:
+
+```
+godot --headless --path 'vr-project-[car-sim]' -s res://tests/run_tests.gd
+```

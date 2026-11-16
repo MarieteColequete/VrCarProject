@@ -8,6 +8,7 @@ public-facing: the public documentation stays in `README.md` and `CLAUDE.md`. Th
 
 | Topic | Folder | Status |
 |---|---|---|
+| Scenario detection | `scenario-detection/` | Milestone 1 built; four questions open |
 
 ## Open flags for the author
 
@@ -16,3 +17,5 @@ public-facing: the public documentation stays in `README.md` and `CLAUDE.md`. Th
 - `.allowed_signers` lists one maintainer's key; the other contributors' keys and the signature
   check are not set up.
 - The main paper is planned; `CLAUDE.md` names it once it exists.
+- The `driving-mechanics` branch sets `renderer/rendering_method="mobile"`, against the Forward
+  Plus pin in `CLAUDE.md`.
