@@ -26,6 +26,8 @@ own branch). That is decided per phase, on order.
 - **Each new check gets scripted drives** in `tests/run_tests.gd`: one passing and one failing
   per rule.
 
+Status: phase 1 and phase 2 are built.
+
 ## Phase 1: probe and engine upgrades (needed by everything below)
 
 **`scenarios/core/vehicle_probe.gd`**

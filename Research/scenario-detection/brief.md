@@ -23,6 +23,7 @@ phased plan for markings, parking, traffic, and the exam scenarios is `roadmap.m
 |---|---|---|---|
 | Should the scenario tests join the stop gate? | Chain them after the import in `.claude/project.json`; keep them a manual command | how the gate runs a compound command | OPEN |
 | Road edge for `RouteCheck` | One symmetric offset from the lane centre (now); separate left and right edges per lane | multi-lane scenarios | OPEN |
+| `StopCheck` and `RouteCheck` on markings | Take the stop line and road edges from `RoadMarking`s instead of hand-drawn zones and offsets; keep both | the stop junction gaining painted markings | OPEN |
 | Gaze checks (mirrors, shoulder) | `XRCamera3D` forward inside a cone within a time window before a manoeuvre | the driving branch's indicators | OPEN |
 | A country preset | A second `ScoringPolicy` file with that exam's tiers and limits | choice of exam | OPEN |
 

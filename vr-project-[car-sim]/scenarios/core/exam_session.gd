@@ -17,6 +17,7 @@ enum State { IDLE, BRIEFING, RUNNING, FINISHED }
 
 var state := State.IDLE
 var definition: ScenarioDefinition
+var scenario: Scenario
 var probe: VehicleProbe
 var faults: Array[FaultRecord] = []
 var elapsed := 0.0
@@ -33,7 +34,8 @@ var _last_report := {}
 
 
 ## Binds a spawned scenario and its car, then shows the briefing.
-func setup(scenario: Scenario, p_probe: VehicleProbe) -> void:
+func setup(p_scenario: Scenario, p_probe: VehicleProbe) -> void:
+	scenario = p_scenario
 	definition = scenario.definition
 	probe = p_probe
 	faults.clear()

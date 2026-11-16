@@ -8,6 +8,7 @@ const RUNNER := preload("res://scenarios/scenes/exam_runner.tscn")
 const POLICY := preload("res://scenarios/data/default_policy.tres")
 const FAULTS := "res://scenarios/data/faults/%s.tres"
 const STEPS_FIXTURE := preload("res://tests/fixtures/steps_fixture.tscn")
+const LINES_FIXTURE := preload("res://tests/fixtures/lines_fixture.tscn")
 
 ## Lane centre and the stop junction's key positions along it (the car drives towards -Z).
 const LANE_X := 1.75
@@ -30,6 +31,8 @@ func _run() -> void:
 	await _test_drives()
 	await _test_probe()
 	await _test_session()
+	await _test_markings()
+	await _test_lines()
 	print("\n%d passed, %d failed" % [_passed, _failed])
 	quit(1 if _failed > 0 else 0)
 
@@ -213,7 +216,8 @@ func _at(z: float, x := LANE_X) -> Vector3:
 
 
 ## Legs of a drive: {to: Vector3, speed: m/s} moves in a straight line, facing the target, or
-## facing away from it with reverse = true; {wait: s} stays put. [param on_spawn] is called
+## facing away from it with reverse = true; {wait: s} stays put; {indicator: Indicator} sets the
+## probe's indicator. [param on_spawn] is called
 ## with the runner once the car is placed, and [param on_end] just before it is freed.
 func _drive(legs: Array, scenario: PackedScene = null, on_spawn := Callable(),
 		on_end := Callable()) -> ScenarioResult:
@@ -230,6 +234,9 @@ func _drive(legs: Array, scenario: PackedScene = null, on_spawn := Callable(),
 	var dt := 1.0 / Engine.physics_ticks_per_second
 	await physics_frame
 	for leg: Dictionary in legs:
+		if leg.has("indicator"):
+			VehicleProbe.of(car).indicator = leg.indicator
+			continue
 		if leg.has("wait"):
 			var waited := 0.0
 			while waited < leg.wait and session.is_running():
@@ -385,3 +392,94 @@ func _test_session() -> void:
 	b.free()
 	runner.queue_free()
 	await process_frame
+
+
+# --- Road markings and lines -----------------------------------------------------------------------
+
+func _marking(kind: RoadMarking.Kind, from: Vector3, to: Vector3) -> RoadMarking:
+	var marking := RoadMarking.new()
+	marking.kind = kind
+	marking.curve = Curve3D.new()
+	marking.curve.add_point(from)
+	marking.curve.add_point(to)
+	root.add_child(marking)
+	return marking
+
+
+func _vertex_count(marking: RoadMarking) -> int:
+	var mesh := marking.get_child(0, true) as MeshInstance3D
+	if mesh == null or mesh.mesh == null:
+		return 0
+	return mesh.mesh.surface_get_array_len(0)
+
+
+func _test_markings() -> void:
+	var solid := _marking(RoadMarking.Kind.SOLID, Vector3(0, 0, 0), Vector3(0, 0, -30))
+	var dashed := _marking(RoadMarking.Kind.DASHED, Vector3(5, 0, 0), Vector3(5, 0, -30))
+	await process_frame
+	_expect(_vertex_count(solid) > 0, "a solid line draws paint")
+	_expect(_vertex_count(dashed) > 0 and _vertex_count(dashed) < _vertex_count(solid) / 2,
+		"a dashed line draws a third of a solid one (3 m dash, 6 m gap)")
+
+	var index := MarkingIndex.new()
+	index.add(solid)
+	index.add(dashed)
+	var hits := index.crossings(Vector3(-1, 0, -10), Vector3(1, 0, -10))
+	_expect(hits.size() == 1 and hits[0].marking == solid
+		and (hits[0].normal as Vector3).is_equal_approx(Vector3.RIGHT),
+		"a point moving right across the solid line crosses it once, onto its right")
+	_expect(index.crossings(Vector3(-1, 0, -10), Vector3(-0.5, 0, -10)).is_empty(),
+		"a point short of the line does not cross it")
+	_expect(index.crossings(Vector3(4, 0, -12), Vector3(6, 0, -12)).size() == 1,
+		"a dashed line is crossed in its gaps too")
+	_expect(index.overlapping(Vector3(0.05, 0, -20)) == [solid]
+		and index.overlapping(Vector3(0.3, 0, -20)).is_empty(),
+		"a point within the paint is on the line, one beside it is not")
+	solid.free()
+	dashed.free()
+
+
+func _test_lines() -> void:
+	var left := VehicleProbe.Indicator.LEFT
+	var off := VehicleProbe.Indicator.OFF
+	var r := await _drive([{to = Vector3(1.75, 0, -100), speed = 8.0}], LINES_FIXTURE)
+	_expect(r.reason == &"completed" and r.faults.is_empty(), "keeping to the lane is clean: " + r.summary())
+
+	r = await _drive([
+		{indicator = left}, {to = Vector3(1.75, 0, -10), speed = 8.0},
+		{to = Vector3(-1.75, 0, -25), speed = 8.0}, {indicator = off},
+		{to = Vector3(-1.75, 0, -100), speed = 8.0}], LINES_FIXTURE)
+	_expect(r.reason == &"completed" and r.faults.is_empty(),
+		"crossing the dashed line while indicating left is clean: " + r.summary())
+
+	r = await _drive([
+		{to = Vector3(1.75, 0, -10), speed = 8.0}, {to = Vector3(-1.75, 0, -25), speed = 8.0},
+		{to = Vector3(-1.75, 0, -100), speed = 8.0}], LINES_FIXTURE)
+	_expect(r.reason == &"completed" and r.faults.size() == 1 and r.has_fault(&"no_indicator"),
+		"crossing the dashed line without indicating is one minor fault: " + r.summary())
+
+	r = await _drive([
+		{indicator = VehicleProbe.Indicator.RIGHT}, {to = Vector3(1.75, 0, -10), speed = 8.0},
+		{to = Vector3(-1.75, 0, -25), speed = 8.0}, {to = Vector3(-1.75, 0, -100), speed = 8.0}],
+		LINES_FIXTURE)
+	_expect(r.faults.size() == 1 and r.has_fault(&"no_indicator"),
+		"indicating the wrong way is no indication: " + r.summary())
+
+	r = await _drive([
+		{indicator = left}, {to = Vector3(1.75, 0, -50), speed = 8.0},
+		{to = Vector3(-1.75, 0, -65), speed = 8.0}, {to = Vector3(-1.75, 0, -100), speed = 8.0}],
+		LINES_FIXTURE)
+	_expect(r.faults.size() == 1 and r.has_fault(&"line_solid_crossed"),
+		"crossing the solid line is a serious fault even when indicating: " + r.summary())
+
+	r = await _drive([
+		{to = Vector3(0.85, 0, -30), speed = 8.0}, {to = Vector3(0.85, 0, -100), speed = 8.0}],
+		LINES_FIXTURE)
+	_expect(r.reason == &"completed" and r.faults.size() == 1 and r.has_fault(&"line_straddled"),
+		"riding on the centre line is one minor fault: " + r.summary())
+
+	r = await _drive([
+		{to = Vector3(1.75, 0, -10), speed = 8.0}, {to = Vector3(3.0, 0, -25), speed = 8.0},
+		{to = Vector3(3.0, 0, -100), speed = 8.0}], LINES_FIXTURE)
+	_expect(r.faults.size() == 1 and r.has_fault(&"kerb_mounted"),
+		"crossing the kerb is one serious fault: " + r.summary())

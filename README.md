@@ -39,10 +39,15 @@ Checks are nodes placed in the scene, each watching one rule:
 | `StopCheck` | A complete stop inside the approach zone before the line zone is entered |
 | `SpeedLimitCheck` | The speed limit over a zone, with a grace time and a serious margin |
 | `RouteCheck` | Staying in the lane of a `Path3D` centreline, on the road, and not against traffic |
+| `LineCheck` | Crossing a solid line, crossing a dashed line without indicating that way, riding on a line, mounting a kerb |
 | `ContactCheck` | No contact with obstacles or pedestrians |
 | `GoalCheck` | Reaching the goal zone completes the attempt |
 
-Zones are `TriggerZone` areas with a collision shape drawn in the editor. Each fault a check reports
+Zones are `TriggerZone` areas with a collision shape drawn in the editor. Road markings are
+`RoadMarking` paths (solid, dashed, double solid, stop and give way lines, zebra, bay edge,
+no-parking line, kerb): the curve draws the paint and is also what `LineCheck` judges, on the
+car's wheels rather than its centre. A scenario can run as ordered `ScenarioStep`s, each ended by
+its own `GoalCheck`, and a check can be limited to some steps. Each fault a check reports
 is a `FaultDef` resource in `scenarios/data/faults/`, naming a severity tier. A `ScoringPolicy`
 resource defines the tiers, which of them eliminate at once, and how many faults of each an
 attempt may collect and still pass; `default_policy.tres` is a generic policy, and a particular

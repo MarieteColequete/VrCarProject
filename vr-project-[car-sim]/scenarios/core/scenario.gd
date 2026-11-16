@@ -8,6 +8,20 @@ extends Node3D
 @export var spawn_point: Marker3D
 
 
+var _marking_index: MarkingIndex
+
+
+## The scene's road markings, indexed for detection; built on first use, since markings do not
+## move during an attempt.
+func marking_index() -> MarkingIndex:
+	if _marking_index == null:
+		_marking_index = MarkingIndex.new()
+		for node in _descendants(self):
+			if node is RoadMarking:
+				_marking_index.add(node)
+	return _marking_index
+
+
 ## Every [Check] in the scene, in tree order.
 func get_checks() -> Array[Check]:
 	var found: Array[Check] = []

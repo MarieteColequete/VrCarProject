@@ -69,6 +69,9 @@ var _last_moving := Direction.STOPPED
 var _wheels := PackedVector3Array()
 var _previous_wheels := PackedVector3Array()
 var _driver_view: DriverView
+var _clock := 0.0
+var _indicator_seen := Indicator.UNKNOWN
+var _indicator_since := 0.0
 
 
 ## The probe of a car body, or null.
@@ -118,6 +121,10 @@ func reset() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_clock += delta
+	if indicator != _indicator_seen:
+		_indicator_seen = indicator
+		_indicator_since = _clock
 	var pos := global_position
 	if _has_last and delta > 0.0:
 		velocity = (pos - _last_position) / delta
@@ -146,6 +153,11 @@ func _update_direction() -> void:
 		direction_changes += 1
 		direction_changed.emit(now)
 	_last_moving = now
+
+
+## Seconds the indicator has shown [param side] without a break; 0 when it shows something else.
+func indicator_held_for(side: Indicator) -> float:
+	return _clock - _indicator_since if indicator == side and _indicator_seen == side else 0.0
 
 
 ## The four body corners on the ground, world space: front left, front right, rear right, rear
