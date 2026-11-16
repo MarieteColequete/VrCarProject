@@ -14,6 +14,7 @@ const LINES_FIXTURE := preload("res://tests/fixtures/lines_fixture.tscn")
 const BAY_PARKING := preload("res://scenarios/scenes/bay_parking/bay_parking.tscn")
 const PARALLEL_PARKING := preload("res://scenarios/scenes/parallel_parking/parallel_parking.tscn")
 const TRAFFIC_FIXTURE := preload("res://tests/fixtures/traffic_fixture.tscn")
+const TRAFFIC_LIGHTS := preload("res://scenarios/scenes/traffic_lights/traffic_lights.tscn")
 
 ## Lane centre and the stop junction's key positions along it (the car drives towards -Z).
 const LANE_X := 1.75
@@ -44,6 +45,7 @@ func _run() -> void:
 	await _test_traffic_light()
 	await _test_spawner()
 	await _test_traffic_drives()
+	await _test_traffic_lights()
 	print("\n%d passed, %d failed" % [_passed, _failed])
 	quit(1 if _failed > 0 else 0)
 
@@ -762,3 +764,27 @@ func _test_traffic_drives() -> void:
 	r = await _drive([{to = Vector3(1.75, 0, -20), speed = 4.0}, {wait = 8.0}], TRAFFIC_FIXTURE)
 	_expect(r.has_fault(&"contact_pedestrian") and r.reason == &"eliminated",
 		"waiting on the pedestrian's path gets the car walked into: " + r.summary())
+
+
+# --- Exam scenarios: traffic lights ----------------------------------------------------------------
+
+func _test_traffic_lights() -> void:
+	var check := TrafficLightCheck.new()
+	_expect(is_equal_approx(check.stopping_distance(10.0), 10.0 * 0.75 + 100.0 / 8.0),
+		"stopping distance is reaction distance plus braking distance")
+	check.free()
+
+	var r := await _drive([
+		{to = Vector3(1.75, 0, 52), speed = 13.5}, {to = Vector3(1.75, 0, 2.7), speed = 8.0},
+		{wait = 12.0}, {to = Vector3(1.75, 0, -155), speed = 13.5}], TRAFFIC_LIGHTS)
+	_expect(r.reason == &"completed" and r.faults.is_empty(),
+		"stopping for the first light and going on amber at the second, too close to stop, is clean: "
+		+ r.summary())
+
+	r = await _drive([{to = Vector3(1.75, 0, -155), speed = 8.0}], TRAFFIC_LIGHTS)
+	_expect(r.reason == &"eliminated" and r.has_fault(&"red_light"),
+		"reaching the first line after it turned red is eliminating: " + r.summary())
+
+	r = await _drive([{to = Vector3(1.75, 0, -155), speed = 13.5}], TRAFFIC_LIGHTS)
+	_expect(r.reason == &"completed" and r.faults.size() == 1 and r.has_fault(&"amber_light"),
+		"crossing on an amber there was room to stop for is one serious fault: " + r.summary())
