@@ -58,6 +58,13 @@ resource defines the tiers, which of them eliminate at once, and how many faults
 attempt may collect and still pass; `default_policy.tres` is a generic policy, and a particular
 exam is another policy file.
 
+Other road users are scripted, so an attempt always plays out the same way. A `ScriptedAgent` is a
+car or a pedestrian following a `Path3D` at a set speed, starting after a delay or when the car
+enters a trigger zone, with an optional pause and loop; it reports how long it needs to reach any
+point of its path. A `TrafficLight` cycles on timers, or holds green until the car approaches and
+then changes, so a scenario can place the change at a chosen distance. An `AgentSpawner` fills
+parking bays with parked cars chosen from a seed: the same seed gives the same car park.
+
 The car only needs a `VehicleProbe` child, which derives speed and heading from the car's motion
 and reports contact. `ExamRunner` (`scenarios/scenes/exam_runner.tscn`) spawns a scenario and its
 car and runs an `ExamSession`. The session's signals (`briefing_started`, `started`,
