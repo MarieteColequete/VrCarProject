@@ -42,6 +42,7 @@ Checks are nodes placed in the scene, each watching one rule:
 | `LineCheck` | Crossing a solid line, crossing a dashed line without indicating that way, riding on a line, mounting a kerb |
 | `ParkingCheck` | Once settled in a `ParkingBay`: overhanging it, facing the wrong way, too many direction changes, taking too long |
 | `TrafficLightCheck` | Crossing the stop line on red, or on amber when the car could have stopped as it changed |
+| `CrossingCheck` | Driving onto a pedestrian crossing while someone is on it or about to cross, stopping on it |
 | `ParkingChoiceCheck` | Once settled: parking in a `NoParkingZone` or by a no-parking line, in a reserved bay, or in an occupied one |
 | `ContactCheck` | No contact with obstacles or pedestrians |
 | `GoalCheck` | Reaching the goal zone completes the attempt |

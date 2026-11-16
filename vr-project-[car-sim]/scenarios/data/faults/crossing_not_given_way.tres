@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="FaultDef" format=3]
+
+[ext_resource type="Script" path="res://scenarios/data/fault_def.gd" id="1_fault"]
+
+[resource]
+script = ExtResource("1_fault")
+id = &"crossing_not_given_way"
+title = "Did not give way at a pedestrian crossing"
+description = "The vehicle drove onto a pedestrian crossing while a pedestrian was on it or about to cross."
+tier = &"critical"

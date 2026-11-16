@@ -15,6 +15,7 @@ const BAY_PARKING := preload("res://scenarios/scenes/bay_parking/bay_parking.tsc
 const PARALLEL_PARKING := preload("res://scenarios/scenes/parallel_parking/parallel_parking.tscn")
 const TRAFFIC_FIXTURE := preload("res://tests/fixtures/traffic_fixture.tscn")
 const TRAFFIC_LIGHTS := preload("res://scenarios/scenes/traffic_lights/traffic_lights.tscn")
+const PEDESTRIAN_CROSSING := preload("res://scenarios/scenes/pedestrian_crossing/pedestrian_crossing.tscn")
 
 ## Lane centre and the stop junction's key positions along it (the car drives towards -Z).
 const LANE_X := 1.75
@@ -46,6 +47,7 @@ func _run() -> void:
 	await _test_spawner()
 	await _test_traffic_drives()
 	await _test_traffic_lights()
+	await _test_pedestrian_crossing()
 	print("\n%d passed, %d failed" % [_passed, _failed])
 	quit(1 if _failed > 0 else 0)
 
@@ -788,3 +790,25 @@ func _test_traffic_lights() -> void:
 	r = await _drive([{to = Vector3(1.75, 0, -155), speed = 13.5}], TRAFFIC_LIGHTS)
 	_expect(r.reason == &"completed" and r.faults.size() == 1 and r.has_fault(&"amber_light"),
 		"crossing on an amber there was room to stop for is one serious fault: " + r.summary())
+
+
+# --- Exam scenarios: pedestrian crossing -----------------------------------------------------------
+
+func _test_pedestrian_crossing() -> void:
+	var r := await _drive([
+		{to = Vector3(1.75, 0, 5), speed = 8.0}, {wait = 6.0},
+		{to = Vector3(1.75, 0, -105), speed = 8.0}], PEDESTRIAN_CROSSING)
+	_expect(r.reason == &"completed" and r.faults.is_empty(),
+		"waiting at the crossing until the pedestrian is over is clean: " + r.summary())
+
+	r = await _drive([{to = Vector3(1.75, 0, -105), speed = 8.0}], PEDESTRIAN_CROSSING)
+	_expect(r.reason == &"eliminated" and r.faults.size() == 1
+		and r.has_fault(&"crossing_not_given_way"),
+		"driving onto the crossing while the pedestrian is on it is eliminating: " + r.summary())
+
+	r = await _drive([
+		{to = Vector3(1.75, 0, 5), speed = 8.0}, {wait = 6.0},
+		{to = Vector3(1.75, 0, -60), speed = 8.0}, {wait = 3.0},
+		{to = Vector3(1.75, 0, -105), speed = 8.0}], PEDESTRIAN_CROSSING)
+	_expect(r.reason == &"completed" and r.faults.size() == 1 and r.has_fault(&"crossing_stopped_on"),
+		"stopping on the empty crossing is one minor fault: " + r.summary())
