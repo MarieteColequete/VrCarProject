@@ -1,6 +1,6 @@
 extends SceneTree
 ## Headless tests of the scenario framework. Run from the repository root:
-##   godot --headless --fixed-fps 60 --path 'vr-project-[car-sim]' -s res://tests/run_tests.gd
+##   godot --headless --xr-mode off --fixed-fps 60 --path 'vr-project-[car-sim]' -s res://tests/run_tests.gd
 ## Runs every [TestCase] in [code]res://tests/cases/[/code] whose file ends in
 ## [code]_test.gd[/code], in name order, and exits 0 when every test passes, 1 otherwise.
 ## TESTS_VERBOSE=1 also prints each pass; TESTS_FILTER=<text> runs only the cases whose file

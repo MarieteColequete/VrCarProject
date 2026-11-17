@@ -29,6 +29,27 @@ added or remapped there without code changes; car scripts read them through `Dri
 the view; otherwise the mouse and the right stick turn a flat camera within a seated driver's
 range, and its `look_direction()` is the same in both modes.
 
+## Virtual reality
+
+OpenXR is enabled in `project.godot`. With an OpenXR runtime active and a headset available, the
+game starts in the headset and `DriverView` follows the head; otherwise it starts flat, with no
+alert, and the mouse and right stick turn the view. `--xr-mode off` on the command line forces
+flat, for a machine whose active runtime would otherwise launch, such as SteamVR. The action map
+(`openxr_action_map.tres`) is Godot's stock map; the motion controllers are not bound to driving
+yet, so the car is driven with the keyboard, a gamepad, or a wheel.
+
+`tests/xr_check.gd` runs the busy junction with 200 extra road users through the active runtime,
+without `--headless`, and reports the frames that ran late:
+
+```
+godot --path 'vr-project-[car-sim]' -s res://tests/xr_check.gd
+```
+
+With the separate render thread, the process aborts at exit after an OpenXR session, a Godot bug
+(godotengine/godot issue 119000), so the check prints its verdict rather than relying on the exit
+code. `Research/scenario-detection/performance.md` describes running it against Monado's simulated
+headset.
+
 ## Threads
 
 The simulation is spread across cores. Rendering and the physics step run on threads of their own
@@ -38,7 +59,8 @@ the road users decide from it in parallel while the main thread drives the playe
 checks, steps physics and renders, and their decisions are applied in a fixed order at the start of
 the next tick. They react one tick after they see, and an attempt still plays out the same way each
 time. In a flat rendered run with 200 road users the frame time halves; the method and the numbers
-are in `Research/scenario-detection/performance.md`.
+are in `Research/scenario-detection/performance.md`. Under OpenXR the separate render thread aborts
+the process at exit (see Virtual reality).
 
 ## Scenarios
 
@@ -147,7 +169,7 @@ The scenario tests run headless, one case file per framework area and per scenar
 `tests/cases/`:
 
 ```
-godot --headless --fixed-fps 60 --path 'vr-project-[car-sim]' -s res://tests/run_tests.gd
+godot --headless --xr-mode off --fixed-fps 60 --path 'vr-project-[car-sim]' -s res://tests/run_tests.gd
 ```
 
 `TESTS_FILTER=<name>` runs only the cases whose file name contains it, and `TESTS_VERBOSE=1` prints

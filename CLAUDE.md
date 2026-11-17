@@ -33,8 +33,14 @@ Read the relevant document before working; do not duplicate their content here.
 - The simulation is spread across cores: physics steps and rendering run on threads of their own
   (`physics/3d/run_on_separate_thread`, `rendering/driver/threads/thread_model` in
   `project.godot`), and road users think on worker threads, applied in a fixed order so runs stay
-  reproducible. The threading is verified headless and in a flat rendered run, not yet in a
-  headset; `Research/scenario-detection/performance.md` has the method and the numbers.
+  reproducible. The threading is verified headless, in a flat rendered run, and through Monado,
+  an emulated OpenXR runtime, not yet in a real headset;
+  `Research/scenario-detection/performance.md` has the method and the numbers.
+- OpenXR is enabled with a flat fallback and no startup alert (`[xr]` in `project.godot`);
+  `DriverView` picks the headset or the flat camera.
+- The separate render thread stays on, by decision, although under OpenXR it aborts the process at
+  exit (Godot issue 119000, no script workaround) and shows no consistent gain at headset eye size;
+  reverting it alone is `rendering/driver/threads/thread_model=1`.
 
 ## Hosting
 
@@ -50,12 +56,18 @@ binary is on `PATH` as `godot`.
 
 ```
 godot --headless --path 'vr-project-[car-sim]' --import   import and scan the project, then quit (the stop gate)
-godot --headless --fixed-fps 60 --path 'vr-project-[car-sim]' -s res://tests/run_tests.gd
+godot --headless --xr-mode off --fixed-fps 60 --path 'vr-project-[car-sim]' -s res://tests/run_tests.gd
                                                           run the scenario tests (exit 1 on failure;
                                                           --fixed-fps 60 runs them faster than real time;
                                                           TESTS_FILTER=<name> runs matching cases only,
                                                           TESTS_FILTER=bench times the detection and
-                                                          traffic work)
+                                                          traffic work; --xr-mode off keeps an active
+                                                          OpenXR runtime out of headless runs)
+godot --path 'vr-project-[car-sim]' -s res://tests/xr_check.gd
+                                                          run the game through the active OpenXR runtime
+                                                          and report late frames (prints XR CHECK PASS
+                                                          or FAIL; the exit code is unreliable, see
+                                                          README "Virtual reality")
 godot --path 'vr-project-[car-sim]' --editor              open the project in the editor
 sh .claude/bin/preset status                              the branch, its commits, the version, and the hook
 ```
@@ -74,7 +86,8 @@ The project facts the preset rules refer to:
 - **Testing method**: the headless import check, and the headless scenario tests: the runner
   `vr-project-[car-sim]/tests/run_tests.gd` runs each case in `tests/cases/` (the framework, and
   scripted drives through each scenario) on the `TestCase` base in `tests/lib/`; both commands are
-  above. No separate testing document exists yet.
+  above. `tests/xr_check.gd` runs the game through an OpenXR runtime and is not a gate: it needs a
+  runtime and a GPU. No separate testing document exists yet.
 - **Main paper**: none yet; one is planned, and its path goes here once it exists.
 
 ## Compact instructions

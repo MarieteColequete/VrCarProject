@@ -22,7 +22,11 @@ public-facing: the public documentation stays in `README.md` and `CLAUDE.md`. Th
 - `car.gd` on `driving-mechanics` reads raw keys and has its own mouse look and `XROrigin3D`; on
   merge it reads `DriverInput` and carries a `DriverView` instead, so keyboard, gamepad, and VR
   share one set of bindings and one camera rig.
-- The separate render and physics threads (`project.godot`) are verified headless and in a flat
-  rendered run, not yet in a headset; `scenario-detection/performance.md` says how to revert them.
+- The separate render and physics threads (`project.godot`) are verified headless, in a flat
+  rendered run, and through Monado, an emulated OpenXR runtime, at 90 Hz and headset eye size;
+  not yet in a real headset. Under OpenXR the separate render thread aborts the process at exit
+  (Godot issue 119000, no script workaround) and shows no consistent gain at headset eye size;
+  the physics thread carries the gain. `scenario-detection/performance.md` has the numbers.
+- The motion controllers are not bound to driving; the action map is Godot's stock map.
 - The car control layout is still to be agreed; a wheel's full-range steering axis and pedals may
   need actions of their own.

@@ -146,3 +146,9 @@ toggle_debug_hud={
 
 driver/threads/thread_model=2
 rendering_device/driver.windows="d3d12"
+
+[xr]
+
+openxr/enabled=true
+openxr/startup_alert=false
+shaders/enabled=true
