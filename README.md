@@ -45,6 +45,8 @@ Checks are nodes placed in the scene, each watching one rule:
 | `CrossingCheck` | Driving onto a pedestrian crossing while someone is on it or about to cross, stopping on it |
 | `GazeCheck` | Changing lanes (or moving off) without first looking in the mirror and over the shoulder on that side |
 | `FollowingDistanceCheck` | Staying under a two second time gap behind a road user in the same lane |
+| `YieldCheck` | Entering a conflict zone while a road user with priority is in it or due within a safe gap, and waiting too long when the way is clear |
+| `JunctionCheck` | Leaving a junction by a `JunctionExit` the route does not take, or turning without indicating that way |
 | `ParkingChoiceCheck` | Once settled: parking in a `NoParkingZone` or by a no-parking line, in a reserved bay, or in an occupied one |
 | `ContactCheck` | No contact with obstacles or pedestrians |
 | `GoalCheck` | Reaching the goal zone completes the attempt |

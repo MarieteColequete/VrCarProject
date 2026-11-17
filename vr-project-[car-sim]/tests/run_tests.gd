@@ -17,6 +17,7 @@ const TRAFFIC_FIXTURE := preload("res://tests/fixtures/traffic_fixture.tscn")
 const TRAFFIC_LIGHTS := preload("res://scenarios/scenes/traffic_lights/traffic_lights.tscn")
 const PEDESTRIAN_CROSSING := preload("res://scenarios/scenes/pedestrian_crossing/pedestrian_crossing.tscn")
 const LANE_CHANGE := preload("res://scenarios/scenes/lane_change_overtake/lane_change_overtake.tscn")
+const GIVE_WAY := preload("res://scenarios/scenes/give_way_junction/give_way_junction.tscn")
 
 ## Lane centre and the stop junction's key positions along it (the car drives towards -Z).
 const LANE_X := 1.75
@@ -50,6 +51,7 @@ func _run() -> void:
 	await _test_traffic_lights()
 	await _test_pedestrian_crossing()
 	await _test_lane_change()
+	await _test_give_way()
 	print("\n%d passed, %d failed" % [_passed, _failed])
 	quit(1 if _failed > 0 else 0)
 
@@ -869,3 +871,45 @@ func _test_lane_change() -> void:
 		LANE_CHANGE)
 	_expect(r.faults.size() == 1 and r.has_fault(&"following_too_close"),
 		"sitting 1.5 s behind the slow vehicle is following too closely: " + r.summary())
+
+
+# --- Exam scenarios: give way junction --------------------------------------------------------------
+
+## Stops at the give way line, waits, turns right onto the main road, and drives to the goal.
+func _turn_right(wait: float, indicate := true) -> Array:
+	var legs: Array = []
+	if indicate:
+		legs.append({indicator = VehicleProbe.Indicator.RIGHT})
+	legs += [{to = Vector3(1.75, 0, 3.0), speed = 8.0}]
+	if wait > 0.0:
+		legs.append({wait = wait})
+	legs += [
+		{to = Vector3(2.6, 0, -0.8), speed = 4.0}, {to = Vector3(8, 0, -1.75), speed = 6.0},
+		{to = Vector3(45, 0, -1.75), speed = 8.0}]
+	return legs
+
+
+func _test_give_way() -> void:
+	var r := await _drive(_turn_right(8.5), GIVE_WAY)
+	_expect(r.reason == &"completed" and r.faults.is_empty(),
+		"waiting for the gap after the stream and turning right while indicating is clean: "
+		+ r.summary())
+
+	r = await _drive(_turn_right(0.0), GIVE_WAY)
+	_expect(r.reason == &"eliminated" and r.has_fault(&"failed_to_give_way"),
+		"pulling out two seconds ahead of a car on the main road is eliminating: " + r.summary())
+
+	r = await _drive(_turn_right(22.0), GIVE_WAY)
+	_expect(r.reason == &"completed" and r.faults.size() == 1 and r.has_fault(&"undue_hesitation"),
+		"waiting long after the road is clear is one minor fault: " + r.summary())
+
+	r = await _drive(_turn_right(8.5, false), GIVE_WAY)
+	_expect(r.reason == &"completed" and r.faults.size() == 1 and r.has_fault(&"no_indicator_turn"),
+		"turning without indicating is one minor fault: " + r.summary())
+
+	r = await _drive([
+		{indicator = VehicleProbe.Indicator.LEFT}, {to = Vector3(1.75, 0, 3.0), speed = 8.0},
+		{wait = 8.5}, {to = Vector3(1.0, 0, -3.0), speed = 4.0},
+		{to = Vector3(-4, 0, -5.25), speed = 4.0}, {to = Vector3(-12, 0, -5.25), speed = 6.0}], GIVE_WAY)
+	_expect(r.faults.size() == 1 and r.has_fault(&"wrong_turn"),
+		"turning left when the route goes right is a wrong turn: " + r.summary())
