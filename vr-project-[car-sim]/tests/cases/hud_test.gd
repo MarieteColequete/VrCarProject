@@ -1,6 +1,7 @@
 extends TestCase
-## The debug HUD and sandbox: the exam bindings, the briefing, beginning, the fault feed, the
-## result, moving to the next scenario, and the result as plain data for a UI.
+## The debug HUD and sandbox: the exam bindings, the briefing, beginning, the fault feed, road user
+## reactions, the performance readout, the result, moving to the next scenario, and the result as
+## plain data for a UI.
 
 const SANDBOX := preload("res://scenarios/debug/scenario_sandbox.tscn")
 const EXAM_ACTIONS: Array[StringName] = [
@@ -73,6 +74,9 @@ func _test_sandbox() -> void:
 		if line.text.contains("Follower stopped"):
 			reaction_shown = true
 	expect(reaction_shown, "the feed shows how other road users react")
+	expect(hud.performance_label.text.contains("traffic")
+		and hud.performance_label.text.contains("road users"),
+		"the readout shows the traffic system's share of the frame: %s" % hud.performance_label.text)
 
 	session.abort()
 	expect(hud.message_panel.visible and hud.message_label.text.contains("FAILED")

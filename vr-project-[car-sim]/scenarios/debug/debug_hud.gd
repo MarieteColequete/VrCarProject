@@ -1,8 +1,8 @@
 class_name DebugHud
 extends CanvasLayer
 ## A flat overlay for trying scenarios while building them: the briefing, the current step, the
-## time against the limit, faults as they are committed, how other road users react, and the
-## result. It only listens to the [ExamRunner], its [ExamSession], and the scenario's
+## time against the limit, faults as they are committed, how other road users react, a
+## performance readout, and the result. It only listens to the [ExamRunner], its [ExamSession], and the scenario's
 ## [ScriptedAgent]s, so it also shows how a UI uses them. Keys: exam_begin
 ## starts the attempt after the briefing, exam_restart restarts it, exam_next_scenario moves to
 ## the next scenario of the [ScenarioCatalogue], and toggle_debug_hud hides the overlay; the hints
@@ -27,6 +27,9 @@ const BUTTON_NAMES := {JOY_BUTTON_A: "A", JOY_BUTTON_B: "B", JOY_BUTTON_X: "X", 
 var title_label: Label
 var step_label: Label
 var time_label: Label
+## Where the frame's time goes: the frame, physics, and the traffic system's share of the main
+## thread, with the road users it runs.
+var performance_label: Label
 var feed: VBoxContainer
 var message_panel: PanelContainer
 var message_label: Label
@@ -56,6 +59,7 @@ func _process(_delta: float) -> void:
 	var limit := session.definition.time_limit
 	time_label.text = "%.1f s" % session.elapsed if limit <= 0.0 \
 		else "%.1f / %.0f s" % [session.elapsed, limit]
+	performance_label.text = _performance_text()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -93,6 +97,22 @@ static func binding_text(action: StringName) -> String:
 		elif event is InputEventJoypadButton:
 			names.append(BUTTON_NAMES.get(event.button_index, "Button %d" % event.button_index))
 	return " or ".join(names) if not names.is_empty() else String(action)
+
+
+## The main thread's process time, the physics process time, and the traffic system's main thread
+## time (snapshot and applying) and any wait for its threads, in milliseconds.
+func _performance_text() -> String:
+	var text := "main %.1f ms  physics %.1f ms" % [
+		Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
+		Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0]
+	var root := get_tree().root
+	if root.has_meta(TrafficSystem.META_KEY):
+		var system: TrafficSystem = root.get_meta(TrafficSystem.META_KEY)
+		if is_instance_valid(system) and system.count() > 0:
+			text += "  traffic %.2f ms, waiting %.2f ms, road users %d" % [
+				(system.think_usec + system.commit_usec - system.wait_usec) / 1000.0,
+				system.wait_usec / 1000.0, system.count()]
+	return text
 
 
 func _on_briefing(definition: ScenarioDefinition) -> void:
@@ -196,12 +216,14 @@ func _build() -> void:
 	title_label.add_theme_font_size_override(&"font_size", 20)
 	step_label = Label.new()
 	time_label = Label.new()
+	performance_label = Label.new()
+	performance_label.modulate = Color(1, 1, 1, 0.6)
 	feed = VBoxContainer.new()
 	var keys := Label.new()
 	keys.text = "%s begin   %s restart   %s next   %s hide" % [_first_key(&"exam_begin"),
 		_first_key(&"exam_restart"), _first_key(&"exam_next_scenario"), _first_key(&"toggle_debug_hud")]
 	keys.modulate = Color(1, 1, 1, 0.6)
-	for node: Control in [title_label, step_label, time_label, feed, keys]:
+	for node: Control in [title_label, step_label, time_label, performance_label, feed, keys]:
 		column.add_child(node)
 
 	message_panel = PanelContainer.new()

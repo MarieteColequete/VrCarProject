@@ -7,6 +7,11 @@ extends AnimatableBody3D
 ## pause once along the way, and loop. While nothing is in its way the agent moves exactly as
 ## scripted, so the same script always plays out the same way.
 ##
+## The agent's tick is run by the scene's [TrafficSystem]: it thinks on a worker thread from a
+## [TrafficSnapshot] of the last tick ([method think]), and its decision is applied on the main
+## thread in a fixed order ([method commit]), so traffic runs alongside the player's car and stays
+## reproducible.
+##
 ## With [member reactive] on, a [TrafficSensor] looks ahead along the path every tick. When
 ## something in the way forces it (the player's car, another road user, a pedestrian, an
 ## obstacle), the agent slows or stops by the Intelligent Driver Model, then accelerates back to
@@ -90,7 +95,6 @@ var reaction: StringName = &""
 ## What its sensor saw ahead this tick, or null.
 var leader: TrafficSensor.Leader
 
-var _sensor: TrafficSensor
 var _braking_hard := false
 var _upcoming: TrafficLane
 var _rng := RandomNumberGenerator.new()
@@ -107,6 +111,22 @@ var _clock := 0.0
 var _paused_for := 0.0
 var _paused_this_lap := false
 var _length := 0.0
+var _system: TrafficSystem
+# Where the agent stands, kept by the main thread so thinking need not ask the node.
+var _origin := Vector3.ZERO
+
+# The decision of the last think, applied by commit.
+var _d_speed := 0.0
+var _d_kind: StringName = &""
+var _d_leader: TrafficSensor.Leader
+var _d_braking_hard := false
+var _d_committed := false
+var _d_rule_gap := INF
+var _d_blocked_for := 0.0
+# Neighbour lanes found clear; untyped, as a worker thread cannot check a node's script.
+var _d_sides: Array = []
+var _d_events: Array = []
+var _d_ready := false
 
 
 func _ready() -> void:
@@ -120,7 +140,6 @@ func _ready() -> void:
 		add_to_group(Layers.GROUP_PEDESTRIAN)
 	if not _has_shape():
 		BoxBody.build(self, body_size, colour)
-	_sensor = TrafficSensor.new(self, body_size)
 	if path and path.curve:
 		_length = path.curve.get_baked_length()
 	_rng.seed = route_seed
@@ -132,6 +151,14 @@ func _ready() -> void:
 	# placement made here and leave a waiting agent standing at the world origin.
 	sync_to_physics = false
 	_place(0.0)
+	set_physics_process(false)
+	_system = TrafficSystem.of(self)
+	_system.add(self)
+
+
+func _exit_tree() -> void:
+	if _system and is_instance_valid(_system):
+		_system.remove(self)
 
 
 ## Seconds until the agent reaches [param offset] along its path at its speed, counting the
@@ -155,8 +182,8 @@ func time_to(offset: float) -> float:
 	return wait + remaining / maxf(script_speed(), 0.001)
 
 
-## Seconds until the agent reaches the point of its route nearest [param point], world space: on
-## its current path, or on the lane it continues onto; INF when its route does not pass within a
+## Seconds until the agent reaches the point of its lane_route nearest [param point], world space: on
+## its current path, or on the lane it continues onto; INF when its lane_route does not pass within a
 ## few metres of it.
 func time_to_point(point: Vector3) -> float:
 	if path == null:
@@ -180,7 +207,92 @@ func script_speed() -> float:
 	return minf(speed, _limit_of(path as TrafficLane))
 
 
-func _physics_process(delta: float) -> void:
+## The paths this agent may read while thinking: its own, the one it continues onto, and its
+## lane's neighbours; the [TrafficSystem] copies them into the snapshot.
+func paths_in_use() -> Array[Path3D]:
+	var out: Array[Path3D] = [path, _upcoming]
+	var lane := path as TrafficLane
+	if lane:
+		out.append(lane.left)
+		out.append(lane.right)
+	return out
+
+
+## Decides this tick's speed and reactions from [param snapshot], the last committed tick. Runs on
+## a worker thread: it reads only the agent's own committed state and the snapshot, and writes only
+## the pending decision, which [method commit] applies.
+func think(snapshot: TrafficSnapshot, delta: float) -> void:
+	_d_ready = false
+	_d_events = []
+	_d_sides = []
+	if state != State.MOVING or not reactive:
+		return
+	var lane_route := snapshot.route(path)
+	if lane_route == null:
+		return
+	var target := minf(speed, lane_route.speed_limit)
+	var ahead := TrafficSensor.sense(snapshot, _ahead(snapshot, lane_route, target), body_size.x * 0.45,
+		self)
+	_d_committed = _committed
+	_d_rule_gap = INF
+	var rule := _rule_kind(lane_route)
+	if not rule.is_empty():
+		var stop := TrafficSensor.Leader.new()
+		stop.gap = _d_rule_gap
+		if ahead == null or stop.gap < ahead.gap:
+			ahead = stop
+		else:
+			rule = &""
+	var v := current_speed
+	var accel := max_accel if v < target else 0.0
+	var kind: StringName = &""
+	# Once reacting, the model keeps control until the agent is back at its scripted speed with
+	# nothing holding it back, so it neither creeps up on a leader nor lets go too early.
+	if ahead and (not reaction.is_empty() or _forced(ahead, v)):
+		var model := _idm(v, ahead, target)
+		if not reaction.is_empty() and v >= target - 0.01 and model >= 0.0:
+			model = 0.0
+		else:
+			accel = model
+			kind = &"stopped" if v + accel * delta < 0.3 else &"following"
+			if not rule.is_empty():
+				kind = rule
+	var needed := _needed_decel(v, ahead) if ahead and ahead.body else 0.0
+	_d_braking_hard = _braking_hard
+	if needed > hard_brake and not _braking_hard:
+		_d_braking_hard = true
+		_d_events.append([&"forced_to_brake", ahead.body, needed])
+	elif needed <= hard_brake:
+		_d_braking_hard = false
+	var next := clampf(v + accel * delta, 0.0, target)
+	if ahead and (ahead.gap <= 0.05 or (v + accel * delta < 0.3 and not kind.is_empty()
+			and kind != &"following" and absf(ahead.speed) < 0.1)):
+		# Behind something standing still the agent stands still too, rather than creeping up at
+		# the model's crawl, and it never moves into what it already touches.
+		next = 0.0
+		if kind.is_empty() or kind == &"following":
+			kind = &"stopped"
+	if kind != reaction:
+		_d_events.append([&"reacted", &"resumed" if kind.is_empty() else kind,
+			ahead.body if ahead else null])
+	_d_speed = next
+	_d_kind = kind
+	_d_leader = ahead
+	# Changing lanes: which neighbours are clear now; commit checks the markings.
+	var blocker: Node3D = ahead.body if ahead else null
+	var blocked := kind == &"stopped" and blocker != null and not ahead.road_user
+	_d_blocked_for = _blocked_for + delta if blocked else 0.0
+	if _d_blocked_for >= patience and maxf(_shift_left - delta, 0.0) <= 0.0 and lane_route.lane:
+		for side in [lane_route.left, lane_route.right]:
+			var other := snapshot.route(side)
+			if other and _neighbour_clear(snapshot, other, target):
+				_d_sides.append(side)
+	_d_ready = true
+
+
+## Applies the decision of the last [method think] and moves the agent: the script's timers,
+## its progress along the path, lane changes, and its signals. Main thread, in a fixed order.
+func commit(delta: float) -> void:
 	match state:
 		State.WAITING:
 			if not _armed:
@@ -195,7 +307,28 @@ func _physics_process(delta: float) -> void:
 			if _paused_for >= pause_time:
 				state = State.MOVING
 		State.MOVING:
-			_advance(_drive(delta) * delta)
+			if not reactive or not _d_ready:
+				current_speed = script_speed()
+				_advance(current_speed * delta)
+				return
+			current_speed = _d_speed
+			leader = _d_leader
+			_braking_hard = _d_braking_hard
+			_committed = _d_committed
+			_blocked_for = _d_blocked_for
+			reaction = _d_kind
+			for event: Array in _d_events:
+				if event[0] == &"forced_to_brake":
+					forced_to_brake.emit(event[1], event[2])
+				else:
+					reacted.emit(event[1], event[2])
+			_shift_left = maxf(_shift_left - delta, 0.0)
+			for side: TrafficLane in _d_sides:
+				if _markings_allow(side):
+					_move_to(side, leader.body if leader else null)
+					break
+			_d_ready = false
+			_advance(current_speed * delta)
 
 
 ## The agent's facing on the ground, the direction it moves in.
@@ -226,89 +359,33 @@ func offset_nearest(point: Vector3) -> float:
 	return path.curve.get_closest_offset(path.to_local(point))
 
 
-## This tick's speed: the script's, unless what is ahead forces a reaction.
-func _drive(delta: float) -> float:
-	var target := script_speed()
-	if not reactive or _sensor == null:
-		current_speed = target
-		return current_speed
-	leader = _sensor.sense(get_world_3d().direct_space_state, _ahead())
-	var rule := _rule_kind()
-	if not rule.is_empty():
-		var stop := TrafficSensor.Leader.new()
-		stop.gap = _rule_gap
-		if leader == null or stop.gap < leader.gap:
-			leader = stop
-		else:
-			rule = &""
-	var v := current_speed
-	var accel := max_accel if v < target else 0.0
-	var kind: StringName = &""
-	# Once reacting, the model keeps control until the agent is back at its scripted speed with
-	# nothing holding it back, so it neither creeps up on a leader nor lets go too early.
-	if leader and (not reaction.is_empty() or _forced(leader, v)):
-		var model := _idm(v, leader)
-		if not reaction.is_empty() and v >= target - 0.01 and model >= 0.0:
-			model = 0.0
-		else:
-			accel = model
-			kind = &"stopped" if v + accel * delta < 0.3 else &"following"
-			if not rule.is_empty():
-				kind = rule
-	var needed := _needed_decel(v, leader) if leader and leader.body else 0.0
-	if needed > hard_brake and not _braking_hard:
-		_braking_hard = true
-		forced_to_brake.emit(leader.body, needed)
-	elif needed <= hard_brake:
-		_braking_hard = false
-	current_speed = clampf(v + accel * delta, 0.0, target)
-	if leader and (leader.gap <= 0.05 or (v + accel * delta < 0.3 and not kind.is_empty()
-			and kind != &"following" and absf(leader.speed) < 0.1)):
-		# Behind something standing still the agent stands still too, rather than creeping up at
-		# the model's crawl, and it never moves into what it already touches.
-		current_speed = 0.0
-		if kind.is_empty() or kind == &"following":
-			kind = &"stopped"
-	if kind != reaction:
-		reaction = kind
-		reacted.emit(&"resumed" if kind.is_empty() else kind, leader.body if leader else null)
-	_shift_left = maxf(_shift_left - delta, 0.0)
-	_consider_lane_change(delta)
-	return current_speed
-
-
-## Changes lanes when stuck behind something that is not traffic for longer than the patience.
-func _consider_lane_change(delta: float) -> void:
-	var blocker: Node3D = leader.body if leader else null
-	var blocked := reaction == &"stopped" and blocker != null and not blocker is ScriptedAgent
-	_blocked_for = _blocked_for + delta if blocked else 0.0
-	var lane := path as TrafficLane
-	if _blocked_for < patience or _shift_left > 0.0 or lane == null:
-		return
-	for side in [lane.left, lane.right]:
-		if side and _can_move_to(side):
-			_move_to(side, blocker)
-			return
-
-
-## Whether [param target] can be moved into now: no solid line or kerb lies on the way across,
-## and nothing is on the target lane from a little behind the agent to its look-ahead.
-func _can_move_to(target: TrafficLane) -> bool:
-	var at := target.project(global_position).x
-	var root := _scenario()
-	if root:
-		var across := target.point_at(at + body_size.z)
-		for hit in root.marking_index().crossings(global_position, across):
-			var kind := hit.marking.kind
-			if kind == RoadMarking.Kind.SOLID or kind == RoadMarking.Kind.DOUBLE_SOLID \
-					or kind == RoadMarking.Kind.KERB:
-				return false
+## Whether [param lane_route], a neighbour lane, is clear from a little behind the agent to its
+## look-ahead.
+func _neighbour_clear(snapshot: TrafficSnapshot, lane_route: TrafficSnapshot.Route,
+		target: float) -> bool:
+	var at := lane_route.project(_origin).x
 	var behind := 15.0
-	var reach := behind + script_speed() * 3.0 + 5.0 + body_size.z
+	var reach := behind + target * 3.0 + 5.0 + body_size.z
 	var points := PackedVector3Array()
 	for i in TrafficSensor.SEGMENTS + 1:
-		points.append(target.point_at(at - behind + reach * i / TrafficSensor.SEGMENTS))
-	return _sensor.sense(get_world_3d().direct_space_state, points) == null
+		points.append(lane_route.point_at(at - behind + reach * i / TrafficSensor.SEGMENTS))
+	return TrafficSensor.sense(snapshot, points, body_size.x * 0.45, self) == null
+
+
+## Whether the scenario's markings let the agent move across into [param target]: no solid line
+## or kerb lies on the way. Main thread.
+func _markings_allow(target: TrafficLane) -> bool:
+	var root := _scenario()
+	if root == null:
+		return true
+	var at := target.project(global_position).x
+	var across := target.point_at(at + body_size.z)
+	for hit in root.marking_index().crossings(global_position, across):
+		var kind := hit.marking.kind
+		if kind == RoadMarking.Kind.SOLID or kind == RoadMarking.Kind.DOUBLE_SOLID \
+				or kind == RoadMarking.Kind.KERB:
+			return false
+	return true
 
 
 func _move_to(target: TrafficLane, blocker: Node3D) -> void:
@@ -355,22 +432,30 @@ func _needed_decel(v: float, ahead: TrafficSensor.Leader) -> float:
 
 
 ## The Intelligent Driver Model's acceleration behind [param ahead], towards the scripted speed.
-func _idm(v: float, ahead: TrafficSensor.Leader) -> float:
+func _idm(v: float, ahead: TrafficSensor.Leader, target: float) -> float:
 	var closing := v - ahead.speed
 	var wanted := min_gap + maxf(0.0, v * time_headway
 		+ v * closing / (2.0 * sqrt(max_accel * comfort_decel)))
 	var gap := maxf(ahead.gap, 0.05)
-	var free := 1.0 - pow(v / maxf(script_speed(), 0.1), 4.0)
+	var free := 1.0 - pow(v / maxf(target, 0.1), 4.0)
 	return maxf(max_accel * (free - (wanted / gap) * (wanted / gap)), -max_decel)
 
 
-## The path ahead of the agent's front, as the sensor sweeps it.
-func _ahead() -> PackedVector3Array:
+## The path ahead of the agent's front, as the sensor sweeps it, from the snapshot's routes.
+func _ahead(snapshot: TrafficSnapshot, lane_route: TrafficSnapshot.Route,
+		target: float) -> PackedVector3Array:
 	var points := PackedVector3Array()
 	var front := progress + body_size.z * 0.5
-	var look := script_speed() * 3.0 + 5.0
+	var look := target * 3.0 + 5.0
+	var next := snapshot.route(_upcoming) if _upcoming else null
 	for i in TrafficSensor.SEGMENTS + 1:
-		points.append(path_point(front + look * i / TrafficSensor.SEGMENTS))
+		var offset := front + look * i / TrafficSensor.SEGMENTS
+		if offset > lane_route.length and next:
+			points.append(next.point_at(offset - lane_route.length))
+		else:
+			if loop and lane_route.length > 0.0:
+				offset = fposmod(offset, lane_route.length)
+			points.append(lane_route.point_at(offset))
 	return points
 
 
@@ -396,40 +481,36 @@ func _advance(step: float) -> void:
 	_place(progress)
 
 
-var _rule_gap := INF
-
-
 ## The lane rule holding the agent back now, as a reaction kind, with its stop line's gap in
-## [member _rule_gap]; empty when no rule applies.
-func _rule_kind() -> StringName:
-	var lane := path as TrafficLane
-	if lane == null:
+## the pending decision; empty when no rule applies. Reads the rules the snapshot evaluated.
+func _rule_kind(lane_route: TrafficSnapshot.Route) -> StringName:
+	if lane_route.lane == null:
 		return &""
 	var front := progress + body_size.z * 0.5
 	# The model keeps min_gap to a leader; a stop line is kept at about a metre instead.
 	var slack := min_gap - 1.0
-	for stop in lane.crossing_stops():
-		var gap := stop - front
-		if gap > -0.5 and lane.crossing_in_use(stop):
-			_rule_gap = gap + slack
+	for i in lane_route.crossing_stops.size():
+		var gap := lane_route.crossing_stops[i] - front
+		if gap > -0.5 and lane_route.crossing_busy[i]:
+			_d_rule_gap = gap + slack
 			return &"yielding"
-	var gap := lane.stop_at() - front
-	if gap < -0.5 or _committed:
+	var gap := lane_route.stop_at - front
+	if gap < -0.5 or _d_committed:
 		return &""
 	var v := current_speed
-	if lane.light and (lane.light.is_red() or lane.light.state == TrafficLight.Light.AMBER):
+	if lane_route.has_light and (lane_route.light_red or lane_route.light_amber):
 		# Stop only where stopping is still possible; past that point, go through.
 		if gap >= v * v / (2.0 * max_decel) or v < 0.5:
-			_rule_gap = gap + slack
+			_d_rule_gap = gap + slack
 			return &"waiting_light"
-		_committed = true
+		_d_committed = true
 		return &""
-	if not lane.give_way_to.is_empty():
-		if not lane.way_is_clear():
-			_rule_gap = gap + slack
+	if lane_route.has_give_way:
+		if not lane_route.way_clear:
+			_d_rule_gap = gap + slack
 			return &"yielding"
 		if gap < 1.5:
-			_committed = true
+			_d_committed = true
 	return &""
 
 
@@ -473,6 +554,7 @@ func _place(offset: float) -> void:
 	if tangent.length() > 0.001:
 		facing = Basis.looking_at(tangent.normalized(), Vector3.UP)
 	global_transform = Transform3D(facing, here)
+	_origin = here
 
 
 func _has_shape() -> bool:

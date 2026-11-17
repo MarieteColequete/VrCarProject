@@ -26,7 +26,7 @@ own branch). That is decided per phase, on order.
 - **Each new check gets scripted drives** in a case under `tests/cases/`: one passing and one
   failing per rule.
 
-Status: phases 1 to 7 are built.
+Status: phases 1 to 7 are built, and the multicore run after them.
 
 ## Phase 1: probe and engine upgrades (needed by everything below)
 
@@ -201,6 +201,15 @@ Road users are dual: a script plays by the book until it is forced to react.
 - `TrafficConflictCheck` (in the base scene) makes forcing a road user to brake hard a fault.
 - `TrafficSource` gives seeded flows; the `busy_junction` scenario puts all of it on one road.
 - Determinism: the same drive meets the same reactions (asserted on the busy junction).
+
+## Multicore run
+
+- Road users think on worker threads: a `TrafficSystem` takes a `TrafficSnapshot` each physics
+  tick, they decide from it in parallel through the `WorkerThreadPool`, pipelined across ticks,
+  and the decisions are applied in a fixed order, so runs stay reproducible.
+- Sensing is geometric, against the snapshot, with no physics queries from threads.
+- Physics steps and rendering run on their own threads (`project.godot`).
+- Method and numbers: `performance.md`.
 
 ## Authoring and tooling, alongside the phases
 

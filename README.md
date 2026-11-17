@@ -29,6 +29,17 @@ added or remapped there without code changes; car scripts read them through `Dri
 the view; otherwise the mouse and the right stick turn a flat camera within a seated driver's
 range, and its `look_direction()` is the same in both modes.
 
+## Threads
+
+The simulation is spread across cores. Rendering and the physics step run on threads of their own
+(`project.godot`), and Jolt spreads the simulation over its own workers. Road users think on worker
+threads: the scene's `TrafficSystem` copies the world into a `TrafficSnapshot` each physics tick,
+the road users decide from it in parallel while the main thread drives the player's car, runs the
+checks, steps physics and renders, and their decisions are applied in a fixed order at the start of
+the next tick. They react one tick after they see, and an attempt still plays out the same way each
+time. In a flat rendered run with 200 road users the frame time halves; the method and the numbers
+are in `Research/scenario-detection/performance.md`.
+
 ## Scenarios
 
 A scenario is a scene under `vr-project-[car-sim]/scenarios/scenes/<name>/` that inherits
@@ -83,8 +94,8 @@ enters a trigger zone, with an optional pause and loop; it reports how long it n
 point of its path. While its way is clear it moves exactly as scripted, so an attempt plays out the
 same way each time. A `TrafficSensor` sweeps the path ahead every tick, and when something is in
 the way (the player's car, another road user, a pedestrian, an obstacle) the agent slows or stops
-by the Intelligent Driver Model, then returns to its script. It reports each change through its
-`reacted` signal, and braking harder than its `hard_brake` through `forced_to_brake`; a pedestrian
+by the Intelligent Driver Model, then returns to its script; road users think on worker threads
+(see Threads). The agent reports each change through its `reacted` signal, and braking harder than its `hard_brake` through `forced_to_brake`; a pedestrian
 waits for a car standing on its way.
 
 Roads are described for road users by `TrafficLane` paths, each along a lane's centre in the
@@ -113,7 +124,8 @@ count against the policy's limit.
 
 `scenarios/debug/scenario_sandbox.tscn` runs any catalogued scenario with the `DebugHud`, a flat
 overlay showing the briefing, the current step, the time against the limit, faults as they are
-committed, how other road users react, and the result. It runs from the editor. The HUD only
+committed, how other road users react, the frame and physics times with the traffic system's share
+of the main thread, and the result. It runs from the editor. The HUD only
 listens to the runner, the session, and the road users' signals, so it is also a working example
 of a UI on them; it hides itself in a headset.
 

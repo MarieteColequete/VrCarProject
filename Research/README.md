@@ -8,7 +8,7 @@ public-facing: the public documentation stays in `README.md` and `CLAUDE.md`. Th
 
 | Topic | Folder | Status |
 |---|---|---|
-| Scenario detection | `scenario-detection/` | Phases 1 to 4 of six built; five questions open |
+| Scenario detection | `scenario-detection/` | Phases 1 to 7 built, and the multicore run (`performance.md`) |
 
 ## Open flags for the author
 
@@ -22,5 +22,7 @@ public-facing: the public documentation stays in `README.md` and `CLAUDE.md`. Th
 - `car.gd` on `driving-mechanics` reads raw keys and has its own mouse look and `XROrigin3D`; on
   merge it reads `DriverInput` and carries a `DriverView` instead, so keyboard, gamepad, and VR
   share one set of bindings and one camera rig.
+- The separate render and physics threads (`project.godot`) are verified headless and in a flat
+  rendered run, not yet in a headset; `scenario-detection/performance.md` says how to revert them.
 - The car control layout is still to be agreed; a wheel's full-range steering axis and pedals may
   need actions of their own.

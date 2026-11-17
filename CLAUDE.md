@@ -30,6 +30,11 @@ Read the relevant document before working; do not duplicate their content here.
   not tracked.
 - The project stays on Godot 4.7 with the Forward Plus renderer; an engine or renderer change is a
   decision of its own.
+- The simulation is spread across cores: physics steps and rendering run on threads of their own
+  (`physics/3d/run_on_separate_thread`, `rendering/driver/threads/thread_model` in
+  `project.godot`), and road users think on worker threads, applied in a fixed order so runs stay
+  reproducible. The threading is verified headless and in a flat rendered run, not yet in a
+  headset; `Research/scenario-detection/performance.md` has the method and the numbers.
 
 ## Hosting
 
@@ -49,7 +54,8 @@ godot --headless --fixed-fps 60 --path 'vr-project-[car-sim]' -s res://tests/run
                                                           run the scenario tests (exit 1 on failure;
                                                           --fixed-fps 60 runs them faster than real time;
                                                           TESTS_FILTER=<name> runs matching cases only,
-                                                          TESTS_FILTER=bench times the detection work)
+                                                          TESTS_FILTER=bench times the detection and
+                                                          traffic work)
 godot --path 'vr-project-[car-sim]' --editor              open the project in the editor
 sh .claude/bin/preset status                              the branch, its commits, the version, and the hook
 ```

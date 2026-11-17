@@ -1,6 +1,7 @@
 extends TestCase
 ## Throughput of the per-tick detection work: marking crossings and overlaps for 40,000 wheel
-## moves over 40 lines, and 10,000 probe footprints. Runs only with TESTS_FILTER=bench and prints
+## moves over 40 lines, 10,000 probe footprints, and the traffic system's main thread cost with
+## 200 road users, thinking inline and in parallel. Runs only with TESTS_FILTER=bench and prints
 ## its timings; the counts it asserts keep the work from being optimised away unnoticed.
 
 
@@ -51,33 +52,71 @@ func run() -> void:
 	print("bench: 10000 footprints in %.1f ms" % [(Time.get_ticks_usec() - start) / 1000.0])
 	expect(probe.wheels().size() == 4, "the probe gives four wheels")
 
-	var paths: Array[Path3D] = []
-	var agents: Array[ScriptedAgent] = []
-	for i in 20:
-		var path := Path3D.new()
-		path.curve = Curve3D.new()
-		path.curve.add_point(Vector3(-40 + i * 4.0, 0, 100))
-		path.curve.add_point(Vector3(-40 + i * 4.0, 0, -100))
-		root.add_child(path)
-		paths.append(path)
-		var agent := ScriptedAgent.new()
-		agent.path = path
-		agent.speed = 10.0
-		root.add_child(agent)
-		agents.append(agent)
-	await physics_frame
-	var space := runner.car.get_world_3d().direct_space_state
-	start = Time.get_ticks_usec()
-	var ticks := 200
-	var seen := 0
-	for t in ticks:
-		for agent in agents:
-			if agent._sensor.sense(space, agent._ahead()):
-				seen += 1
-	var per_tick := (Time.get_ticks_usec() - start) / 1000.0 / ticks
-	print("bench: 20 agents sense in %.3f ms per tick" % per_tick)
-	expect(per_tick < 1.0, "20 agents sense in under a millisecond per tick (%.3f ms)" % per_tick)
-	for node: Node in agents + paths:
-		node.free()
 	runner.queue_free()
 	await process_frame
+	await _bench_traffic()
+
+
+## The traffic system's cost on the main thread with 200 reactive road users: ten looping lanes
+## of 20 cars, each lane with a cycling light so queues form and clear, timed after a warm-up that
+## spreads them out. Thinking in parallel and inline are compared; the headless run has no frame
+## to overlap the thinking with, so the time the main thread waits for it is reported apart.
+func _bench_traffic() -> void:
+	for parallel in [false, true]:
+		var t := await _traffic_times(200, parallel)
+		print(("bench: 200 road users, %s: snapshot %.3f ms, apply %.3f ms, waiting %.3f ms, "
+			+ "physics tick %.3f ms") % ["parallel" if parallel else "inline", t[0], t[1], t[2], t[3]])
+		expect(t[3] > 0.0, "the traffic benchmark measured its ticks (%s)"
+			% ("parallel" if parallel else "inline"))
+
+
+## Mean milliseconds per tick: taking the snapshot (and thinking, when inline), applying the
+## decisions, waiting for threads, and the whole physics process.
+func _traffic_times(count: int, parallel: bool) -> PackedFloat64Array:
+	var runner := spawn_runner()
+	runner.car.input_enabled = false
+	await process_frame
+	var nodes: Array[Node] = [runner]
+	var system: TrafficSystem
+	for l in 10:
+		var x := 40.0 + l * 4.0
+		var light := TrafficLight.new()
+		light.red_time = 6.0 + l * 0.3
+		light.green_time = 8.0
+		light.draw_lamps = false
+		root.add_child(light)
+		nodes.append(light)
+		var lane := TrafficLane.new()
+		lane.curve = Curve3D.new()
+		lane.curve.add_point(Vector3(x, 0, 200))
+		lane.curve.add_point(Vector3(x, 0, -200))
+		lane.light = light
+		lane.stop_offset = 200.0
+		root.add_child(lane)
+		nodes.append(lane)
+		for i in count / 10:
+			var agent := ScriptedAgent.new()
+			agent.path = lane
+			agent.speed = 10.0 + (i % 3)
+			agent.loop = true
+			agent.start_delay = i * 1.6
+			root.add_child(agent)
+			nodes.append(agent)
+			system = TrafficSystem.of(agent)
+	system.parallel = parallel
+	await frames(40 * 60)
+	var sums := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
+	var ticks := 600
+	for t in ticks:
+		await physics_frame
+		sums[0] += system.think_usec / 1000.0
+		sums[1] += (system.commit_usec - system.wait_usec) / 1000.0
+		sums[2] += system.wait_usec / 1000.0
+		sums[3] += Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0
+	system.parallel = true
+	for node in nodes:
+		node.queue_free()
+	await process_frame
+	for i in 4:
+		sums[i] /= ticks
+	return sums
