@@ -57,6 +57,23 @@ func _test_sandbox() -> void:
 	await physics_frame
 	expect(hud.time_label.text.contains("/ 90"), "the time shows against the limit")
 
+	var lane := Path3D.new()
+	lane.curve = Curve3D.new()
+	lane.curve.add_point(at(70.0))
+	lane.curve.add_point(at(-40.0))
+	runner.scenario.add_child(lane)
+	var follower := ScriptedAgent.new()
+	follower.name = "Follower"
+	follower.path = lane
+	follower.speed = 8.0
+	runner.scenario.add_child(follower)
+	await frames(600)
+	var reaction_shown := false
+	for line: Label in hud.feed.get_children():
+		if line.text.contains("Follower stopped"):
+			reaction_shown = true
+	expect(reaction_shown, "the feed shows how other road users react")
+
 	session.abort()
 	expect(hud.message_panel.visible and hud.message_label.text.contains("FAILED")
 		and hud.message_label.text.contains("Minor"), "the result shows the outcome and the tiers")

@@ -1,8 +1,9 @@
 class_name DebugHud
 extends CanvasLayer
 ## A flat overlay for trying scenarios while building them: the briefing, the current step, the
-## time against the limit, faults as they are committed, and the result. It only listens to the
-## [ExamRunner] and its [ExamSession], so it also shows how a UI uses them. Keys: exam_begin
+## time against the limit, faults as they are committed, how other road users react, and the
+## result. It only listens to the [ExamRunner], its [ExamSession], and the scenario's
+## [ScriptedAgent]s, so it also shows how a UI uses them. Keys: exam_begin
 ## starts the attempt after the briefing, exam_restart restarts it, exam_next_scenario moves to
 ## the next scenario of the [ScenarioCatalogue], and toggle_debug_hud hides the overlay; the hints
 ## it shows are read from the input map, so they follow any rebinding. It hides itself while a
@@ -10,8 +11,9 @@ extends CanvasLayer
 
 const TIER_COLOURS := {&"critical": Color(1.0, 0.35, 0.3), &"serious": Color(1.0, 0.65, 0.2),
 	&"minor": Color(1.0, 0.9, 0.4)}
-## How many recent faults the feed keeps.
+## How many recent lines the feed keeps.
 const FEED_LENGTH := 8
+const REACTION_COLOUR := Color(0.75, 0.75, 0.75)
 const BUTTON_NAMES := {JOY_BUTTON_A: "A", JOY_BUTTON_B: "B", JOY_BUTTON_X: "X", JOY_BUTTON_Y: "Y",
 	JOY_BUTTON_BACK: "Back", JOY_BUTTON_START: "Start", JOY_BUTTON_LEFT_STICK: "Left stick click",
 	JOY_BUTTON_RIGHT_STICK: "Right stick click", JOY_BUTTON_LEFT_SHOULDER: "LB",
@@ -41,7 +43,8 @@ func _ready() -> void:
 	session.step_changed.connect(_on_step)
 	session.fault_committed.connect(_on_fault)
 	session.finished.connect(_on_finished)
-	runner.scenario_loaded.connect(func(_s: Scenario, _c: Node3D) -> void: _clear_feed())
+	runner.scenario_loaded.connect(_on_scenario_loaded)
+	get_tree().node_added.connect(_on_node_added)
 
 
 func _process(_delta: float) -> void:
@@ -108,9 +111,46 @@ func _on_step(step: ScenarioStep) -> void:
 
 
 func _on_fault(fault: FaultRecord) -> void:
+	_add_line("%.1f s  %s" % [fault.time, fault.def.title],
+		TIER_COLOURS.get(fault.def.tier, Color.WHITE))
+
+
+func _on_scenario_loaded(scenario: Scenario, _car: Node3D) -> void:
+	_clear_feed()
+	for node in scenario.find_children("*", "", true, false):
+		if node is ScriptedAgent:
+			_watch_agent(node)
+
+
+func _on_node_added(node: Node) -> void:
+	if node is ScriptedAgent and runner and runner.scenario and runner.scenario.is_ancestor_of(node):
+		_watch_agent(node)
+
+
+func _watch_agent(agent: ScriptedAgent) -> void:
+	if agent.reacted.is_connected(_on_reacted.bind(agent)):
+		return
+	agent.reacted.connect(_on_reacted.bind(agent))
+	agent.forced_to_brake.connect(_on_forced.bind(agent))
+
+
+func _on_reacted(kind: StringName, cause: Node3D, agent: ScriptedAgent) -> void:
+	if kind == &"resumed" or runner.session.state != ExamSession.State.RUNNING:
+		return
+	var what := String(kind).replace("_", " ")
+	_add_line("%.1f s  %s %s%s" % [runner.session.elapsed, agent.name, what,
+		" for %s" % cause.name if cause else ""], REACTION_COLOUR)
+
+
+func _on_forced(_cause: Node3D, deceleration: float, agent: ScriptedAgent) -> void:
+	_add_line("%.1f s  %s braked hard (%.1f m/s²)" % [runner.session.elapsed, agent.name,
+		deceleration], REACTION_COLOUR)
+
+
+func _add_line(text: String, colour: Color) -> void:
 	var line := Label.new()
-	line.text = "%.1f s  %s" % [fault.time, fault.def.title]
-	line.add_theme_color_override(&"font_color", TIER_COLOURS.get(fault.def.tier, Color.WHITE))
+	line.text = text
+	line.add_theme_color_override(&"font_color", colour)
 	feed.add_child(line)
 	while feed.get_child_count() > FEED_LENGTH:
 		var oldest := feed.get_child(0)

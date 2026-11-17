@@ -34,7 +34,8 @@ range, and its `look_direction()` is the same in both modes.
 A scenario is a scene under `vr-project-[car-sim]/scenarios/scenes/<name>/` that inherits
 `scenarios/kit/scenario_base.tscn`. The base gives the `Scenario` root, the shared
 `RoadEnvironment` (daylight, sky, and a grass ground sized per scenario), a `SpawnPoint`, a
-`Markings` node, and a `Checks` node already holding `ContactCheck` and `LineCheck`. The scenario
+`Markings` node, and a `Checks` node already holding `ContactCheck`, `LineCheck`, and
+`TrafficConflictCheck`. The scenario
 adds its roads, markings, other road users, zones, and checks. Scenarios are laid out with the car
 driving towards -Z in the right-hand lane, centred on x = 1.75.
 
@@ -60,6 +61,7 @@ Checks are nodes placed in the scene, each watching one rule:
 | `JunctionCheck` | Leaving a junction or roundabout by a `JunctionExit` the route does not take, or without indicating that way, read on approach or, at a roundabout, on leaving |
 | `ParkingChoiceCheck` | Once settled: parking in a `NoParkingZone` or by a no-parking line, in a reserved bay, or in an occupied one |
 | `ContactCheck` | No contact with obstacles or pedestrians |
+| `TrafficConflictCheck` | Getting in another road user's way so that it has to brake hard |
 | `GoalCheck` | Reaching the goal zone completes the attempt |
 
 Zones are `TriggerZone` areas with a collision shape drawn in the editor. Road markings are
@@ -105,9 +107,9 @@ count against the policy's limit.
 
 `scenarios/debug/scenario_sandbox.tscn` runs any catalogued scenario with the `DebugHud`, a flat
 overlay showing the briefing, the current step, the time against the limit, faults as they are
-committed, and the result. It runs from the editor. The HUD only
-listens to the runner and the session, so it is also a working example of a UI on them; it hides
-itself in a headset.
+committed, how other road users react, and the result. It runs from the editor. The HUD only
+listens to the runner, the session, and the road users' signals, so it is also a working example
+of a UI on them; it hides itself in a headset.
 
 ### Building a scenario
 
