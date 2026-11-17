@@ -5,9 +5,10 @@ situations of the practical driving exam into scenarios driven in VR.
 
 ## Controls
 
-The simulator is built for a headset and a driving wheel, and it also plays flat on a monitor with a
-keyboard and mouse or a gamepad. Bindings are input actions in `project.godot`, so a device is
-added or remapped there without code changes; car scripts read them through `DriverInput`.
+The simulator is VR only, built for a headset and a driving wheel, on PC VR and standalone headsets.
+For development it also runs flat on a monitor with a keyboard and mouse or a gamepad. Bindings are
+input actions in `project.godot`, so a device is added or remapped there without code changes; car
+scripts read them through `DriverInput`.
 
 | Action | Keyboard and mouse | Gamepad |
 |---|---|---|
@@ -31,12 +32,19 @@ range, and its `look_direction()` is the same in both modes.
 
 ## Virtual reality
 
-OpenXR is enabled in `project.godot`. With an OpenXR runtime active and a headset available, the
-game starts in the headset and `DriverView` follows the head; otherwise it starts flat, with no
-alert, and the mouse and right stick turn the view. `--xr-mode off` on the command line forces
-flat, for a machine whose active runtime would otherwise launch, such as SteamVR. The action map
-(`openxr_action_map.tres`) is Godot's stock map; the motion controllers are not bound to driving
-yet, so the car is driven with the keyboard, a gamepad, or a wheel.
+OpenXR is enabled in `project.godot`, with the Mobile renderer, which Godot recommends for XR and
+which standalone headsets require. With an OpenXR runtime active and a headset available, the game
+starts in the headset and `DriverView` follows the head; otherwise it starts flat for development,
+with no alert, and the mouse and right stick turn the view. `--xr-mode off` on the command line
+forces flat, for a machine whose active runtime would otherwise launch, such as SteamVR. Closing
+the application from the headset's menu quits the game. The action map (`openxr_action_map.tres`)
+is Godot's stock map; the motion controllers are not bound to driving yet, so the car is driven
+with the keyboard, a gamepad, or a wheel.
+
+The world ticks at a fixed 60 Hz whatever the headset's refresh rate (commonly 72 to 144 Hz), and
+physics interpolation draws every body between ticks at the headset's own rate, so the world moves
+smoothly past the cockpit while scoring and traffic stay tied to the fixed tick. The headset
+camera is never interpolated: it follows the runtime's pose directly.
 
 `tests/xr_check.gd` runs the busy junction with 200 extra road users through the active runtime,
 without `--headless`, and reports the frames that ran late:
@@ -45,22 +53,23 @@ without `--headless`, and reports the frames that ran late:
 godot --path 'vr-project-[car-sim]' -s res://tests/xr_check.gd
 ```
 
-With the separate render thread, the process aborts at exit after an OpenXR session, a Godot bug
-(godotengine/godot issue 119000), so the check prints its verdict rather than relying on the exit
-code. `Research/scenario-detection/performance.md` describes running it against Monado's simulated
+It prints `XR CHECK PASS` or `XR CHECK FAIL` and exits 1 on failure.
+`Research/scenario-detection/performance.md` describes running it against Monado's simulated
 headset.
 
 ## Threads
 
-The simulation is spread across cores. Rendering and the physics step run on threads of their own
-(`project.godot`), and Jolt spreads the simulation over its own workers. Road users think on worker
-threads: the scene's `TrafficSystem` copies the world into a `TrafficSnapshot` each physics tick,
-the road users decide from it in parallel while the main thread drives the player's car, runs the
-checks, steps physics and renders, and their decisions are applied in a fixed order at the start of
-the next tick. They react one tick after they see, and an attempt still plays out the same way each
-time. In a flat rendered run with 200 road users the frame time halves; the method and the numbers
-are in `Research/scenario-detection/performance.md`. Under OpenXR the separate render thread aborts
-the process at exit (see Virtual reality).
+The simulation is spread across cores. The physics step runs on a thread of its own
+(`project.godot`), and Jolt spreads the simulation over its own workers. Rendering stays on the main
+thread: Godot's separate render thread is experimental and crashed the game at exit under OpenXR.
+Road users think on worker threads: the scene's `TrafficSystem` copies the world into a
+`TrafficSnapshot` each physics tick, the road users decide from it in parallel while the main thread
+drives the player's car, runs the checks, steps physics and renders, and their decisions are applied
+in a fixed order at the start of the next tick. They react one tick after they see, and their
+decisions do not depend on the threads' timing; the physics events underneath (contacts, zone
+entries) are reproducible on a best effort basis, since with several worker threads Jolt may order
+them by thread timing. The method and the numbers are in
+`Research/scenario-detection/performance.md`.
 
 ## Scenarios
 

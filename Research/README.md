@@ -9,6 +9,7 @@ public-facing: the public documentation stays in `README.md` and `CLAUDE.md`. Th
 | Topic | Folder | Status |
 |---|---|---|
 | Scenario detection | `scenario-detection/` | Phases 1 to 7 built, and the multicore run (`performance.md`) |
+| Multithreaded Godot and VR | `godot-threading-vr/` | State of the art against our measurements; five questions decided, the reference space open |
 
 ## Open flags for the author
 
@@ -17,16 +18,17 @@ public-facing: the public documentation stays in `README.md` and `CLAUDE.md`. Th
 - `.allowed_signers` lists one maintainer's key; the other contributors' keys and the signature
   check are not set up.
 - The main paper is planned; `CLAUDE.md` names it once it exists.
-- The `driving-mechanics` branch sets `renderer/rendering_method="mobile"`, against the Forward
-  Plus pin in `CLAUDE.md`.
 - `car.gd` on `driving-mechanics` reads raw keys and has its own mouse look and `XROrigin3D`; on
   merge it reads `DriverInput` and carries a `DriverView` instead, so keyboard, gamepad, and VR
   share one set of bindings and one camera rig.
-- The separate render and physics threads (`project.godot`) are verified headless, in a flat
-  rendered run, and through Monado, an emulated OpenXR runtime, at 90 Hz and headset eye size;
-  not yet in a real headset. Under OpenXR the separate render thread aborts the process at exit
-  (Godot issue 119000, no script workaround) and shows no consistent gain at headset eye size;
-  the physics thread carries the gain. `scenario-detection/performance.md` has the numbers.
+- The physics thread and the Safe render model are verified headless and through Monado, an
+  emulated OpenXR runtime, not in a real headset; measurements in a release build and a real
+  headset are parked until much later (`godot-threading-vr/brief.md`).
 - The motion controllers are not bound to driving; the action map is Godot's stock map.
+- The reference space stays Stage with `DriverView` recentring; Godot recommends Local for racing
+  simulators (`godot-threading-vr/analysis.md`, section 7). Not decided.
+- The `driving-mechanics` branch sets `rendering_device/driver.windows="d3d12"`; this branch uses
+  Vulkan on Windows, as Godot's XR team recommends for XR (`godot-threading-vr/sources.md`, B26),
+  so the merge takes this branch's line.
 - The car control layout is still to be agreed; a wheel's full-range steering axis and pedals may
   need actions of their own.

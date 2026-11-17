@@ -146,6 +146,22 @@ Measured 2026-11-17, same machine, on the NVIDIA GeForce RTX 4090.
     in every run.
   - Ending the session cleanly needs `xrRequestExitSession`, which Godot 4.7 does not expose to
     GDScript, only to native extensions.
+  - Even a clean session end would not free the swapchain textures in time: in 4.7.2
+    `OpenXRAPI::on_state_stopping` only ends the session, and the textures are freed in
+    `destroy_session()` from `finish()`, on the main thread, during teardown. The render thread
+    frees queued textures in `pre_render` only while the session runs.
+- **Killing the process instead.** `OS.kill(OS.get_process_id())` sends `SIGKILL` on Linux
+  (`OS_Unix::kill`). Three runs each under Monado, separate render thread:
+
+  | | Normal quit | Kill |
+  |---|---|---|
+  | Exit code | 134 (abort, core dump) | 137 (killed) |
+  | Quit to process gone | about 1.1 s | about 0.09 s |
+  | Godot errors at exit | 7 | 0 |
+  | Monado afterwards | running | running; a few "frame late" warnings as the client vanishes, next session fine |
+
+  The kill skips every save at exit (settings, the log's tail, the pipeline cache, which is lost
+  either way), and the exit code reads as abnormal to anything that checks it.
 
 ### What the emulator cannot show
 
@@ -153,12 +169,19 @@ Measured 2026-11-17, same machine, on the NVIDIA GeForce RTX 4090.
   timing; Monado paces like a desktop runtime.
 - How the motion feels: judder and latency are judged by eye, in a headset.
 
+## Outcome
+
+Decided 2026-11-17 (`../godot-threading-vr/brief.md`):
+- The render thread is back to Safe (`thread_model=1`); the separate physics thread stays.
+  Two smoke runs through Monado, now on the Mobile renderer with physics interpolation, held
+  90 Hz at headset eye size with no late frames, and both exited with code 0: the abort is gone.
+- The renderer is Mobile, and the world ticks at a fixed 60 Hz with physics interpolation. The
+  tables above were measured on Forward Plus without interpolation, so they describe that
+  configuration only.
+
 ## Open
 
-- **The separate render thread aborts at exit under OpenXR**, until Godot's fix lands, and at the
-  headset eye size it shows no consistent gain over the safe mode. Reverting
-  `rendering/driver/threads/thread_model` to `1` (safe) removes the abort; the separate physics
-  thread, which carries the gain, has no such problem.
+- **Measurements are parked** until much later: a release build, a real headset with its own
+  runtime and reprojection, and the motion judged by eye.
 - **Controller bindings.** The action map is Godot's stock map, taken unchanged from the
   `driving-mechanics` branch; the motion controllers are not bound to driving.
-- **A real headset run** remains for the feel and the headset runtime's own timing.

@@ -6,8 +6,7 @@ extends SceneTree
 ## It checks that OpenXR starts, the session gains focus, and the driver's view uses the headset,
 ## then reports the frame times and the frames that ran late: longer than 1.5 times the headset's
 ## frame budget, which a headset shows as a repeated or reprojected frame. It prints
-## "XR CHECK PASS" or "XR CHECK FAIL"; read that line rather than the exit code, since the
-## separate render thread still aborts at exit under OpenXR (Godot issue 119000).
+## "XR CHECK PASS" or "XR CHECK FAIL" and exits 1 on failure.
 ## XR_WARM_S and XR_SPAN_S set the warm-up and measured seconds (15 and 30); XR_SCALE multiplies
 ## the eye resolution the runtime recommends.
 

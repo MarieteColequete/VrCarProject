@@ -21,7 +21,7 @@ document), read as needed, and the rules in `.claude/rules/`.
 
 ## What counts as drift (flag these, cite the source)
 
-- **Engine and renderer**: a change that moves the project off Godot 4.7 or the Forward Plus
+- **Engine and renderer**: a change that moves the project off Godot 4.7 or the Mobile
   renderer, or edits `config/features` in `project.godot`, without stating it as a decision
   (`CLAUDE.md`, Architecture).
 - **Status drift**: a document or changelog entry that claims a feature's state against the status

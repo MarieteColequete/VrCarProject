@@ -42,9 +42,17 @@ func _ready() -> void:
 	if vr:
 		get_viewport().use_xr = true
 		XRServer.center_on_hmd(XRServer.RESET_BUT_KEEP_TILT, true)
+		# Godot only reports the runtime's request to close the application (closing it from the
+		# headset's menu); OpenXR expects the process to end, and the game is VR only.
+		if not xr.instance_exiting.is_connected(_on_instance_exiting):
+			xr.instance_exiting.connect(_on_instance_exiting)
 	elif capture_mouse:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	set_active(active)
+
+
+func _on_instance_exiting() -> void:
+	get_tree().quit()
 
 
 func set_active(value: bool) -> void:

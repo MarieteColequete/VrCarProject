@@ -56,4 +56,5 @@ func _park_in(bay: ParkingBay) -> void:
 		car = body
 	add_child(car)
 	car.global_transform = bay.global_transform
+	car.reset_physics_interpolation()
 

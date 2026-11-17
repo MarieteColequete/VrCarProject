@@ -5,7 +5,7 @@ metadata:
   type: project
 ---
 
-- Engine pin: Godot 4.7, Forward Plus, Jolt (`CLAUDE.md` Architecture; `.claude/rules/project/implementation.md`). `project.godot` `config/features` must stay `("4.7", "Forward Plus")`. The `driving-mechanics` remote branch sets Mobile; known and flagged in `Research/README.md`.
+- Engine pin: Godot 4.7, Mobile, Jolt (`CLAUDE.md` Architecture; `.claude/rules/project/implementation.md`), decided 2026-11-17 (VR only, PC VR and standalone; `Research/godot-threading-vr/brief.md`). `project.godot` `config/features` must stay `("4.7", "Mobile")` with `renderer/rendering_method="mobile"`, matching `driving-mechanics`. Also settled then: render thread Safe (`thread_model=1`), physics thread separate, fixed 60 Hz world tick with physics interpolation (bodies that jump call `reset_physics_interpolation()`), reproducibility best effort for physics events, quit on `instance_exiting`.
 - Physics layers named in `project.godot` [layer_names]: 1 world, 2 vehicle, 3 obstacles, 4 pedestrians, 5 detection; they match the bit constants in `scenarios/core/layers.gd` (`Layers`). Check both stay in step.
 - `CLAUDE.md` testing-method line now describes the headless scenario tests (`tests/run_tests.gd`, `tests/cases/`); the earlier "no automated tests yet" staleness is fixed (checked 2026-11-17).
 - Decision record: none; decisions go in commit bodies and `CLAUDE.md`. A `Research/*/brief.md` "Author decisions" list is allowed by the research-cache rule but is not the record.

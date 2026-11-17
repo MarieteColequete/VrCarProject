@@ -36,7 +36,8 @@ phased plan for markings, parking, traffic, and the exam scenarios is `roadmap.m
 - The first milestone is one complete scenario, the stop junction.
 - Detection reads the car through an adapter; the driving branch's `car.gd` is not edited.
 - The work targets Forward Plus on `dev`; the driving branch's switch to the Mobile renderer is
-  flagged for its merge.
+  flagged for its merge. Superseded 2026-11-17: the project moved to Mobile
+  (`../godot-threading-vr/brief.md`).
 - Parking covers both choosing a legal, free spot and the quality of the manoeuvre.
 - The first scenarios after the stop junction: parking, lane change, pedestrian crossings and
   traffic lights, and priority junctions.

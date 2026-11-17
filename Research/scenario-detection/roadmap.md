@@ -206,9 +206,11 @@ Road users are dual: a script plays by the book until it is forced to react.
 
 - Road users think on worker threads: a `TrafficSystem` takes a `TrafficSnapshot` each physics
   tick, they decide from it in parallel through the `WorkerThreadPool`, pipelined across ticks,
-  and the decisions are applied in a fixed order, so runs stay reproducible.
+  and the decisions are applied in a fixed order, so traffic stays reproducible (physics events
+  underneath are best effort, `../godot-threading-vr/brief.md`).
 - Sensing is geometric, against the snapshot, with no physics queries from threads.
-- Physics steps and rendering run on their own threads (`project.godot`).
+- Physics steps and rendering run on their own threads (`project.godot`). Rendering went back to
+  the main thread on 2026-11-17 (`../godot-threading-vr/brief.md`).
 - Method and numbers: `performance.md`.
 
 ## Authoring and tooling, alongside the phases

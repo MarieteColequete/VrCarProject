@@ -2,7 +2,7 @@
 
 ## What VrCarProject is
 
-VrCarProject is a car driving simulator for virtual reality, built with Godot 4.7 (Forward Plus
+VrCarProject is a car driving simulator for virtual reality, built with Godot 4.7 (Mobile
 renderer, Jolt physics) and OpenXR. The Godot project is `vr-project-[car-sim]/`; the repository
 root holds the project's documentation and the agent configuration. The repository is hosted on
 GitHub (`MarieteColequete/VrCarProject`).
@@ -28,19 +28,24 @@ Read the relevant document before working; do not duplicate their content here.
 - `vr-project-[car-sim]/` is the Godot project: scenes (`.tscn`), GDScript (`.gd`), and resources
   such as the OpenXR action map (`openxr_action_map.tres`). The engine writes `.godot/`, which is
   not tracked.
-- The project stays on Godot 4.7 with the Forward Plus renderer; an engine or renderer change is a
-  decision of its own.
-- The simulation is spread across cores: physics steps and rendering run on threads of their own
-  (`physics/3d/run_on_separate_thread`, `rendering/driver/threads/thread_model` in
-  `project.godot`), and road users think on worker threads, applied in a fixed order so runs stay
-  reproducible. The threading is verified headless, in a flat rendered run, and through Monado,
-  an emulated OpenXR runtime, not yet in a real headset;
-  `Research/scenario-detection/performance.md` has the method and the numbers.
-- OpenXR is enabled with a flat fallback and no startup alert (`[xr]` in `project.godot`);
-  `DriverView` picks the headset or the flat camera.
-- The separate render thread stays on, by decision, although under OpenXR it aborts the process at
-  exit (Godot issue 119000, no script workaround) and shows no consistent gain at headset eye size;
-  reverting it alone is `rendering/driver/threads/thread_model=1`.
+- The game is VR only, for PC VR and standalone headsets. The project stays on Godot 4.7 with the
+  Mobile renderer, the one Godot recommends for XR and the only one standalone headsets run; an
+  engine or renderer change is a decision of its own.
+- The simulation is spread across cores: the physics step runs on a thread of its own
+  (`physics/3d/run_on_separate_thread` in `project.godot`), and road users think on worker
+  threads, applied in a fixed order so traffic is reproducible by construction; physics events
+  under several threads are reproducible on a best effort basis. Rendering stays on the main
+  thread (`rendering/driver/threads/thread_model=1`, Safe), by decision: Godot's separate render
+  thread is experimental and aborted the process at exit under OpenXR.
+  `Research/scenario-detection/performance.md` has the method and the numbers;
+  `Research/godot-threading-vr/` sets them against the state of the art.
+- The world ticks at a fixed 60 Hz and rendering follows the headset's own rate; physics
+  interpolation (`physics/common/physics_interpolation`) draws the bodies in between. In the game,
+  a body that jumps (a spawn, a restart, a looping road user's wrap) calls
+  `reset_physics_interpolation()`.
+- OpenXR is enabled with a flat fallback for development and no startup alert (`[xr]` in
+  `project.godot`). `DriverView` picks the headset or the flat camera, and quits when the runtime
+  asks the application to close.
 
 ## Hosting
 
@@ -65,9 +70,8 @@ godot --headless --xr-mode off --fixed-fps 60 --path 'vr-project-[car-sim]' -s r
                                                           OpenXR runtime out of headless runs)
 godot --path 'vr-project-[car-sim]' -s res://tests/xr_check.gd
                                                           run the game through the active OpenXR runtime
-                                                          and report late frames (prints XR CHECK PASS
-                                                          or FAIL; the exit code is unreliable, see
-                                                          README "Virtual reality")
+                                                          and report late frames (XR CHECK PASS or
+                                                          FAIL; exit 1 on failure)
 godot --path 'vr-project-[car-sim]' --editor              open the project in the editor
 sh .claude/bin/preset status                              the branch, its commits, the version, and the hook
 ```

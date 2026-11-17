@@ -55,6 +55,7 @@ func load_scenario(scene: PackedScene) -> void:
 	# Placed before it enters the tree, so no zone sees it at the origin for a tick.
 	car.transform = global_transform.affine_inverse() * scenario.spawn_point.global_transform
 	add_child(car)
+	car.reset_physics_interpolation()
 	var probe := VehicleProbe.of(car)
 	assert(probe != null, "The car scene needs a VehicleProbe child")
 	probe.reset()

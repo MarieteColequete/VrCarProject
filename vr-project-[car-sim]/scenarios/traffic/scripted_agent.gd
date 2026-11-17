@@ -151,6 +151,8 @@ func _ready() -> void:
 	# placement made here and leave a waiting agent standing at the world origin.
 	sync_to_physics = false
 	_place(0.0)
+	# Drawn from here at once, not interpolated in from wherever the body was created.
+	reset_physics_interpolation()
 	set_physics_process(false)
 	_system = TrafficSystem.of(self)
 	_system.add(self)
@@ -474,6 +476,10 @@ func _advance(step: float) -> void:
 		if loop:
 			progress = fmod(progress, length)
 			_paused_this_lap = false
+			_place(progress)
+			# Jumped back to the path's start: drawn there, not sliding back across the world.
+			reset_physics_interpolation()
+			return
 		else:
 			progress = length
 			state = State.DONE
