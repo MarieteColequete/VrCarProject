@@ -1,15 +1,20 @@
 ---
 name: settled-decisions
-description: Settled VrCarProject boundaries looked up in the scenario-detection review (2026-11-16), and checks that came back clean
+description: Settled VrCarProject boundaries looked up in the scenario-detection reviews (2026-11-16, 2026-11-17), and checks that came back clean
 metadata:
   type: project
 ---
 
 - Engine pin: Godot 4.7, Forward Plus, Jolt (`CLAUDE.md` Architecture; `.claude/rules/project/implementation.md`). `project.godot` `config/features` must stay `("4.7", "Forward Plus")`. The `driving-mechanics` remote branch sets Mobile; known and flagged in `Research/README.md`.
-- Physics layers named in `project.godot` [layer_names]: 1 world, 2 vehicle, 3 obstacles, 4 pedestrians, 5 detection; they match the bit constants in `scenarios/core/vehicle_probe.gd`. Check both stay in step.
-- `CLAUDE.md` states "no automated tests yet" in the testing-method line; any change adding tests (e.g. `tests/run_tests.gd`) makes that line stale and needs a `CLAUDE.md` edit plus a Commands entry.
+- Physics layers named in `project.godot` [layer_names]: 1 world, 2 vehicle, 3 obstacles, 4 pedestrians, 5 detection; they match the bit constants in `scenarios/core/layers.gd` (`Layers`). Check both stay in step.
+- `CLAUDE.md` testing-method line now describes the headless scenario tests (`tests/run_tests.gd`, `tests/cases/`); the earlier "no automated tests yet" staleness is fixed (checked 2026-11-17).
 - Decision record: none; decisions go in commit bodies and `CLAUDE.md`. A `Research/*/brief.md` "Author decisions" list is allowed by the research-cache rule but is not the record.
 - Source states in `sources.md`: V = primary source read, V2 = two independent secondary sources, U = unverified. Class reference pages count as primary (V), not V2.
-- Version and changelog change once per merge request as the branch's last step (releasing rule); a `feat/` branch bumps the minor.
-- Tooling note: the consistency agent has no Bash, so `git diff` is unavailable; use Glob/Grep/Read on the untracked and edited files.
-- Dash check (en and em dash characters) over README, Research, scenarios, tests came back clean on 2026-11-16.
+- Version and changelog change once per merge request as the branch's last step (releasing rule); a `feat/` branch bumps the minor. `CHANGELOG.md` is untracked during the scenario-detection branch by design (pending version step); its single entry is v0.1.0-alpha.
+- Tooling note: the consistency agent has no Bash, so `git diff` is unavailable; use Glob/Grep/Read. Grep `glob` rejects nested braces; use one brace group.
+- Dash check (en and em dash characters) over all `*.md/.gd/.tscn/.tres` came back clean on 2026-11-17; no "you/we/should" addressing in `scenarios/traffic`, tests.
+- Phase 7 (reactive road users) author decisions: same branch; dual road users (script by the book until forced to react); lanes authored first, markings decide lane changes; fault tiers matter less than framework and reactiveness.
+- Recurring drift pattern: `Research/scenario-detection/roadmap.md` keeps earlier-phase wording that later phases outdated (45 tests in Context, `tests/run_tests.gd` in Principles, `PathFollow3D` in phase 4, "one record per check per episode" vs the 1 s `dedupe_window`). Check these when a phase lands.
+- Multicore review (2026-11-17): `physics/3d/run_on_separate_thread=true` and `rendering/driver/threads/thread_model=2` are judged settings, not an engine/renderer/Jolt change (`config/features` and `physics_engine` untouched); no decision record exists, so the choice belongs in the commit body (optionally one `CLAUDE.md` Architecture line). Headset verification is open in `Research/scenario-detection/performance.md` (Open) and `Research/README.md`; README/CHANGELOG must not claim it. The roadmap staleness items from the earlier pattern (45 tests, PathFollow3D, run_tests path, dedupe) were fixed.
+- Recurring drift in the multicore change: doc headers lag new behaviour (bench_test.gd header and `CLAUDE.md` Commands say bench times only detection; DebugHud class doc and README HUD paragraph omit the performance readout; TrafficSensor doc says it "catches anything" but the snapshot holds only road users, vehicles with a probe, and BoxShape3D statics on the obstacle layer). Hardware-specific perf numbers in README come from a scratch script that is not kept. `Performance.TIME_PROCESS` is main-thread process time, not frame time, under the render thread.
+- Reaction kinds actually emitted by `ScriptedAgent.reacted`: following, stopped, resumed, yielding, waiting_light, changing_lane. Doc on the signal listed only the first three (flagged 2026-11-17).
