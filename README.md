@@ -93,7 +93,10 @@ lanes it gives way to, its pedestrian crossings, and the lanes beside it. An age
 lane keeps to the limit, stops at the line on red (and on amber where it can still stop), waits at
 the line until the priority lanes are clear of road users and of the player's car for the lane's
 safe gap, waits before a crossing in use, and continues onto the next lane named in its `route`,
-or picked from its `route_seed`. In the editor a lane shows its direction and its stop line. A `TrafficLight` cycles on timers, or holds green until the car approaches and
+or picked from its `route_seed`. Stuck behind something that is not traffic, such as a parked van,
+for longer than its `patience`, an agent moves into the lane's left or right neighbour when that
+lane is clear around it and the scenario's markings put no solid line or kerb in between; behind a
+solid line it waits. In the editor a lane shows its direction and its stop line. A `TrafficLight` cycles on timers, or holds green until the car approaches and
 then changes, so a scenario can place the change at a chosen distance. An `AgentSpawner` fills
 parking bays with parked cars chosen from a seed: the same seed gives the same car park.
 

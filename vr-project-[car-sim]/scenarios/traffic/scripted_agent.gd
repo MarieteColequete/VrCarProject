@@ -18,6 +18,11 @@ extends AnimatableBody3D
 ## continues onto one of the lane's next lanes: the first one listed in [member route], or one
 ## picked from [member route_seed], so the same seed always takes the same way.
 ##
+## Stuck behind something that is not traffic, such as a parked van or a car standing in the lane,
+## for longer than [member patience], it moves into the lane's [member TrafficLane.left] or
+## [member TrafficLane.right] neighbour when that lane is clear around it and no solid line or kerb
+## of the scenario's markings lies in between; behind a solid line it waits.
+##
 ## Cars sit on the obstacle layer and pedestrians on the pedestrian layer and in the pedestrian
 ## group (see [Layers]), so the [ContactCheck] tells them apart. Without a
 ## [CollisionShape3D] child, it builds a box of [member body_size].
@@ -67,6 +72,10 @@ enum State { WAITING, MOVING, PAUSED, DONE }
 @export var min_gap := 2.0
 ## Seconds of headway it keeps behind a moving leader once it has to follow one.
 @export var time_headway := 1.5
+## Seconds stuck behind something that is not traffic before it changes lanes round it.
+@export var patience := 4.0
+## Seconds a lane change takes.
+@export var change_time := 2.0
 @export_group("")
 
 var state := State.WAITING
@@ -85,6 +94,11 @@ var _upcoming: TrafficLane
 var _rng := RandomNumberGenerator.new()
 # The stop line this agent has committed to crossing on the current lane.
 var _committed := false
+var _blocked_for := 0.0
+# The offset from the lane during a lane change, and the seconds left until it has faded out.
+var _shift := Vector3.ZERO
+var _shift_left := 0.0
+var _scenario_root: Scenario
 
 var _armed := false
 var _clock := 0.0
@@ -252,7 +266,66 @@ func _drive(delta: float) -> float:
 	if kind != reaction:
 		reaction = kind
 		reacted.emit(&"resumed" if kind.is_empty() else kind, leader.body if leader else null)
+	_shift_left = maxf(_shift_left - delta, 0.0)
+	_consider_lane_change(delta)
 	return current_speed
+
+
+## Changes lanes when stuck behind something that is not traffic for longer than the patience.
+func _consider_lane_change(delta: float) -> void:
+	var blocker: Node3D = leader.body if leader else null
+	var blocked := reaction == &"stopped" and blocker != null and not blocker is ScriptedAgent
+	_blocked_for = _blocked_for + delta if blocked else 0.0
+	var lane := path as TrafficLane
+	if _blocked_for < patience or _shift_left > 0.0 or lane == null:
+		return
+	for side in [lane.left, lane.right]:
+		if side and _can_move_to(side):
+			_move_to(side, blocker)
+			return
+
+
+## Whether [param target] can be moved into now: no solid line or kerb lies on the way across,
+## and nothing is on the target lane from a little behind the agent to its look-ahead.
+func _can_move_to(target: TrafficLane) -> bool:
+	var at := target.project(global_position).x
+	var root := _scenario()
+	if root:
+		var across := target.point_at(at + body_size.z)
+		for hit in root.marking_index().crossings(global_position, across):
+			var kind := hit.marking.kind
+			if kind == RoadMarking.Kind.SOLID or kind == RoadMarking.Kind.DOUBLE_SOLID \
+					or kind == RoadMarking.Kind.KERB:
+				return false
+	var behind := 15.0
+	var reach := behind + script_speed() * 3.0 + 5.0 + body_size.z
+	var points := PackedVector3Array()
+	for i in TrafficSensor.SEGMENTS + 1:
+		points.append(target.point_at(at - behind + reach * i / TrafficSensor.SEGMENTS))
+	return _sensor.sense(get_world_3d().direct_space_state, points) == null
+
+
+func _move_to(target: TrafficLane, blocker: Node3D) -> void:
+	var from := global_position
+	var at := target.project(from).x
+	_enter(target)
+	progress = at
+	_shift = from - target.point_at(at)
+	_shift.y = 0.0
+	_shift_left = change_time
+	_blocked_for = 0.0
+	reaction = &"changing_lane"
+	reacted.emit(reaction, blocker)
+
+
+## The scenario the agent belongs to, for its road markings; null outside one.
+func _scenario() -> Scenario:
+	if _scenario_root == null:
+		var node := get_parent()
+		while node and not node is Scenario:
+			node = node.get_parent()
+		_scenario_root = node as Scenario
+	return _scenario_root
 
 
 ## Whether [param ahead] forces a reaction at speed [param v]: it is within the gap kept at a
@@ -375,6 +448,12 @@ func _place(offset: float) -> void:
 	var behind := path.global_transform * curve.sample_baked(maxf(offset - 0.5, 0.0))
 	var tangent := ahead - behind
 	tangent.y = 0.0
+	if _shift_left > 0.0 and change_time > 0.0:
+		# Mid lane change: the agent eases from where it was onto the lane, heading across.
+		var weight := smoothstep(0.0, 1.0, _shift_left / change_time)
+		here += _shift * weight
+		if tangent.length() > 0.001:
+			tangent = tangent.normalized() - _shift.normalized() * 0.25 * weight
 	var facing := global_basis
 	if tangent.length() > 0.001:
 		facing = Basis.looking_at(tangent.normalized(), Vector3.UP)
