@@ -61,6 +61,7 @@ shape = SubResource("Shape_trigger")
 script = ExtResource("5_agent")
 path = NodePath("../WalkPath")
 speed = 1.4
+reactive = false
 trigger = NodePath("../WalkTrigger")
 pedestrian = true
 body_size = Vector3(0.5, 1.8, 0.5)

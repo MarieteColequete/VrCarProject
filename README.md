@@ -75,10 +75,15 @@ resource defines the tiers, which of them eliminate at once, and how many faults
 attempt may collect and still pass; `default_policy.tres` is a generic policy, and a particular
 exam is another policy file.
 
-Other road users are scripted, so an attempt always plays out the same way. A `ScriptedAgent` is a
+Other road users play a script by the book until they are forced to react. A `ScriptedAgent` is a
 car or a pedestrian following a `Path3D` at a set speed, starting after a delay or when the car
 enters a trigger zone, with an optional pause and loop; it reports how long it needs to reach any
-point of its path. A `TrafficLight` cycles on timers, or holds green until the car approaches and
+point of its path. While its way is clear it moves exactly as scripted, so an attempt plays out the
+same way each time. A `TrafficSensor` sweeps the path ahead every tick, and when something is in
+the way (the player's car, another road user, a pedestrian, an obstacle) the agent slows or stops
+by the Intelligent Driver Model, then returns to its script. It reports each change through its
+`reacted` signal, and braking harder than its `hard_brake` through `forced_to_brake`; a pedestrian
+waits for a car standing on its way. A `TrafficLight` cycles on timers, or holds green until the car approaches and
 then changes, so a scenario can place the change at a chosen distance. An `AgentSpawner` fills
 parking bays with parked cars chosen from a seed: the same seed gives the same car park.
 
