@@ -30,11 +30,13 @@ extends AnimatableBody3D
 signal started
 signal finished
 ## The agent changed what it is doing: [code]&"following"[/code] a slower leader,
-## [code]&"stopped"[/code] behind one, or [code]&"resumed"[/code] its script; [param cause] is
-## the body it reacts to, null on resuming.
+## [code]&"stopped"[/code] behind one, [code]&"waiting_light"[/code] at its lane's light,
+## [code]&"yielding"[/code] at a give way line or a crossing in use, [code]&"changing_lane"[/code]
+## round a blocked lane, or [code]&"resumed"[/code] its script; [param cause] is the body it
+## reacts to, null for a lane's rule and on resuming.
 signal reacted(kind: StringName, cause: Node3D)
-## Something in the way forced a deceleration beyond [member hard_brake], metres per second
-## squared.
+## Something in the way left the agent needing a deceleration beyond [member hard_brake], metres
+## per second squared, to stop short of it: the closing speed squared over twice the room left.
 signal forced_to_brake(cause: Node3D, deceleration: float)
 
 enum State { WAITING, MOVING, PAUSED, DONE }
@@ -126,6 +128,9 @@ func _ready() -> void:
 	_armed = trigger == null
 	if trigger:
 		trigger.vehicle_entered.connect(func(_p: VehicleProbe) -> void: _armed = true)
+	# Placed directly rather than synchronised through the physics step, which would lose a
+	# placement made here and leave a waiting agent standing at the world origin.
+	sync_to_physics = false
 	_place(0.0)
 
 
@@ -250,10 +255,11 @@ func _drive(delta: float) -> float:
 			kind = &"stopped" if v + accel * delta < 0.3 else &"following"
 			if not rule.is_empty():
 				kind = rule
-		if accel < -hard_brake and leader.body and not _braking_hard:
-			_braking_hard = true
-			forced_to_brake.emit(leader.body, -accel)
-	if accel >= -hard_brake:
+	var needed := _needed_decel(v, leader) if leader and leader.body else 0.0
+	if needed > hard_brake and not _braking_hard:
+		_braking_hard = true
+		forced_to_brake.emit(leader.body, needed)
+	elif needed <= hard_brake:
 		_braking_hard = false
 	current_speed = clampf(v + accel * delta, 0.0, target)
 	if leader and (leader.gap <= 0.05 or (v + accel * delta < 0.3 and not kind.is_empty()
@@ -337,6 +343,15 @@ func _forced(ahead: TrafficSensor.Leader, v: float) -> bool:
 	if closing <= 0.0:
 		return false
 	return closing * closing / (2.0 * maxf(ahead.gap - min_gap, 0.01)) > 0.5
+
+
+## The deceleration that stopping short of [param ahead], keeping [member min_gap], needs at
+## speed [param v]; 0 when it is not closing in.
+func _needed_decel(v: float, ahead: TrafficSensor.Leader) -> float:
+	var closing := v - ahead.speed
+	if closing <= 0.0:
+		return 0.0
+	return closing * closing / (2.0 * maxf(ahead.gap - min_gap, 0.1))
 
 
 ## The Intelligent Driver Model's acceleration behind [param ahead], towards the scripted speed.

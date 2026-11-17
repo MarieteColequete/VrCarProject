@@ -10,7 +10,7 @@ func run() -> void:
 
 func _test_catalogue() -> void:
 	var catalogue := ScenarioCatalogue.main()
-	expect(catalogue != null and catalogue.scenarios.size() == 8, "the catalogue lists the eight scenarios")
+	expect(catalogue != null and catalogue.scenarios.size() == 9, "the catalogue lists the nine scenarios")
 	var ids := {}
 	var problems := PackedStringArray()
 	for definition in catalogue.scenarios:

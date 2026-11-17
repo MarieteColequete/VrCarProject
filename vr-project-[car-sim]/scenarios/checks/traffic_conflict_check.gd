@@ -4,7 +4,7 @@ extends Check
 ## Making other road users react: when a road user is forced to brake hard because the session's
 ## car got in its way, such as by cutting in or pulling out in front of it, that is a fault. It
 ## watches every [ScriptedAgent] of the scenario, including those spawned during the attempt, or
-## only [member agents] when that is set. Each road user forced to brake is one fault.
+## only [member agents] when that is set. Each time a road user is forced to brake is one fault.
 
 ## The road users watched; empty for all of the scenario's.
 @export var agents: Array[ScriptedAgent] = []

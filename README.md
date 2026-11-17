@@ -37,7 +37,7 @@ A scenario is a scene under `vr-project-[car-sim]/scenarios/scenes/<name>/` that
 `Markings` node, and a `Checks` node already holding `ContactCheck`, `LineCheck`, and
 `TrafficConflictCheck`. The scenario
 adds its roads, markings, other road users, zones, and checks. Scenarios are laid out with the car
-driving towards -Z in the right-hand lane, centred on x = 1.75.
+driving towards -Z on the right-hand side of the road, in the lane centred on x = 1.75.
 
 Its `ScenarioDefinition`, `definition.tres` beside the scene, gives the id, the title, the menu
 category and difficulty, the briefing, the time limit, the scoring policy, and the car scene to
@@ -96,7 +96,10 @@ safe gap, waits before a crossing in use, and continues onto the next lane named
 or picked from its `route_seed`. Stuck behind something that is not traffic, such as a parked van,
 for longer than its `patience`, an agent moves into the lane's left or right neighbour when that
 lane is clear around it and the scenario's markings put no solid line or kerb in between; behind a
-solid line it waits. In the editor a lane shows its direction and its stop line. A `TrafficLight` cycles on timers, or holds green until the car approaches and
+solid line it waits. In the editor a lane shows its direction and its stop line. A `TrafficSource` feeds a lane with
+a flow of reactive cars at headways and routes drawn from its seed, each entering only with room
+to stop; the `busy_junction` scenario combines flows, lights, a lane blocked by a van, a crossing,
+and a side road. A `TrafficLight` cycles on timers, or holds green until the car approaches and
 then changes, so a scenario can place the change at a chosen distance. An `AgentSpawner` fills
 parking bays with parked cars chosen from a seed: the same seed gives the same car park.
 

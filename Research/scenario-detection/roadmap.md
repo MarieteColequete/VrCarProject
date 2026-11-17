@@ -2,9 +2,9 @@
 
 ## Context
 
-`feat/scenario-detection` has a working foundation: `VehicleProbe`, the `Check` nodes,
-`ExamSession` with data-driven scoring, one stop junction scenario, and keyboard, gamepad and VR
-play. There are 45 headless tests. The next layer is what a real exam judges:
+When this roadmap was written, `feat/scenario-detection` had a working foundation: `VehicleProbe`,
+the `Check` nodes, `ExamSession` with data-driven scoring, one stop junction scenario, keyboard,
+gamepad and VR play, and 45 headless tests. The next layer was what a real exam judges:
 
 - **Lines:** crossing or driving over road markings.
 - **Parking:** both whether a spot is legal and free, and how well the manoeuvre is done.
@@ -23,10 +23,10 @@ own branch). That is decided per phase, on order.
   scoring stays in `ScoringPolicy`.
 - **The car is still read only through `VehicleProbe`.** It gains footprint and gear data that it
   derives itself.
-- **Each new check gets scripted drives** in `tests/run_tests.gd`: one passing and one failing
-  per rule.
+- **Each new check gets scripted drives** in a case under `tests/cases/`: one passing and one
+  failing per rule.
 
-Status: phases 1 to 6 are built; phase 7 is next.
+Status: phases 1 to 7 are built.
 
 ## Phase 1: probe and engine upgrades (needed by everything below)
 
@@ -50,8 +50,8 @@ checks read `probe.look_direction()`.
   through a new `step_changed(step)` signal.
 - **Per-check enable windows.** A check is live only within named steps, so a parking check
   doesn't fault during the approach drive.
-- **Fault cooldown and dedupe.** One record per check per episode, done centrally instead of in
-  each check.
+- **Fault dedupe.** The session drops a repeat of the same fault from the same check (and the same
+  key) within `dedupe_window`; a check keeps one fault per episode with an `Episode`.
 
 **`ScenarioResult`** gains `to_dict()` for the UI and for saving attempts.
 
@@ -142,7 +142,7 @@ too-many-manoeuvres, occupied-bay and yellow-line cases each produce their fault
 New `scenarios/traffic/` folder.
 
 **`ScriptedAgent`** (an `AnimatableBody3D` on the obstacle or pedestrian layer)
-- It follows a `Path3D` with `PathFollow3D` at a speed profile.
+- It follows a `Path3D` at a set speed, sampling the curve directly.
 - It starts on a `TriggerZone` event or a timer, can wait, and loops.
 - Pedestrians are on the pedestrian layer and in the `pedestrian` group, so the existing
   `ContactCheck` already distinguishes them.
@@ -187,20 +187,20 @@ The scenario system as an internal framework to build more scenarios on:
   editor.
 - A debug HUD and a sandbox scene that run any catalogued scenario.
 
-## Phase 7: reactive traffic AI (after the scripted set is stable)
+## Phase 7: reactive road users
 
-- **`TrafficAgent`** replaces the fixed speed profile with behaviour:
-  - car following (IDM-style acceleration from the gap and closing speed);
-  - stopping for red lights and give way lines;
-  - yielding at crossings;
-  - lane keeping on a route graph.
-- **Road graph.** `RoadMarking` lanes and routes form a lane graph (lanes, connections, conflict
-  zones), so agents and `YieldCheck` share one model of the junction.
-- Agents react to the player (brake when cut off), and dangerous interactions become faults
-  through `YieldCheck` and `FollowingDistanceCheck` on the agents' side ("caused another road user
-  to brake hard").
-- Determinism: a fixed seed and the fixed physics step keep tests reproducible. The AI tests
-  assert outcomes such as "agent stopped" and "no collision", not exact positions.
+Road users are dual: a script plays by the book until it is forced to react.
+- `ScriptedAgent` keeps its script while its way is clear; a `TrafficSensor` sweeps the path ahead,
+  and anything in the way (the car, another road user, a pedestrian, an obstacle) makes it follow
+  or stop by the Intelligent Driver Model, then resume. Signals `reacted` and `forced_to_brake`
+  (needed deceleration over `hard_brake`).
+- Authored `TrafficLane`s carry the rules: speed limit, next lanes (seeded or named routes), light
+  and stop line, give way to priority lanes (road users and the player's car), crossings, and
+  neighbour lanes. Lane changes round a blocked lane follow the scenario's markings: never over a
+  solid line or kerb.
+- `TrafficConflictCheck` (in the base scene) makes forcing a road user to brake hard a fault.
+- `TrafficSource` gives seeded flows; the `busy_junction` scenario puts all of it on one road.
+- Determinism: the same drive meets the same reactions (asserted on the busy junction).
 
 ## Authoring and tooling, alongside the phases
 
@@ -216,7 +216,7 @@ The scenario system as an internal framework to build more scenarios on:
 5. Checks and scenarios for lane change, crossing, lights, give way and roundabout: large; one
    scenario per commit.
 6. Framework quality pass: medium.
-7. Reactive AI: large; its own branch.
+7. Reactive road users: large; on the same branch, by the author's choice.
 
 ## Verification
 
