@@ -20,6 +20,10 @@ added or remapped there without code changes; car scripts read them through `Dri
 | Recentre the view | C | Right stick click |
 | Driver or chase view | V | Select |
 | Free the mouse, recapture it | Escape, click | |
+| Begin the attempt after the briefing | Enter | Start |
+| Restart the attempt | R | Y (Triangle) |
+| Next scenario, in the sandbox | N | D-pad right |
+| Show or hide the debug HUD | F1 | Left stick click |
 
 `DriverView` is the driver's head in a car scene. With an OpenXR headset running, the headset turns
 the view; otherwise the mouse and the right stick turn a flat camera within a seated driver's
@@ -82,7 +86,15 @@ The car only needs a `VehicleProbe` child, which derives speed and heading from 
 and reports contact. `ExamRunner` (`scenarios/scenes/exam_runner.tscn`) spawns a scenario and its
 car and runs an `ExamSession`. The session's signals (`briefing_started`, `started`,
 `fault_committed`, `finished`) and methods (`begin`, `abort`, `restart`) are the interface for the
-UI; `finished` carries a `ScenarioResult` with the outcome and every fault.
+UI; `finished` carries a `ScenarioResult` with the outcome and every fault. Its `to_dict()` gives
+the same as plain data: the scenario, the outcome, each fault with its description, and each tier's
+count against the policy's limit.
+
+`scenarios/debug/scenario_sandbox.tscn` runs any catalogued scenario with the `DebugHud`, a flat
+overlay showing the briefing, the current step, the time against the limit, faults as they are
+committed, and the result. It runs from the editor. The HUD only
+listens to the runner and the session, so it is also a working example of a UI on them; it hides
+itself in a headset.
 
 ### Building a scenario
 

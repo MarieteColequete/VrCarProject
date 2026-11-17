@@ -1,0 +1,12 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenarios/scenes/exam_runner.tscn" id="runner"]
+[ext_resource type="PackedScene" path="res://scenarios/debug/debug_hud.tscn" id="hud"]
+
+[node name="ScenarioSandbox" type="Node"]
+
+[node name="Runner" parent="." instance=ExtResource("runner")]
+autostart = false
+
+[node name="DebugHud" parent="." node_paths=PackedStringArray("runner") instance=ExtResource("hud")]
+runner = NodePath("../Runner")

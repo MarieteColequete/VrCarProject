@@ -158,6 +158,9 @@ func _finish(reason: StringName) -> void:
 	result.duration = elapsed
 	result.steps_completed = steps_completed
 	result.step_count = steps.size()
+	result.scenario_id = definition.id
+	result.scenario_title = definition.title
+	result.policy = definition.policy
 	var score := definition.policy.evaluate(faults)
 	result.passed = score.passed and reason == ScenarioResult.COMPLETED
 	result.failing_tier = score.failing_tier

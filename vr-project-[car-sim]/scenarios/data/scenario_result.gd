@@ -23,6 +23,11 @@ var duration := 0.0
 ## How many of the scenario's steps were done, out of [member step_count].
 var steps_completed := 0
 var step_count := 0
+## The scenario attempted.
+var scenario_id: StringName
+var scenario_title: String
+## The policy the attempt was scored by, for the tier counts and limits.
+var policy: ScoringPolicy
 
 
 func count_tier(tier: StringName) -> int:
@@ -47,11 +52,24 @@ func to_dict() -> Dictionary:
 		fault_list.append({
 			id = String(fault.def.id),
 			title = fault.def.title,
+			description = fault.def.description,
 			tier = String(fault.def.tier),
 			time = fault.time,
 			position = [fault.position.x, fault.position.y, fault.position.z],
 		})
+	var tier_list := []
+	if policy:
+		for tier in policy.tiers:
+			tier_list.append({
+				id = String(tier.id),
+				title = tier.title,
+				count = count_tier(tier.id),
+				max_allowed = tier.max_allowed,
+				eliminating = tier.eliminating,
+			})
 	return {
+		scenario = {id = String(scenario_id), title = scenario_title},
+		tiers = tier_list,
 		reason = String(reason),
 		passed = passed,
 		failing_tier = String(failing_tier),
