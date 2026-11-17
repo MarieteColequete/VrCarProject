@@ -18,6 +18,7 @@ const TRAFFIC_LIGHTS := preload("res://scenarios/scenes/traffic_lights/traffic_l
 const PEDESTRIAN_CROSSING := preload("res://scenarios/scenes/pedestrian_crossing/pedestrian_crossing.tscn")
 const LANE_CHANGE := preload("res://scenarios/scenes/lane_change_overtake/lane_change_overtake.tscn")
 const GIVE_WAY := preload("res://scenarios/scenes/give_way_junction/give_way_junction.tscn")
+const ROUNDABOUT := preload("res://scenarios/scenes/roundabout/roundabout.tscn")
 
 ## Lane centre and the stop junction's key positions along it (the car drives towards -Z).
 const LANE_X := 1.75
@@ -52,6 +53,7 @@ func _run() -> void:
 	await _test_pedestrian_crossing()
 	await _test_lane_change()
 	await _test_give_way()
+	await _test_roundabout()
 	print("\n%d passed, %d failed" % [_passed, _failed])
 	quit(1 if _failed > 0 else 0)
 
@@ -913,3 +915,55 @@ func _test_give_way() -> void:
 		{to = Vector3(-4, 0, -5.25), speed = 4.0}, {to = Vector3(-12, 0, -5.25), speed = 6.0}], GIVE_WAY)
 	_expect(r.faults.size() == 1 and r.has_fault(&"wrong_turn"),
 		"turning left when the route goes right is a wrong turn: " + r.summary())
+
+
+# --- Exam scenarios: roundabout -----------------------------------------------------------------------
+
+## A point on the roundabout's circulating lane, [param degrees] round from the east arm; the
+## south entry is at 90, and traffic circulates towards lower angles.
+func _ring(degrees: float) -> Vector3:
+	return Vector3(cos(deg_to_rad(degrees)), 0, sin(deg_to_rad(degrees))) * 10.0
+
+
+## Stops at the give way line, waits, enters and circulates, signals right from
+## [param signal_at] degrees round when it is not NAN, and leaves by the second exit; or, with
+## [param first_exit], by the first.
+func _roundabout(wait: float, signal_at := 0.0, first_exit := false) -> Array:
+	var legs: Array = [{to = Vector3(1.75, 0, 16.5), speed = 8.0}]
+	if wait > 0.0:
+		legs.append({wait = wait})
+	var last := 10.0 if first_exit else -80.0
+	var angle := 80.0
+	while angle >= last:
+		if not is_nan(signal_at) and is_equal_approx(angle, signal_at):
+			legs.append({indicator = VehicleProbe.Indicator.RIGHT})
+		legs.append({to = _ring(angle), speed = 5.0 if angle == 80.0 else 6.0})
+		angle -= 10.0
+	if first_exit:
+		legs += [{to = Vector3(14, 0, 1.75), speed = 6.0}, {to = Vector3(30, 0, 1.75), speed = 8.0}]
+	else:
+		legs += [{to = Vector3(1.75, 0, -14), speed = 6.0}, {to = Vector3(1.75, 0, -45), speed = 8.0}]
+	return legs
+
+
+func _test_roundabout() -> void:
+	var r := await _drive(_roundabout(10.5), ROUNDABOUT)
+	_expect(r.reason == &"completed" and r.faults.is_empty(),
+		"giving way to the circulating traffic and signalling right before the second exit is clean: "
+		+ r.summary())
+
+	r = await _drive(_roundabout(3.0), ROUNDABOUT)
+	_expect(r.reason == &"eliminated" and r.has_fault(&"failed_to_give_way"),
+		"entering a second ahead of a circulating car is eliminating: " + r.summary())
+
+	r = await _drive(_roundabout(24.0), ROUNDABOUT)
+	_expect(r.reason == &"completed" and r.faults.size() == 1 and r.has_fault(&"undue_hesitation"),
+		"waiting long after the roundabout is clear is one minor fault: " + r.summary())
+
+	r = await _drive(_roundabout(10.5, NAN), ROUNDABOUT)
+	_expect(r.reason == &"completed" and r.faults.size() == 1 and r.has_fault(&"no_indicator_turn"),
+		"leaving the roundabout without signalling is one minor fault: " + r.summary())
+
+	r = await _drive(_roundabout(10.5, 60.0, true), ROUNDABOUT)
+	_expect(r.faults.size() == 1 and r.has_fault(&"wrong_turn"),
+		"leaving by the first exit when the route goes straight on is a wrong turn: " + r.summary())

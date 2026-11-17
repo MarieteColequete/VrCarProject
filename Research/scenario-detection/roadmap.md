@@ -26,7 +26,7 @@ own branch). That is decided per phase, on order.
 - **Each new check gets scripted drives** in `tests/run_tests.gd`: one passing and one failing
   per rule.
 
-Status: phases 1 to 4 are built; in phase 5, the traffic lights, pedestrian crossing, lane change, and give way junction scenarios are built.
+Status: phases 1 to 5 are built; phase 6 is next.
 
 ## Phase 1: probe and engine upgrades (needed by everything below)
 
