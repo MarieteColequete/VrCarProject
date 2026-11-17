@@ -1,3 +1,4 @@
+@tool
 class_name StopCheck
 extends Check
 ## A stop line: the car must come to a complete stop inside the approach zone, for at least
@@ -8,47 +9,42 @@ extends Check
 @export var approach_zone: TriggerZone
 ## Entering this zone counts as crossing the line; it starts at the line's far edge.
 @export var line_zone: TriggerZone
-@export var fault: FaultDef
+@export var stop_fault: FaultDef = preload("res://scenarios/data/faults/stop_not_made.tres")
 ## Seconds the car must stay stopped.
 @export var min_stop_time := 0.5
 
-var _stopped_for := 0.0
+var _stop := Episode.new()
 var _satisfied := false
 var _judged := false
 
 
+func required_exports() -> PackedStringArray:
+	return ["approach_zone", "line_zone"]
+
+
 func _on_bound() -> void:
-	approach_zone.vehicle_entered.connect(_on_approach_entered)
-	line_zone.vehicle_entered.connect(_on_line_entered)
+	watch(approach_zone, _on_approach_entered)
+	watch(line_zone, _on_line_entered)
 
 
 func _physics_process(delta: float) -> void:
-	if not is_live() or _satisfied or not approach_zone.contains(probe()):
+	if not is_live() or _satisfied:
 		return
-	if probe().is_stopped():
-		_stopped_for += delta
-		if _stopped_for >= min_stop_time:
-			_satisfied = true
-	else:
-		_stopped_for = 0.0
+	var p := probe()
+	if _stop.update(approach_zone.contains(p) and p.is_stopped(), delta, min_stop_time):
+		_satisfied = true
 
 
 func _on_approach_entered(p: VehicleProbe) -> void:
-	if p == probe() and _travels_forward(p):
-		_stopped_for = 0.0
+	if p.travels_along(-global_basis.z):
+		_stop.reset()
 		_satisfied = false
 		_judged = false
 
 
 func _on_line_entered(p: VehicleProbe) -> void:
-	if p != probe() or _judged or not is_live() or not _travels_forward(p):
+	if _judged or not p.travels_along(-global_basis.z):
 		return
 	_judged = true
 	if not _satisfied:
-		report(fault, p.global_position)
-
-
-func _travels_forward(p: VehicleProbe) -> bool:
-	var line_forward := -global_basis.z
-	line_forward.y = 0.0
-	return p.forward().dot(line_forward.normalized()) > 0.0
+		report_here(stop_fault)

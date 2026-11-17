@@ -10,14 +10,6 @@
 [ext_resource type="Script" path="res://scenarios/checks/route_check.gd" id="8_route"]
 [ext_resource type="Script" path="res://scenarios/checks/contact_check.gd" id="9_contact"]
 [ext_resource type="Script" path="res://scenarios/checks/goal_check.gd" id="10_goal"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/stop_not_made.tres" id="11_f_stop"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/speeding_minor.tres" id="12_f_speed_minor"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/speeding_serious.tres" id="13_f_speed_serious"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/lane_drift.tres" id="14_f_lane"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/off_route.tres" id="15_f_road"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/wrong_way.tres" id="16_f_wrong"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/contact_obstacle.tres" id="17_f_obstacle"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/contact_pedestrian.tres" id="18_f_pedestrian"]
 
 [sub_resource type="Resource" id="Definition"]
 script = ExtResource("2_definition")
@@ -206,7 +198,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 4.5)
 script = ExtResource("5_stop")
 approach_zone = NodePath("ApproachZone")
 line_zone = NodePath("LineZone")
-fault = ExtResource("11_f_stop")
 
 [node name="ApproachZone" type="Area3D" parent="Checks/StopCheck"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 4.75)
@@ -226,8 +217,6 @@ shape = SubResource("Shape_line")
 script = ExtResource("7_speed")
 zone = NodePath("Zone")
 limit_kmh = 30.0
-minor_fault = ExtResource("12_f_speed_minor")
-serious_fault = ExtResource("13_f_speed_serious")
 
 [node name="Zone" type="Area3D" parent="Checks/SpeedLimitCheck"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 1.5, 27)
@@ -239,14 +228,9 @@ shape = SubResource("Shape_speed")
 [node name="RouteCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("path")]
 script = ExtResource("8_route")
 path = NodePath("../../Lane")
-lane_fault = ExtResource("14_f_lane")
-road_fault = ExtResource("15_f_road")
-wrong_way_fault = ExtResource("16_f_wrong")
 
 [node name="ContactCheck" type="Node3D" parent="Checks"]
 script = ExtResource("9_contact")
-obstacle_fault = ExtResource("17_f_obstacle")
-pedestrian_fault = ExtResource("18_f_pedestrian")
 
 [node name="GoalCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("zone")]
 script = ExtResource("10_goal")

@@ -5,7 +5,7 @@ extends Node3D
 ## [constant Mode.ON_APPROACH] it holds [member initial] until a vehicle enters
 ## [member trigger], waits [member trigger_delay], turns amber, and then runs the phases once until
 ## it is green again, where it holds; scenarios use this to put a change at a chosen distance. It
-## draws a pole and three lamps; [member stop_line] is the line its checks judge.
+## draws a pole and three lamps; a [TrafficLightCheck] at the stop line judges the car.
 
 signal state_changed(state: Light)
 
@@ -20,7 +20,6 @@ enum Mode { CYCLE, ON_APPROACH }
 @export var amber_time := 3.0
 @export var trigger: TriggerZone
 @export var trigger_delay := 0.0
-@export var stop_line: RoadMarking
 @export var draw_lamps := true
 
 const LAMP_COLOURS := [Color(0.9, 0.1, 0.1), Color(0.95, 0.6, 0.05), Color(0.1, 0.85, 0.3)]

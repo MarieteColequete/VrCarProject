@@ -77,8 +77,12 @@ car and runs an `ExamSession`. The session's signals (`briefing_started`, `start
 `fault_committed`, `finished`) and methods (`begin`, `abort`, `restart`) are the interface for the
 UI; `finished` carries a `ScenarioResult` with the outcome and every fault.
 
-The scenario tests run headless:
+The scenario tests run headless, one case file per framework area and per scenario under
+`tests/cases/`:
 
 ```
 godot --headless --fixed-fps 60 --path 'vr-project-[car-sim]' -s res://tests/run_tests.gd
 ```
+
+`TESTS_FILTER=<name>` runs only the cases whose file name contains it, and `TESTS_VERBOSE=1` prints
+each passing test.

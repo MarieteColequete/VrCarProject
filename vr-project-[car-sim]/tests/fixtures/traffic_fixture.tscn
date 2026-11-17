@@ -8,8 +8,6 @@
 [ext_resource type="Script" path="res://scenarios/checks/trigger_zone.gd" id="6_zone"]
 [ext_resource type="Script" path="res://scenarios/checks/contact_check.gd" id="7_contact"]
 [ext_resource type="Script" path="res://scenarios/checks/goal_check.gd" id="8_goal"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/contact_obstacle.tres" id="9_f_obstacle"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/contact_pedestrian.tres" id="10_f_pedestrian"]
 
 [sub_resource type="Resource" id="Definition"]
 script = ExtResource("2_definition")
@@ -70,8 +68,6 @@ colour = Color(0.2, 0.6, 0.9, 1)
 
 [node name="ContactCheck" type="Node3D" parent="."]
 script = ExtResource("7_contact")
-obstacle_fault = ExtResource("9_f_obstacle")
-pedestrian_fault = ExtResource("10_f_pedestrian")
 
 [node name="GoalCheck" type="Node3D" parent="." node_paths=PackedStringArray("zone")]
 script = ExtResource("8_goal")

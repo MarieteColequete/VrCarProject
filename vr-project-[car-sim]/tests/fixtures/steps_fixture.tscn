@@ -8,8 +8,6 @@
 [ext_resource type="Script" path="res://scenarios/checks/trigger_zone.gd" id="6_zone"]
 [ext_resource type="Script" path="res://scenarios/checks/goal_check.gd" id="7_goal"]
 [ext_resource type="Script" path="res://scenarios/checks/speed_limit_check.gd" id="8_speed"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/speeding_minor.tres" id="9_f_minor"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/speeding_serious.tres" id="10_f_serious"]
 
 [sub_resource type="Resource" id="Definition"]
 script = ExtResource("2_definition")
@@ -79,8 +77,6 @@ shape = SubResource("Shape_goal")
 script = ExtResource("8_speed")
 zone = NodePath("Zone")
 limit_kmh = 10.0
-minor_fault = ExtResource("9_f_minor")
-serious_fault = ExtResource("10_f_serious")
 active_steps = [NodePath("../Steps/ReachSecond")]
 
 [node name="Zone" type="Area3D" parent="SpeedInSecondStep"]

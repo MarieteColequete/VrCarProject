@@ -2,8 +2,17 @@ class_name ScenarioResult
 extends RefCounted
 ## The outcome of one attempt at a scenario, handed to the UI by [signal ExamSession.finished].
 
-## How the session ended: [code]completed[/code] (goal reached), [code]eliminated[/code] (an
-## eliminating fault), [code]timeout[/code], or [code]aborted[/code].
+## The goal was reached.
+const COMPLETED := &"completed"
+## An eliminating fault ended the attempt.
+const ELIMINATED := &"eliminated"
+## The time limit ran out.
+const TIMEOUT := &"timeout"
+## The attempt was stopped before its end.
+const ABORTED := &"aborted"
+
+## How the session ended: [constant COMPLETED], [constant ELIMINATED], [constant TIMEOUT], or
+## [constant ABORTED].
 var reason: StringName
 var passed := false
 ## The tier that failed the attempt, empty on a pass.

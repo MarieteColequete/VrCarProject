@@ -12,15 +12,6 @@
 [ext_resource type="Script" path="res://scenarios/checks/following_distance_check.gd" id="following"]
 [ext_resource type="Script" path="res://scenarios/checks/contact_check.gd" id="contact"]
 [ext_resource type="Script" path="res://scenarios/checks/goal_check.gd" id="goal"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/line_solid_crossed.tres" id="f_line_solid_crossed"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/no_indicator.tres" id="f_no_indicator"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/line_straddled.tres" id="f_line_straddled"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/kerb_mounted.tres" id="f_kerb_mounted"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/no_mirror_check.tres" id="f_no_mirror_check"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/no_shoulder_check.tres" id="f_no_shoulder_check"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/following_too_close.tres" id="f_following_too_close"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/contact_obstacle.tres" id="f_contact_obstacle"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/contact_pedestrian.tres" id="f_contact_pedestrian"]
 
 [sub_resource type="Resource" id="Definition"]
 script = ExtResource("definition")
@@ -165,25 +156,16 @@ speed = 4.0
 
 [node name="LineCheck" type="Node3D" parent="."]
 script = ExtResource("lines")
-solid_fault = ExtResource("f_line_solid_crossed")
-no_indicator_fault = ExtResource("f_no_indicator")
-straddle_fault = ExtResource("f_line_straddled")
-kerb_fault = ExtResource("f_kerb_mounted")
 
 [node name="GazeCheck" type="Node3D" parent="."]
 script = ExtResource("gaze")
-mirror_fault = ExtResource("f_no_mirror_check")
-shoulder_fault = ExtResource("f_no_shoulder_check")
 
 [node name="FollowingDistanceCheck" type="Node3D" parent="." node_paths=PackedStringArray("agents")]
 script = ExtResource("following")
 agents = [NodePath("../SlowVehicle")]
-fault = ExtResource("f_following_too_close")
 
 [node name="ContactCheck" type="Node3D" parent="."]
 script = ExtResource("contact")
-obstacle_fault = ExtResource("f_contact_obstacle")
-pedestrian_fault = ExtResource("f_contact_pedestrian")
 
 [node name="GoalCheck" type="Node3D" parent="." node_paths=PackedStringArray("zone")]
 script = ExtResource("goal")

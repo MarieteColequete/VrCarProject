@@ -36,7 +36,6 @@ var _rebuild_queued := false
 
 
 func _ready() -> void:
-	add_to_group(&"parking_bay")
 	_rebuild()
 
 
@@ -51,7 +50,7 @@ func is_free() -> bool:
 	box.size = Vector3(size.x * 0.8, 1.0, size.y * 0.8)
 	query.shape = box
 	query.transform = Transform3D(global_basis, global_position + Vector3.UP * 0.75)
-	query.collision_mask = VehicleProbe.OBSTACLE_LAYER
+	query.collision_mask = Layers.OBSTACLE
 	return space.intersect_shape(query, 1).is_empty()
 
 

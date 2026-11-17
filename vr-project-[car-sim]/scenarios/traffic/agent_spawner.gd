@@ -49,29 +49,11 @@ func _park_in(bay: ParkingBay) -> void:
 	if parked_car_scene:
 		car = parked_car_scene.instantiate()
 	else:
-		car = _box_car()
+		var body := StaticBody3D.new()
+		body.collision_layer = Layers.OBSTACLE
+		body.collision_mask = 0
+		BoxBody.build(body, Vector3(1.8, 1.4, 4.2), colour)
+		car = body
 	add_child(car)
 	car.global_transform = bay.global_transform
 
-
-func _box_car() -> StaticBody3D:
-	var body := StaticBody3D.new()
-	body.collision_layer = VehicleProbe.OBSTACLE_LAYER
-	body.collision_mask = 0
-	var size := Vector3(1.8, 1.4, 4.2)
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = size
-	shape.shape = box
-	shape.position.y = size.y * 0.5
-	body.add_child(shape)
-	var mesh := MeshInstance3D.new()
-	var box_mesh := BoxMesh.new()
-	box_mesh.size = size
-	var material := StandardMaterial3D.new()
-	material.albedo_color = colour
-	box_mesh.material = material
-	mesh.mesh = box_mesh
-	mesh.position.y = size.y * 0.5
-	body.add_child(mesh)
-	return body

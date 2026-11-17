@@ -47,7 +47,9 @@ binary is on `PATH` as `godot`.
 godot --headless --path 'vr-project-[car-sim]' --import   import and scan the project, then quit (the stop gate)
 godot --headless --fixed-fps 60 --path 'vr-project-[car-sim]' -s res://tests/run_tests.gd
                                                           run the scenario tests (exit 1 on failure;
-                                                          --fixed-fps 60 runs them faster than real time)
+                                                          --fixed-fps 60 runs them faster than real time;
+                                                          TESTS_FILTER=<name> runs matching cases only,
+                                                          TESTS_FILTER=bench times the detection work)
 godot --path 'vr-project-[car-sim]' --editor              open the project in the editor
 sh .claude/bin/preset status                              the branch, its commits, the version, and the hook
 ```
@@ -63,9 +65,10 @@ The project facts the preset rules refer to:
 - **Decision record**: none yet; decisions are recorded in the commit bodies and in `CLAUDE.md`.
 - **MSC document**: none.
 - **Review subagent**: `consistency` (`.claude/agents/`).
-- **Testing method**: the headless import check, and the headless scenario tests in
-  `vr-project-[car-sim]/tests/run_tests.gd` (scoring, and scripted drives through each scenario);
-  both commands are above. No separate testing document exists yet.
+- **Testing method**: the headless import check, and the headless scenario tests: the runner
+  `vr-project-[car-sim]/tests/run_tests.gd` runs each case in `tests/cases/` (the framework, and
+  scripted drives through each scenario) on the `TestCase` base in `tests/lib/`; both commands are
+  above. No separate testing document exists yet.
 - **Main paper**: none yet; one is planned, and its path goes here once it exists.
 
 ## Compact instructions

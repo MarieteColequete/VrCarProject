@@ -6,7 +6,3 @@ extends TriggerZone
 
 @export var reason := "No parking"
 
-
-func _ready() -> void:
-	super()
-	add_to_group(&"no_parking_zone")

@@ -13,16 +13,6 @@
 [ext_resource type="Script" path="res://scenarios/checks/line_check.gd" id="lines"]
 [ext_resource type="Script" path="res://scenarios/checks/contact_check.gd" id="contact"]
 [ext_resource type="Script" path="res://scenarios/checks/goal_check.gd" id="goal"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/failed_to_give_way.tres" id="f_failed_to_give_way"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/undue_hesitation.tres" id="f_undue_hesitation"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/no_indicator_turn.tres" id="f_no_indicator_turn"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/wrong_turn.tres" id="f_wrong_turn"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/line_solid_crossed.tres" id="f_line_solid_crossed"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/no_indicator.tres" id="f_no_indicator"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/line_straddled.tres" id="f_line_straddled"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/kerb_mounted.tres" id="f_kerb_mounted"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/contact_obstacle.tres" id="f_contact_obstacle"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/contact_pedestrian.tres" id="f_contact_pedestrian"]
 
 [sub_resource type="Resource" id="Definition"]
 script = ExtResource("definition")
@@ -391,8 +381,6 @@ script = ExtResource("yield")
 conflict_zone = NodePath("ConflictZone")
 approach_zone = NodePath("../ApproachZone")
 agents = [NodePath("../CarA"), NodePath("../CarB"), NodePath("../CarC"), NodePath("../CarD")]
-give_way_fault = ExtResource("f_failed_to_give_way")
-hesitation_fault = ExtResource("f_undue_hesitation")
 
 [node name="ConflictZone" type="Area3D" parent="YieldCheck"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 10)
@@ -404,8 +392,6 @@ shape = SubResource("Shape_conflict")
 [node name="JunctionCheck" type="Node3D" parent="."]
 script = ExtResource("junction")
 judge_on_exit = true
-indicator_fault = ExtResource("f_no_indicator_turn")
-wrong_turn_fault = ExtResource("f_wrong_turn")
 
 [node name="FirstExit" type="Area3D" parent="JunctionCheck"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 1.5, 1.75)
@@ -435,15 +421,9 @@ shape = SubResource("Shape_exit_ew")
 
 [node name="LineCheck" type="Node3D" parent="."]
 script = ExtResource("lines")
-solid_fault = ExtResource("f_line_solid_crossed")
-no_indicator_fault = ExtResource("f_no_indicator")
-straddle_fault = ExtResource("f_line_straddled")
-kerb_fault = ExtResource("f_kerb_mounted")
 
 [node name="ContactCheck" type="Node3D" parent="."]
 script = ExtResource("contact")
-obstacle_fault = ExtResource("f_contact_obstacle")
-pedestrian_fault = ExtResource("f_contact_pedestrian")
 
 [node name="GoalCheck" type="Node3D" parent="." node_paths=PackedStringArray("zone")]
 script = ExtResource("goal")

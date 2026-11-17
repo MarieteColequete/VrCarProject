@@ -16,18 +16,12 @@ signal contact_started(body: Node3D)
 signal stopped
 ## Emitted when the car starts moving, forward or in reverse.
 signal started_moving(direction: Direction)
-## Emitted when the car moves off in the opposite direction to its last movement.
-signal direction_changed(direction: Direction)
 
 enum Indicator { UNKNOWN, OFF, LEFT, RIGHT, HAZARD }
 enum Direction { STOPPED, FORWARD, REVERSE }
 ## A two-state control the car may or may not report.
 enum Toggle { UNKNOWN, OFF, ON }
 
-const VEHICLE_LAYER := 1 << 1
-const OBSTACLE_LAYER := 1 << 2
-const PEDESTRIAN_LAYER := 1 << 3
-const DETECTION_LAYER := 1 << 4
 const META_KEY := &"vehicle_probe"
 
 ## Size of the contact hull; match the car's body, plus a small margin.
@@ -74,6 +68,12 @@ var _driver_view: DriverView
 var _clock := 0.0
 var _indicator_seen := Indicator.UNKNOWN
 var _indicator_since := 0.0
+# The footprint, recomputed only when the transform changes.
+var _cached_transform := Transform3D()
+var _cached := false
+var _forward := Vector3.FORWARD
+var _corners := PackedVector3Array()
+var _wheel_points := PackedVector3Array()
 
 
 ## The probe of a car body, or null.
@@ -87,8 +87,8 @@ func _ready() -> void:
 	get_parent().set_meta(META_KEY, self)
 	_hull = Area3D.new()
 	_hull.name = "ContactHull"
-	_hull.collision_layer = DETECTION_LAYER
-	_hull.collision_mask = OBSTACLE_LAYER | PEDESTRIAN_LAYER
+	_hull.collision_layer = Layers.DETECTION
+	_hull.collision_mask = Layers.OBSTACLE | Layers.PEDESTRIAN
 	_hull.monitorable = false
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
@@ -153,7 +153,6 @@ func _update_direction() -> void:
 	started_moving.emit(now)
 	if _last_moving != Direction.STOPPED and _last_moving != now:
 		direction_changes += 1
-		direction_changed.emit(now)
 	_last_moving = now
 
 
@@ -173,12 +172,14 @@ func indicator_held_for(side: Indicator) -> float:
 ## The four body corners on the ground, world space: front left, front right, rear right, rear
 ## left.
 func corners() -> PackedVector3Array:
-	return _ground_rect(body_width, body_length)
+	_refresh()
+	return _corners
 
 
 ## The four wheel contact points, world space, in the same order as [method corners].
 func wheels() -> PackedVector3Array:
-	return _ground_rect(track, wheelbase)
+	_refresh()
+	return _wheel_points
 
 
 ## The wheel contact points one physics tick ago; equal to [method wheels] on the first tick. A
@@ -195,22 +196,47 @@ func look_direction() -> Vector3:
 	return forward()
 
 
-func _ground_rect(width: float, length: float) -> PackedVector3Array:
+## The car's forward direction, horizontal and normalised (Godot's -Z).
+func forward() -> Vector3:
+	_refresh()
+	return _forward
+
+
+## Which side of the car a direction points to: [constant Indicator.LEFT] or
+## [constant Indicator.RIGHT]; for a marking crossed, the side the car moved onto.
+func side_of(direction: Vector3) -> Indicator:
+	return Indicator.LEFT if direction.dot(forward().cross(Vector3.UP)) < 0.0 else Indicator.RIGHT
+
+
+## Whether the car faces along [param direction] on the ground plane rather than against it.
+func travels_along(direction: Vector3) -> bool:
+	direction.y = 0.0
+	return forward().dot(direction) > 0.0
+
+
+func _refresh() -> void:
+	var t := global_transform
+	if _cached and t.is_equal_approx(_cached_transform):
+		return
+	_cached = true
+	_cached_transform = t
+	var f := -t.basis.z
+	f.y = 0.0
+	_forward = f.normalized()
+	_corners = _ground_rect(t, body_width, body_length)
+	_wheel_points = _ground_rect(t, track, wheelbase)
+
+
+static func _ground_rect(t: Transform3D, width: float, length: float) -> PackedVector3Array:
 	var hw := width * 0.5
 	var hl := length * 0.5
 	var out := PackedVector3Array()
 	for local in [Vector3(-hw, 0, -hl), Vector3(hw, 0, -hl), Vector3(hw, 0, hl), Vector3(-hw, 0, hl)]:
-		var p: Vector3 = global_transform * local
-		p.y = global_position.y
+		# Flattened to the probe's height, so a tilted body does not lift its footprint.
+		var p: Vector3 = t * local
+		p.y = t.origin.y
 		out.append(p)
 	return out
-
-
-## The car's forward direction, horizontal and normalised (Godot's -Z).
-func forward() -> Vector3:
-	var f := -global_basis.z
-	f.y = 0.0
-	return f.normalized()
 
 
 func speed_kmh() -> float:

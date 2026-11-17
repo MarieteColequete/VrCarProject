@@ -50,6 +50,12 @@ func half_width() -> float:
 	return width * 1.5 if kind == Kind.DOUBLE_SOLID else width * 0.5
 
 
+## Whether the marking separates lanes (solid, dashed, or double solid), the lines crossed in a
+## lane change.
+func is_lane_line() -> bool:
+	return kind == Kind.SOLID or kind == Kind.DASHED or kind == Kind.DOUBLE_SOLID
+
+
 ## The marking's centreline in world space, along the baked curve.
 func world_points() -> PackedVector3Array:
 	var out := PackedVector3Array()

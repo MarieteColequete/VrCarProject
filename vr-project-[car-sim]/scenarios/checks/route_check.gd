@@ -1,3 +1,4 @@
+@tool
 class_name RouteCheck
 extends Check
 ## A lane the car should follow, given by a [Path3D] along the lane's centre in the direction of
@@ -5,7 +6,7 @@ extends Check
 ## the lateral offset, and the curve's direction there gives wrong-way driving. It checks only
 ## while the car is alongside the curve, not beyond either end.
 ##
-## Each condition is an episode: one fault when it lasts longer than its grace time, and none
+## Each condition is an [Episode]: one fault when it lasts longer than its grace time, and none
 ## again until the car is back within bounds.
 
 @export var path: Path3D
@@ -19,34 +20,21 @@ extends Check
 @export var wrong_way_grace := 1.0
 ## Speed, metres per second, above which wrong-way driving is judged.
 @export var wrong_way_speed := 1.0
-@export var lane_fault: FaultDef
-@export var road_fault: FaultDef
-@export var wrong_way_fault: FaultDef
+@export var lane_fault: FaultDef = preload("res://scenarios/data/faults/lane_drift.tres")
+@export var road_fault: FaultDef = preload("res://scenarios/data/faults/off_route.tres")
+@export var wrong_way_fault: FaultDef = preload("res://scenarios/data/faults/wrong_way.tres")
 
-## The car's last lateral offset and distance along the route, for debugging and the UI.
+## The car's last lateral offset and distance along the route.
 var lateral := 0.0
 var progress := 0.0
 
-var _lane := _Episode.new()
-var _road := _Episode.new()
-var _wrong := _Episode.new()
+var _lane := Episode.new()
+var _road := Episode.new()
+var _wrong := Episode.new()
 
 
-class _Episode:
-	var time := 0.0
-	var reported := false
-
-	## Advances the episode; returns true once, when it first outlasts the grace time.
-	func step(active: bool, delta: float, grace: float) -> bool:
-		if not active:
-			time = 0.0
-			reported = false
-			return false
-		time += delta
-		if time > grace and not reported:
-			reported = true
-			return true
-		return false
+func required_exports() -> PackedStringArray:
+	return ["path"]
 
 
 func _physics_process(delta: float) -> void:
@@ -59,19 +47,17 @@ func _physics_process(delta: float) -> void:
 	progress = curve.get_closest_offset(local)
 	if progress <= 0.01 or progress >= length - 0.01:
 		return
-	var closest := curve.sample_baked(progress)
-	var flat := local - closest
+	var flat := local - curve.sample_baked(progress)
 	flat.y = 0.0
 	lateral = flat.length()
-	var tangent := curve.sample_baked(minf(progress + 0.5, length)) \
-		- curve.sample_baked(maxf(progress - 0.5, 0.0))
-	tangent = path.global_basis * tangent
+	var tangent := path.global_basis * (curve.sample_baked(minf(progress + 0.5, length))
+		- curve.sample_baked(maxf(progress - 0.5, 0.0)))
 	tangent.y = 0.0
 	var against := p.forward().dot(tangent.normalized()) < -0.5 and absf(p.speed) > wrong_way_speed
 
-	if _road.step(lateral > road_offset, delta, lane_grace):
-		report(road_fault, p.global_position)
-	elif _lane.step(lateral > lane_offset and lateral <= road_offset, delta, lane_grace):
-		report(lane_fault, p.global_position)
-	if _wrong.step(against, delta, wrong_way_grace):
-		report(wrong_way_fault, p.global_position)
+	if _road.update(lateral > road_offset, delta, lane_grace):
+		report_here(road_fault)
+	elif _lane.update(lateral > lane_offset and lateral <= road_offset, delta, lane_grace):
+		report_here(lane_fault)
+	if _wrong.update(against, delta, wrong_way_grace):
+		report_here(wrong_way_fault)

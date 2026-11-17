@@ -1,3 +1,4 @@
+@tool
 class_name GoalCheck
 extends Check
 ## The end of a step, or of the scenario: entering the zone completes [member step] when it is
@@ -8,10 +9,12 @@ extends Check
 @export var step: ScenarioStep
 
 
+func required_exports() -> PackedStringArray:
+	return ["zone"]
+
+
 func _on_bound() -> void:
-	zone.vehicle_entered.connect(func(p: VehicleProbe) -> void:
-		if p != probe() or not is_live():
-			return
+	watch(zone, func(_p: VehicleProbe) -> void:
 		if step:
 			session.complete_step(step)
 		else:

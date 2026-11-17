@@ -1,21 +1,21 @@
+@tool
 class_name ParkingCheck
 extends Check
 ## How well the car is parked. When the car settles (stopped with the handbrake on, or stopped
 ## for [member settle_time]) with its centre in a [ParkingBay], the manoeuvre is judged once: how
 ## far the body overhangs the bay, how far it is from the facing the bay requires, how many
-## times it changed direction, and how long it took. Parking in a bay that is free and not
+## times it changed direction, and how long it took. Parking in a bay not marked occupied or
 ## reserved completes [member step]; whether the place was allowed at all is the
 ## [ParkingChoiceCheck]'s concern.
 ##
 ## The manoeuvre is counted from the moment the check becomes live, so limit it with
 ## [member Check.active_steps] to the step that asks for the park.
 
-signal parked(bay: ParkingBay)
-
 ## The step a good park completes; empty to complete nothing.
 @export var step: ScenarioStep
 ## The bays judged; empty for every bay in the scenario.
 @export var bays: Array[ParkingBay] = []
+## Seconds stopped, without the handbrake, after which the car counts as parked.
 @export var settle_time := 2.0
 ## Overhang, in metres, up to which leaving the bay is minor.
 @export var overhang_margin := 0.3
@@ -25,11 +25,11 @@ signal parked(bay: ParkingBay)
 @export var max_direction_changes := 3
 ## Seconds allowed for the manoeuvre; 0 for no limit.
 @export var time_limit := 0.0
-@export var overhang_minor_fault: FaultDef
-@export var overhang_serious_fault: FaultDef
-@export var misaligned_fault: FaultDef
-@export var manoeuvres_fault: FaultDef
-@export var too_slow_fault: FaultDef
+@export var overhang_minor_fault: FaultDef = preload("res://scenarios/data/faults/parking_overhang_minor.tres")
+@export var overhang_serious_fault: FaultDef = preload("res://scenarios/data/faults/parking_overhang_serious.tres")
+@export var misaligned_fault: FaultDef = preload("res://scenarios/data/faults/parking_misaligned.tres")
+@export var manoeuvres_fault: FaultDef = preload("res://scenarios/data/faults/parking_too_many_manoeuvres.tres")
+@export var too_slow_fault: FaultDef = preload("res://scenarios/data/faults/parking_too_slow.tres")
 
 var _baseline := -1
 var _started := 0.0
@@ -57,35 +57,25 @@ func _physics_process(_delta: float) -> void:
 
 ## The bay holding the car's centre, among those this check judges.
 func bay_under(p: VehicleProbe) -> ParkingBay:
-	for bay in _candidates():
-		if bay.contains(p.global_position):
+	if bays.is_empty():
+		return session.scenario.bay_at(p.global_position)
+	for bay in bays:
+		if bay and bay.contains(p.global_position):
 			return bay
 	return null
 
 
-func _candidates() -> Array[ParkingBay]:
-	if not bays.is_empty():
-		return bays
-	var found: Array[ParkingBay] = []
-	for node in get_tree().get_nodes_in_group(&"parking_bay"):
-		if session.scenario.is_ancestor_of(node):
-			found.append(node)
-	return found
-
-
 func _judge(bay: ParkingBay, p: VehicleProbe) -> void:
-	var at := p.global_position
 	var over := bay.overhang(p.corners())
 	if over > overhang_margin:
-		report(overhang_serious_fault, at)
+		report_here(overhang_serious_fault)
 	elif over > 0.0:
-		report(overhang_minor_fault, at)
+		report_here(overhang_minor_fault)
 	if bay.facing_error(p.forward()) > facing_tolerance:
-		report(misaligned_fault, at)
+		report_here(misaligned_fault)
 	if p.direction_changes - _baseline > max_direction_changes:
-		report(manoeuvres_fault, at)
+		report_here(manoeuvres_fault)
 	if time_limit > 0.0 and session.elapsed - _started > time_limit:
-		report(too_slow_fault, at)
-	parked.emit(bay)
+		report_here(too_slow_fault)
 	if step and not bay.reserved and not bay.occupied:
 		session.complete_step(step)

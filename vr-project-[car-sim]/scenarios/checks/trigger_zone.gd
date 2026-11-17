@@ -8,11 +8,12 @@ signal vehicle_entered(probe: VehicleProbe)
 signal vehicle_exited(probe: VehicleProbe)
 
 var _inside: Array[VehicleProbe] = []
+var _box: CollisionShape3D
 
 
 func _ready() -> void:
-	collision_layer = VehicleProbe.DETECTION_LAYER
-	collision_mask = VehicleProbe.VEHICLE_LAYER
+	collision_layer = Layers.DETECTION
+	collision_mask = Layers.VEHICLE
 	monitoring = true
 	monitorable = false
 	body_entered.connect(_on_body_entered)
@@ -26,13 +27,17 @@ func contains(probe: VehicleProbe) -> bool:
 ## Whether [param point] lies inside the zone's first box shape, grown by [param margin] metres
 ## on the ground plane; for things the zone does not detect itself, such as pedestrians.
 func contains_point(point: Vector3, margin := 0.0) -> bool:
-	for child in get_children():
-		if child is CollisionShape3D and child.shape is BoxShape3D:
-			var local: Vector3 = child.global_transform.affine_inverse() * point
-			var half: Vector3 = child.shape.size * 0.5
-			return absf(local.x) <= half.x + margin and absf(local.z) <= half.z + margin \
-				and absf(local.y) <= half.y
-	return false
+	if _box == null:
+		for child in get_children():
+			if child is CollisionShape3D and child.shape is BoxShape3D:
+				_box = child
+				break
+		if _box == null:
+			return false
+	var local: Vector3 = _box.global_transform.affine_inverse() * point
+	var half: Vector3 = _box.shape.size * 0.5
+	return absf(local.x) <= half.x + margin and absf(local.z) <= half.z + margin \
+		and absf(local.y) <= half.y
 
 
 func _on_body_entered(body: Node3D) -> void:

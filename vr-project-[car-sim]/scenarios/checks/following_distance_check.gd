@@ -1,3 +1,4 @@
+@tool
 class_name FollowingDistanceCheck
 extends Check
 ## Following distance: the time gap to a road user ahead in the same lane, the clear distance
@@ -6,19 +7,26 @@ extends Check
 ## episode. Only [member agents] are considered, and only above [member min_speed], so queuing in
 ## slow traffic is not judged.
 
+## The road users whose distance is judged.
 @export var agents: Array[ScriptedAgent] = []
-@export var fault: FaultDef
+@export var following_fault: FaultDef = preload("res://scenarios/data/faults/following_too_close.tres")
+## The smallest time gap allowed, seconds.
 @export var min_gap := 2.0
+## Seconds closer than the gap before it counts.
 @export var grace := 2.0
 ## Metres off the car's line within which a road user counts as in the same lane.
 @export var lane_half_width := 1.5
+## Speed, metres per second, below which the gap is not judged.
 @export var min_speed := 3.0
 
 ## The current time gap to the nearest road user ahead, INF when there is none.
 var time_gap := INF
 
-var _close_for := 0.0
-var _reported := false
+var _close := Episode.new()
+
+
+func required_exports() -> PackedStringArray:
+	return ["agents"]
 
 
 func _physics_process(delta: float) -> void:
@@ -26,14 +34,8 @@ func _physics_process(delta: float) -> void:
 		return
 	var p := probe()
 	time_gap = _time_gap(p)
-	if time_gap < min_gap:
-		_close_for += delta
-		if _close_for > grace and not _reported:
-			_reported = true
-			report(fault, p.global_position)
-	else:
-		_close_for = 0.0
-		_reported = false
+	if _close.update(time_gap < min_gap, delta, grace):
+		report_here(following_fault)
 
 
 func _time_gap(p: VehicleProbe) -> float:
@@ -43,6 +45,8 @@ func _time_gap(p: VehicleProbe) -> float:
 	var right := fwd.cross(Vector3.UP)
 	var nearest := INF
 	for agent in agents:
+		if agent == null:
+			continue
 		var offset := agent.global_position - p.global_position
 		offset.y = 0.0
 		var ahead := offset.dot(fwd)

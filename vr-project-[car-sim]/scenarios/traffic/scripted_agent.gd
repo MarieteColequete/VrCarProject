@@ -5,8 +5,8 @@ extends AnimatableBody3D
 ## a vehicle enters [member trigger]. It can pause once along the way, and loop. The same script
 ## always plays out the same way, so scenarios with traffic stay reproducible.
 ##
-## Cars sit on the obstacle layer and pedestrians on the pedestrian layer and in the
-## [code]pedestrian[/code] group, so the [ContactCheck] tells them apart. Without a
+## Cars sit on the obstacle layer and pedestrians on the pedestrian layer and in the pedestrian
+## group (see [Layers]), so the [ContactCheck] tells them apart. Without a
 ## [CollisionShape3D] child, it builds a box of [member body_size].
 
 signal started
@@ -36,15 +36,18 @@ var _armed := false
 var _clock := 0.0
 var _paused_for := 0.0
 var _paused_this_lap := false
+var _length := 0.0
 
 
 func _ready() -> void:
-	collision_layer = VehicleProbe.PEDESTRIAN_LAYER if pedestrian else VehicleProbe.OBSTACLE_LAYER
+	collision_layer = Layers.PEDESTRIAN if pedestrian else Layers.OBSTACLE
 	collision_mask = 0
 	if pedestrian:
-		add_to_group(&"pedestrian")
+		add_to_group(Layers.GROUP_PEDESTRIAN)
 	if not _has_shape():
-		_build_body()
+		BoxBody.build(self, body_size, colour)
+	if path and path.curve:
+		_length = path.curve.get_baked_length()
 	_armed = trigger == null
 	if trigger:
 		trigger.vehicle_entered.connect(func(_p: VehicleProbe) -> void: _armed = true)
@@ -57,12 +60,11 @@ func _ready() -> void:
 func time_to(offset: float) -> float:
 	if state == State.DONE or (state == State.WAITING and not _armed):
 		return INF
-	var length := path.curve.get_baked_length()
 	var remaining := offset - progress
 	if remaining < 0.0:
 		if not loop:
 			return INF
-		remaining += length
+		remaining += _length
 	var wait := 0.0
 	if state == State.WAITING:
 		wait = maxf(start_delay - _clock, 0.0)
@@ -90,8 +92,19 @@ func _physics_process(delta: float) -> void:
 			_advance(speed * delta)
 
 
+## Whether the agent has reached the end of its path for good.
+func is_done() -> bool:
+	return state == State.DONE
+
+
+## The distance along the path of its point nearest [param point], world space; the offset to
+## pass to [method time_to].
+func offset_nearest(point: Vector3) -> float:
+	return path.curve.get_closest_offset(path.to_local(point))
+
+
 func _advance(step: float) -> void:
-	var length := path.curve.get_baked_length()
+	var length := _length
 	progress += step
 	if pause_at >= 0.0 and not _paused_this_lap and progress >= pause_at:
 		progress = pause_at
@@ -113,7 +126,7 @@ func _place(offset: float) -> void:
 	if path == null or path.curve == null:
 		return
 	var curve := path.curve
-	var length := curve.get_baked_length()
+	var length := _length if _length > 0.0 else curve.get_baked_length()
 	var here := path.global_transform * curve.sample_baked(offset)
 	var ahead := path.global_transform * curve.sample_baked(minf(offset + 0.5, length))
 	var behind := path.global_transform * curve.sample_baked(maxf(offset - 0.5, 0.0))
@@ -131,20 +144,3 @@ func _has_shape() -> bool:
 			return true
 	return false
 
-
-func _build_body() -> void:
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = body_size
-	shape.shape = box
-	shape.position.y = body_size.y * 0.5
-	add_child(shape)
-	var mesh := MeshInstance3D.new()
-	var box_mesh := BoxMesh.new()
-	box_mesh.size = body_size
-	var material := StandardMaterial3D.new()
-	material.albedo_color = colour
-	box_mesh.material = material
-	mesh.mesh = box_mesh
-	mesh.position.y = body_size.y * 0.5
-	add_child(mesh)

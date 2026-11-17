@@ -1,3 +1,4 @@
+@tool
 class_name ParkingChoiceCheck
 extends Check
 ## Whether the car is parked somewhere allowed. When the car settles (stopped with the handbrake
@@ -6,12 +7,14 @@ extends Check
 ## one marked occupied, is a fault of its own. Limit it with [member Check.active_steps] to the
 ## steps where the driver is choosing a place, so waiting in traffic is never read as parking.
 
+## Seconds stopped, without the handbrake, after which the car counts as parked; longer than
+## [member ParkingCheck.settle_time], so a pause while manoeuvring is not judged as a choice.
 @export var settle_time := 5.0
 ## Distance, in metres, from a no-parking line within which a corner counts as parked on it.
 @export var line_distance := 1.0
-@export var illegal_fault: FaultDef
-@export var reserved_fault: FaultDef
-@export var occupied_fault: FaultDef
+@export var illegal_fault: FaultDef = preload("res://scenarios/data/faults/parking_illegal.tres")
+@export var reserved_fault: FaultDef = preload("res://scenarios/data/faults/parking_reserved.tres")
+@export var occupied_fault: FaultDef = preload("res://scenarios/data/faults/parking_occupied.tres")
 
 var _judged := false
 
@@ -26,20 +29,19 @@ func _physics_process(_delta: float) -> void:
 	if _judged or not p.is_settled(settle_time):
 		return
 	_judged = true
-	var at := p.global_position
 	if _in_no_parking(p):
-		report(illegal_fault, at)
+		report_here(illegal_fault)
 		return
-	var bay := _bay_under(p)
+	var bay := session.scenario.bay_at(p.global_position)
 	if bay and bay.reserved:
-		report(reserved_fault, at)
+		report_here(reserved_fault)
 	elif bay and bay.occupied:
-		report(occupied_fault, at)
+		report_here(occupied_fault)
 
 
 func _in_no_parking(p: VehicleProbe) -> bool:
-	for node in get_tree().get_nodes_in_group(&"no_parking_zone"):
-		if session.scenario.is_ancestor_of(node) and (node as NoParkingZone).contains(p):
+	for zone in session.scenario.no_parking_zones():
+		if zone.contains(p):
 			return true
 	var index := session.scenario.marking_index()
 	for corner in p.corners():
@@ -47,11 +49,3 @@ func _in_no_parking(p: VehicleProbe) -> bool:
 			if marking.kind == RoadMarking.Kind.NO_PARKING:
 				return true
 	return false
-
-
-func _bay_under(p: VehicleProbe) -> ParkingBay:
-	for node in get_tree().get_nodes_in_group(&"parking_bay"):
-		var bay := node as ParkingBay
-		if session.scenario.is_ancestor_of(bay) and bay.contains(p.global_position):
-			return bay
-	return null

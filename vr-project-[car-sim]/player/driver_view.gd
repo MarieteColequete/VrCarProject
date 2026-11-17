@@ -21,8 +21,6 @@ const LOOK_UP := &"look_up"
 const LOOK_DOWN := &"look_down"
 const LOOK_RESET := &"look_reset"
 const RELEASE_MOUSE := &"release_mouse"
-const VIEW_ACTIONS: Array[StringName] = [
-	LOOK_LEFT, LOOK_RIGHT, LOOK_UP, LOOK_DOWN, LOOK_RESET, RELEASE_MOUSE]
 
 ## Radians; 0 looks straight ahead.
 var yaw := 0.0

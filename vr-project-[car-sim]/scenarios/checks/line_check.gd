@@ -1,3 +1,4 @@
+@tool
 class_name LineCheck
 extends Check
 ## Lines and kerbs, judged on the car's wheels against every [RoadMarking] of the scenario:
@@ -8,12 +9,12 @@ extends Check
 ## The wheels crossing one marking within [member crossing_merge] seconds of each other are one
 ## crossing; riding on lines is one episode while any wheel stays on one.
 
-@export var solid_fault: FaultDef
-@export var no_indicator_fault: FaultDef
-@export var straddle_fault: FaultDef
-@export var kerb_fault: FaultDef
+@export var solid_fault: FaultDef = preload("res://scenarios/data/faults/line_solid_crossed.tres")
+@export var no_indicator_fault: FaultDef = preload("res://scenarios/data/faults/no_indicator.tres")
+@export var straddle_fault: FaultDef = preload("res://scenarios/data/faults/line_straddled.tres")
+@export var kerb_fault: FaultDef = preload("res://scenarios/data/faults/kerb_mounted.tres")
 ## Seconds a wheel may ride on a line before it counts.
-@export var straddle_grace := 1.5
+@export var grace := 1.5
 ## Seconds the indicator must have shown the way before a dashed line is crossed.
 @export var indicator_lead := 1.0
 ## Seconds within which the wheels crossing the same marking are one crossing.
@@ -21,36 +22,22 @@ extends Check
 ## Half the tyre's width, added to a line's half width when judging a wheel on it.
 @export var wheel_half_width := 0.1
 
-const LANE_LINES: Array[RoadMarking.Kind] = [
-	RoadMarking.Kind.SOLID, RoadMarking.Kind.DASHED, RoadMarking.Kind.DOUBLE_SOLID]
-
-var _index: MarkingIndex
 var _last_crossed := {}
-var _straddle_time := 0.0
-var _straddle_reported := false
-
-
-func _on_bound() -> void:
-	_index = session.scenario.marking_index()
-	_last_crossed.clear()
-	_straddle_time = 0.0
-	_straddle_reported = false
+var _straddle := Episode.new()
 
 
 func _physics_process(delta: float) -> void:
 	if not is_live():
 		return
 	var p := probe()
-	var before := p.previous_wheels()
-	var now := p.wheels()
-	for i in now.size():
-		for hit in _index.crossings(before[i], now[i]):
-			_on_crossed(hit, p)
-	_update_straddle(now, delta, p)
+	for hit in session.wheel_crossings():
+		_on_crossed(hit, p)
+	if _straddle.update(_on_lane_line(p.wheels()), delta, grace):
+		report_here(straddle_fault)
 
 
-func _on_crossed(hit: Dictionary, p: VehicleProbe) -> void:
-	var marking: RoadMarking = hit.marking
+func _on_crossed(hit: MarkingHit, p: VehicleProbe) -> void:
+	var marking := hit.marking
 	var t := session.elapsed
 	var merged := _last_crossed.has(marking) and t - float(_last_crossed[marking]) < crossing_merge
 	_last_crossed[marking] = t
@@ -58,31 +45,19 @@ func _on_crossed(hit: Dictionary, p: VehicleProbe) -> void:
 		return
 	match marking.kind:
 		RoadMarking.Kind.SOLID, RoadMarking.Kind.DOUBLE_SOLID:
-			report(solid_fault, hit.point)
+			report(solid_fault, hit.point, marking)
 		RoadMarking.Kind.DASHED:
-			if p.indicator == VehicleProbe.Indicator.UNKNOWN:
-				return
-			var car_right := p.forward().cross(Vector3.UP)
-			var hit_normal: Vector3 = hit.normal
-			var side := VehicleProbe.Indicator.LEFT if hit_normal.dot(car_right) < 0.0 \
-				else VehicleProbe.Indicator.RIGHT
-			if p.indicator_held_for(side) < indicator_lead:
-				report(no_indicator_fault, hit.point)
+			if p.indicator != VehicleProbe.Indicator.UNKNOWN \
+					and p.indicator_held_for(p.side_of(hit.normal)) < indicator_lead:
+				report(no_indicator_fault, hit.point, marking)
 		RoadMarking.Kind.KERB:
-			report(kerb_fault, hit.point)
+			report(kerb_fault, hit.point, marking)
 
 
-func _update_straddle(wheels: PackedVector3Array, delta: float, p: VehicleProbe) -> void:
-	var on_line := false
+func _on_lane_line(wheels: PackedVector3Array) -> bool:
+	var index := session.scenario.marking_index()
 	for wheel in wheels:
-		for marking in _index.overlapping(wheel, wheel_half_width):
-			if LANE_LINES.has(marking.kind):
-				on_line = true
-	if not on_line:
-		_straddle_time = 0.0
-		_straddle_reported = false
-		return
-	_straddle_time += delta
-	if _straddle_time > straddle_grace and not _straddle_reported:
-		_straddle_reported = true
-		report(straddle_fault, p.global_position)
+		for marking in index.overlapping(wheel, wheel_half_width):
+			if marking.is_lane_line():
+				return true
+	return false

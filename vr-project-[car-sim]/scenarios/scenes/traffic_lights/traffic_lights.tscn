@@ -12,16 +12,6 @@
 [ext_resource type="Script" path="res://scenarios/checks/line_check.gd" id="lines"]
 [ext_resource type="Script" path="res://scenarios/checks/contact_check.gd" id="contact"]
 [ext_resource type="Script" path="res://scenarios/checks/goal_check.gd" id="goal"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/red_light.tres" id="f_red_light"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/amber_light.tres" id="f_amber_light"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/speeding_minor.tres" id="f_speeding_minor"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/speeding_serious.tres" id="f_speeding_serious"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/line_solid_crossed.tres" id="f_line_solid_crossed"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/no_indicator.tres" id="f_no_indicator"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/line_straddled.tres" id="f_line_straddled"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/kerb_mounted.tres" id="f_kerb_mounted"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/contact_obstacle.tres" id="f_contact_obstacle"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/contact_pedestrian.tres" id="f_contact_pedestrian"]
 
 [sub_resource type="Resource" id="Definition"]
 script = ExtResource("definition")
@@ -178,7 +168,7 @@ script = ExtResource("zone")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="FirstTrigger"]
 shape = SubResource("Shape_trigger")
 
-[node name="FirstLight" type="Node3D" parent="." node_paths=PackedStringArray("trigger", "stop_line")]
+[node name="FirstLight" type="Node3D" parent="." node_paths=PackedStringArray("trigger")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2, 0, 1)
 script = ExtResource("light")
 mode = 1
@@ -187,15 +177,12 @@ red_time = 6.0
 red_amber_time = 1.0
 amber_time = 4.0
 trigger = NodePath("../FirstTrigger")
-stop_line = NodePath("../Markings/StopLine1")
 
 [node name="FirstLightCheck" type="Node3D" parent="." node_paths=PackedStringArray("light", "line_zone")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 0)
 script = ExtResource("lightcheck")
 light = NodePath("../FirstLight")
 line_zone = NodePath("LineZone")
-red_fault = ExtResource("f_red_light")
-amber_fault = ExtResource("f_amber_light")
 
 [node name="LineZone" type="Area3D" parent="FirstLightCheck"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -1.5)
@@ -211,7 +198,7 @@ script = ExtResource("zone")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="SecondTrigger"]
 shape = SubResource("Shape_trigger")
 
-[node name="SecondLight" type="Node3D" parent="." node_paths=PackedStringArray("trigger", "stop_line")]
+[node name="SecondLight" type="Node3D" parent="." node_paths=PackedStringArray("trigger")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2, 0, -99)
 script = ExtResource("light")
 mode = 1
@@ -220,15 +207,12 @@ red_time = 6.0
 red_amber_time = 1.0
 amber_time = 3.0
 trigger = NodePath("../SecondTrigger")
-stop_line = NodePath("../Markings/StopLine2")
 
 [node name="SecondLightCheck" type="Node3D" parent="." node_paths=PackedStringArray("light", "line_zone")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, -100)
 script = ExtResource("lightcheck")
 light = NodePath("../SecondLight")
 line_zone = NodePath("LineZone")
-red_fault = ExtResource("f_red_light")
-amber_fault = ExtResource("f_amber_light")
 
 [node name="LineZone" type="Area3D" parent="SecondLightCheck"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -1.5)
@@ -241,8 +225,6 @@ shape = SubResource("Shape_line")
 script = ExtResource("speed")
 zone = NodePath("Zone")
 limit_kmh = 50.0
-minor_fault = ExtResource("f_speeding_minor")
-serious_fault = ExtResource("f_speeding_serious")
 
 [node name="Zone" type="Area3D" parent="SpeedLimitCheck"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 1.5, -40)
@@ -253,15 +235,9 @@ shape = SubResource("Shape_speed")
 
 [node name="LineCheck" type="Node3D" parent="."]
 script = ExtResource("lines")
-solid_fault = ExtResource("f_line_solid_crossed")
-no_indicator_fault = ExtResource("f_no_indicator")
-straddle_fault = ExtResource("f_line_straddled")
-kerb_fault = ExtResource("f_kerb_mounted")
 
 [node name="ContactCheck" type="Node3D" parent="."]
 script = ExtResource("contact")
-obstacle_fault = ExtResource("f_contact_obstacle")
-pedestrian_fault = ExtResource("f_contact_pedestrian")
 
 [node name="GoalCheck" type="Node3D" parent="." node_paths=PackedStringArray("zone")]
 script = ExtResource("goal")

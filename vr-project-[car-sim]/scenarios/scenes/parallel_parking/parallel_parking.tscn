@@ -7,25 +7,10 @@
 [ext_resource type="Script" path="res://scenarios/core/scenario_step.gd" id="step"]
 [ext_resource type="Script" path="res://scenarios/road/parking_bay.gd" id="bay"]
 [ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="marking"]
-[ext_resource type="Script" path="res://scenarios/road/no_parking_zone.gd" id="nopark"]
 [ext_resource type="Script" path="res://scenarios/checks/parking_check.gd" id="parking"]
 [ext_resource type="Script" path="res://scenarios/checks/parking_choice_check.gd" id="choice"]
 [ext_resource type="Script" path="res://scenarios/checks/contact_check.gd" id="contact"]
 [ext_resource type="Script" path="res://scenarios/checks/line_check.gd" id="lines"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/parking_overhang_minor.tres" id="f_parking_overhang_minor"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/parking_overhang_serious.tres" id="f_parking_overhang_serious"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/parking_misaligned.tres" id="f_parking_misaligned"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/parking_too_many_manoeuvres.tres" id="f_parking_too_many_manoeuvres"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/parking_too_slow.tres" id="f_parking_too_slow"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/parking_illegal.tres" id="f_parking_illegal"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/parking_reserved.tres" id="f_parking_reserved"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/parking_occupied.tres" id="f_parking_occupied"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/contact_obstacle.tres" id="f_contact_obstacle"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/contact_pedestrian.tres" id="f_contact_pedestrian"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/line_solid_crossed.tres" id="f_line_solid_crossed"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/no_indicator.tres" id="f_no_indicator"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/line_straddled.tres" id="f_line_straddled"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/kerb_mounted.tres" id="f_kerb_mounted"]
 
 [sub_resource type="Resource" id="Definition"]
 script = ExtResource("definition")
@@ -198,27 +183,13 @@ step = NodePath("../../Steps/Park")
 active_steps = [NodePath("../../Steps/Park")]
 max_direction_changes = 3
 time_limit = 0.0
-overhang_minor_fault = ExtResource("f_parking_overhang_minor")
-overhang_serious_fault = ExtResource("f_parking_overhang_serious")
-misaligned_fault = ExtResource("f_parking_misaligned")
-manoeuvres_fault = ExtResource("f_parking_too_many_manoeuvres")
-too_slow_fault = ExtResource("f_parking_too_slow")
 
 [node name="ParkingChoiceCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("active_steps")]
 script = ExtResource("choice")
 active_steps = [NodePath("../../Steps/Park")]
-illegal_fault = ExtResource("f_parking_illegal")
-reserved_fault = ExtResource("f_parking_reserved")
-occupied_fault = ExtResource("f_parking_occupied")
 
 [node name="ContactCheck" type="Node3D" parent="Checks"]
 script = ExtResource("contact")
-obstacle_fault = ExtResource("f_contact_obstacle")
-pedestrian_fault = ExtResource("f_contact_pedestrian")
 
 [node name="LineCheck" type="Node3D" parent="Checks"]
 script = ExtResource("lines")
-solid_fault = ExtResource("f_line_solid_crossed")
-no_indicator_fault = ExtResource("f_no_indicator")
-straddle_fault = ExtResource("f_line_straddled")
-kerb_fault = ExtResource("f_kerb_mounted")

@@ -4,59 +4,66 @@ extends RefCounted
 ## so a query only tests the few segments near it. A [Scenario] builds one on first use.
 
 const CELL := 5.0
+const NONE := []
+
+
+class Segment:
+	var marking: RoadMarking
+	var a: Vector2
+	var b: Vector2
+	## The last query that looked at this segment, so a segment in several cells is tested once.
+	var stamp := -1
+
 
 var _cells := {}
-var _next_id := 0
+var _query := 0
 
 
 func add(marking: RoadMarking) -> void:
 	var points := marking.world_points()
-	var margin := marking.half_width() + 0.5
+	var margin := Vector2.ONE * (marking.half_width() + 0.5)
 	for i in points.size() - 1:
-		var a := Vector2(points[i].x, points[i].z)
-		var b := Vector2(points[i + 1].x, points[i + 1].z)
-		var entry := {id = _next_id, marking = marking, a = a, b = b}
-		_next_id += 1
-		for cell in _cells_for(a.min(b) - Vector2.ONE * margin, a.max(b) + Vector2.ONE * margin):
-			if not _cells.has(cell):
-				_cells[cell] = []
-			_cells[cell].append(entry)
+		var seg := Segment.new()
+		seg.marking = marking
+		seg.a = Vector2(points[i].x, points[i].z)
+		seg.b = Vector2(points[i + 1].x, points[i + 1].z)
+		var c0 := _cell(seg.a.min(seg.b) - margin)
+		var c1 := _cell(seg.a.max(seg.b) + margin)
+		for x in range(c0.x, c1.x + 1):
+			for y in range(c0.y, c1.y + 1):
+				var cell := Vector2i(x, y)
+				if not _cells.has(cell):
+					_cells[cell] = []
+				_cells[cell].append(seg)
 
 
 ## The markings a point moving from [param from] to [param to] crossed, at most one hit per
-## marking: [code]{marking, point: Vector3, normal: Vector3}[/code], the normal pointing to the
-## side it crossed onto.
-func crossings(from: Vector3, to: Vector3) -> Array[Dictionary]:
-	var hits: Array[Dictionary] = []
+## marking.
+func crossings(from: Vector3, to: Vector3) -> Array[MarkingHit]:
+	var hits: Array[MarkingHit] = []
 	var a := Vector2(from.x, from.z)
 	var b := Vector2(to.x, to.z)
 	if a.is_equal_approx(b):
 		return hits
-	var seen := {}
 	var move := b - a
-	for entry in _near(a.min(b), a.max(b)):
-		var marking: RoadMarking = entry.marking
-		if seen.has(marking):
+	for seg: Segment in _near(a.min(b), a.max(b)):
+		if _has_marking(hits, seg.marking):
 			continue
-		var seg: Vector2 = entry.b - entry.a
-		var denom := move.cross(seg)
+		var edge := seg.b - seg.a
+		var denom := move.cross(edge)
 		if is_zero_approx(denom):
 			continue
-		var offset: Vector2 = entry.a - a
-		var t := offset.cross(seg) / denom
+		var offset := seg.a - a
+		var t := offset.cross(edge) / denom
 		var u := offset.cross(move) / denom
 		if t <= 0.0 or t > 1.0 or u < 0.0 or u > 1.0:
 			continue
-		seen[marking] = true
-		var normal := Vector2(-seg.y, seg.x).normalized()
+		var normal := Vector2(-edge.y, edge.x).normalized()
 		if normal.dot(move) < 0.0:
 			normal = -normal
 		var at := a + move * t
-		hits.append({
-			marking = marking,
-			point = Vector3(at.x, from.y, at.y),
-			normal = Vector3(normal.x, 0.0, normal.y),
-		})
+		hits.append(MarkingHit.new(seg.marking, Vector3(at.x, from.y, at.y),
+			Vector3(normal.x, 0.0, normal.y)))
 	return hits
 
 
@@ -64,32 +71,42 @@ func crossings(from: Vector3, to: Vector3) -> Array[Dictionary]:
 func overlapping(point: Vector3, extra := 0.0) -> Array[RoadMarking]:
 	var found: Array[RoadMarking] = []
 	var p := Vector2(point.x, point.z)
-	for entry in _near(p, p):
-		var marking: RoadMarking = entry.marking
-		if found.has(marking):
+	for seg: Segment in _near(p, p):
+		if found.has(seg.marking):
 			continue
-		var closest := Geometry2D.get_closest_point_to_segment(p, entry.a, entry.b)
-		if p.distance_to(closest) <= marking.half_width() + extra:
-			found.append(marking)
+		var closest := Geometry2D.get_closest_point_to_segment(p, seg.a, seg.b)
+		if p.distance_to(closest) <= seg.marking.half_width() + extra:
+			found.append(seg.marking)
 	return found
 
 
+## The segments in the cells covering [param lo] to [param hi], each once. Most queries fall in
+## one cell, whose bucket is returned as it is, without copying.
 func _near(lo: Vector2, hi: Vector2) -> Array:
+	var c0 := _cell(lo)
+	var c1 := _cell(hi)
+	if c0 == c1:
+		return _cells.get(c0, NONE)
+	_query += 1
 	var out := []
-	var seen := {}
-	for cell in _cells_for(lo, hi):
-		for entry in _cells.get(cell, []):
-			if not seen.has(entry.id):
-				seen[entry.id] = true
-				out.append(entry)
-	return out
-
-
-func _cells_for(lo: Vector2, hi: Vector2) -> Array[Vector2i]:
-	var out: Array[Vector2i] = []
-	var c0 := Vector2i(floori(lo.x / CELL), floori(lo.y / CELL))
-	var c1 := Vector2i(floori(hi.x / CELL), floori(hi.y / CELL))
 	for x in range(c0.x, c1.x + 1):
 		for y in range(c0.y, c1.y + 1):
-			out.append(Vector2i(x, y))
+			var bucket: Variant = _cells.get(Vector2i(x, y))
+			if bucket == null:
+				continue
+			for seg in bucket:
+				if seg.stamp != _query:
+					seg.stamp = _query
+					out.append(seg)
 	return out
+
+
+static func _cell(p: Vector2) -> Vector2i:
+	return Vector2i(floori(p.x / CELL), floori(p.y / CELL))
+
+
+static func _has_marking(hits: Array[MarkingHit], marking: RoadMarking) -> bool:
+	for hit in hits:
+		if hit.marking == marking:
+			return true
+	return false

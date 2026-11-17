@@ -8,10 +8,6 @@
 [ext_resource type="Script" path="res://scenarios/checks/line_check.gd" id="6_lines"]
 [ext_resource type="Script" path="res://scenarios/checks/goal_check.gd" id="7_goal"]
 [ext_resource type="Script" path="res://scenarios/checks/trigger_zone.gd" id="8_zone"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/line_solid_crossed.tres" id="9_f_solid"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/no_indicator.tres" id="10_f_indicator"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/line_straddled.tres" id="11_f_straddle"]
-[ext_resource type="Resource" path="res://scenarios/data/faults/kerb_mounted.tres" id="12_f_kerb"]
 
 [sub_resource type="Resource" id="Definition"]
 script = ExtResource("2_definition")
@@ -104,10 +100,6 @@ kind = 8
 
 [node name="LineCheck" type="Node3D" parent="."]
 script = ExtResource("6_lines")
-solid_fault = ExtResource("9_f_solid")
-no_indicator_fault = ExtResource("10_f_indicator")
-straddle_fault = ExtResource("11_f_straddle")
-kerb_fault = ExtResource("12_f_kerb")
 
 [node name="GoalCheck" type="Node3D" parent="." node_paths=PackedStringArray("zone")]
 script = ExtResource("7_goal")
