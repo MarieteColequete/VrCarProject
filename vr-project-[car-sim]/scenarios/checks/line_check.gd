@@ -10,7 +10,7 @@ extends Check
 ## crossing; riding on lines is one episode while any wheel stays on one.
 
 @export var solid_fault: FaultDef = preload("res://scenarios/data/faults/line_solid_crossed.tres")
-@export var no_indicator_fault: FaultDef = preload("res://scenarios/data/faults/no_indicator.tres")
+@export var no_indicator_fault: FaultDef = preload("res://scenarios/data/faults/no_indicator_lane_change.tres")
 @export var straddle_fault: FaultDef = preload("res://scenarios/data/faults/line_straddled.tres")
 @export var kerb_fault: FaultDef = preload("res://scenarios/data/faults/kerb_mounted.tres")
 ## Seconds a wheel may ride on a line before it counts.

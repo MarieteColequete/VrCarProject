@@ -64,7 +64,14 @@ func _test_configuration_warnings() -> void:
 	junction.judge_on_exit = true
 	expect(junction._get_configuration_warnings().size() == 1,
 		"a junction check without exits asks for them")
-	for node: Node in [stop, approach, line, junction]:
+	expect(approach._get_configuration_warnings().size() == 1, "a zone without a box shape warns")
+	var shape := CollisionShape3D.new()
+	shape.shape = BoxShape3D.new()
+	approach.add_child(shape)
+	expect(approach._get_configuration_warnings().is_empty(), "a zone with a box shape has no warning")
+	var agent := ScriptedAgent.new()
+	expect(agent._get_configuration_warnings().size() == 1, "an agent without a path warns")
+	for node: Node in [stop, approach, line, junction, agent]:
 		node.free()
 
 

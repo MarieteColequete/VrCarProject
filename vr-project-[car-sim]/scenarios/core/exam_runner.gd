@@ -1,11 +1,15 @@
+@tool
 class_name ExamRunner
 extends Node3D
 ## Loads a scenario scene, spawns its car at the spawn point, and runs an [ExamSession] on it.
-## The UI reaches the session through [member session].
+## The UI reaches the session through [member session], and picks scenarios from the
+## [ScenarioCatalogue] with [method load_definition].
 
 ## Emitted each time a scenario and car are spawned, including after a restart.
 signal scenario_loaded(scenario: Scenario, car: Node3D)
 
+## The scenario loaded when the runner enters the tree; empty to wait for
+## [method load_scenario] or [method load_definition].
 @export var scenario_scene: PackedScene
 ## Replaces the scenario's own car scene when set.
 @export var car_scene_override: PackedScene
@@ -21,12 +25,23 @@ var car: Node3D
 
 
 func _ready() -> void:
+	if Engine.is_editor_hint():
+		return
 	session.restart_requested.connect(_reload)
 	session.finished.connect(func(result: ScenarioResult) -> void:
 		if print_results:
 			print("[%s] %s" % [scenario.definition.title, result.summary()]))
 	if scenario_scene:
 		load_scenario(scenario_scene)
+
+
+## Loads the scenario a catalogue entry describes.
+func load_definition(definition: ScenarioDefinition) -> void:
+	var scene := definition.load_scene() if definition else null
+	if scene == null:
+		push_error("The definition '%s' names no loadable scene" % [definition.id if definition else &""])
+		return
+	load_scenario(scene)
 
 
 func load_scenario(scene: PackedScene) -> void:
@@ -68,3 +83,10 @@ func _clear() -> void:
 			node.queue_free()
 	scenario = null
 	car = null
+
+
+
+func _get_configuration_warnings() -> PackedStringArray:
+	if scenario_scene == null:
+		return ["No scenario scene: the runner waits for load_scenario or load_definition."]
+	return []

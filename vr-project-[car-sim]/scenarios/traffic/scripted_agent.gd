@@ -1,3 +1,4 @@
+@tool
 class_name ScriptedAgent
 extends AnimatableBody3D
 ## Another road user on a fixed script: a car or a pedestrian that follows a [Path3D] at a set
@@ -40,6 +41,9 @@ var _length := 0.0
 
 
 func _ready() -> void:
+	if Engine.is_editor_hint():
+		set_physics_process(false)
+		return
 	collision_layer = Layers.PEDESTRIAN if pedestrian else Layers.OBSTACLE
 	collision_mask = 0
 	if pedestrian:
@@ -144,3 +148,8 @@ func _has_shape() -> bool:
 			return true
 	return false
 
+
+func _get_configuration_warnings() -> PackedStringArray:
+	if path == null:
+		return ["Set the path the agent follows."]
+	return []

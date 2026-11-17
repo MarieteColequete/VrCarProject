@@ -4,7 +4,7 @@
 
 [resource]
 script = ExtResource("1_fault")
-id = &"no_indicator"
+id = &"no_indicator_lane_change"
 title = "Changed lanes without indicating"
 description = "The vehicle crossed a dashed line without first indicating that way for long enough."
 tier = &"minor"

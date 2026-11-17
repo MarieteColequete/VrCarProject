@@ -1,3 +1,4 @@
+@tool
 class_name NoParkingZone
 extends TriggerZone
 ## An area where parking is not allowed, such as the approach to a junction or a crossing, or a

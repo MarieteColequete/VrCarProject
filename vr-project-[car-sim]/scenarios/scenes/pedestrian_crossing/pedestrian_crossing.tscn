@@ -1,46 +1,16 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://scenarios/core/scenario.gd" id="scenario"]
-[ext_resource type="Script" path="res://scenarios/data/scenario_definition.gd" id="definition"]
-[ext_resource type="Resource" path="res://scenarios/data/default_policy.tres" id="policy"]
-[ext_resource type="PackedScene" path="res://scenarios/scenes/debug_car.tscn" id="car"]
+[ext_resource type="PackedScene" path="res://scenarios/kit/scenario_base.tscn" id="base"]
+[ext_resource type="Resource" path="res://scenarios/scenes/pedestrian_crossing/definition.tres" id="definition"]
+[ext_resource type="Material" path="res://scenarios/kit/asphalt.tres" id="asphalt"]
 [ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="marking"]
 [ext_resource type="Script" path="res://scenarios/traffic/scripted_agent.gd" id="agent"]
 [ext_resource type="Script" path="res://scenarios/checks/trigger_zone.gd" id="zone"]
 [ext_resource type="Script" path="res://scenarios/checks/crossing_check.gd" id="crossing"]
-[ext_resource type="Script" path="res://scenarios/checks/line_check.gd" id="lines"]
-[ext_resource type="Script" path="res://scenarios/checks/contact_check.gd" id="contact"]
 [ext_resource type="Script" path="res://scenarios/checks/goal_check.gd" id="goal"]
-
-[sub_resource type="Resource" id="Definition"]
-script = ExtResource("definition")
-title = "Pedestrian crossing"
-briefing = "Drive along the road over two pedestrian crossings. Give way to anyone crossing or waiting to cross, and do not stop on a crossing."
-time_limit = 90.0
-policy = ExtResource("policy")
-car_scene = ExtResource("car")
-
-[sub_resource type="Environment" id="Environment_sky"]
-background_mode = 1
-background_color = Color(0.55, 0.7, 0.85, 1)
-ambient_light_source = 2
-ambient_light_color = Color(0.8, 0.8, 0.85, 1)
-ambient_light_energy = 0.6
-
-[sub_resource type="BoxShape3D" id="Shape_ground"]
-size = Vector3(100, 0.2, 200)
-
-[sub_resource type="PlaneMesh" id="Mesh_ground"]
-size = Vector2(100, 200)
-
-[sub_resource type="StandardMaterial3D" id="Material_ground"]
-albedo_color = Color(0.3, 0.5, 0.25, 1)
 
 [sub_resource type="BoxMesh" id="Mesh_road"]
 size = Vector3(7, 0.02, 180)
-
-[sub_resource type="StandardMaterial3D" id="Material_asphalt"]
-albedo_color = Color(0.2, 0.2, 0.22, 1)
 
 [sub_resource type="BoxShape3D" id="Shape_crossing"]
 size = Vector3(7, 3, 3)
@@ -93,38 +63,20 @@ _data = {
 }
 point_count = 2
 
-[node name="PedestrianCrossing" type="Node3D" node_paths=PackedStringArray("spawn_point")]
-script = ExtResource("scenario")
-definition = SubResource("Definition")
-spawn_point = NodePath("SpawnPoint")
+[node name="PedestrianCrossing" instance=ExtResource("base")]
+definition = ExtResource("definition")
 
-[node name="Sun" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.8660254, -0.35355338, 0.35355338, 0, 0.70710677, 0.70710677, -0.5, -0.61237246, 0.61237246, 0, 20, 0)
-shadow_enabled = true
-
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
-environment = SubResource("Environment_sky")
-
-[node name="Ground" type="StaticBody3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -25)
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
-shape = SubResource("Shape_ground")
-
-[node name="Grass" type="MeshInstance3D" parent="Ground"]
-mesh = SubResource("Mesh_ground")
-surface_material_override/0 = SubResource("Material_ground")
+[node name="Environment" parent="."]
+ground_size = Vector2(100, 200)
+ground_offset = Vector3(0, 0, -25)
 
 [node name="Road" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -25)
 mesh = SubResource("Mesh_road")
-surface_material_override/0 = SubResource("Material_asphalt")
+surface_material_override/0 = ExtResource("asphalt")
 
-[node name="SpawnPoint" type="Marker3D" parent="."]
+[node name="SpawnPoint" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 60)
-
-[node name="Markings" type="Node3D" parent="."]
 
 [node name="CentreLine" type="Path3D" parent="Markings"]
 curve = SubResource("Curve_CentreLine")
@@ -176,42 +128,36 @@ pedestrian = true
 body_size = Vector3(0.5, 1.8, 0.5)
 colour = Color(0.2, 0.6, 0.9, 1)
 
-[node name="BusyZebraCheck" type="Node3D" parent="." node_paths=PackedStringArray("crossing_zone", "pedestrians")]
+[node name="BusyZebraCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("crossing_zone", "pedestrians")]
 script = ExtResource("crossing")
 crossing_zone = NodePath("Zone")
-pedestrians = [NodePath("../Walker")]
+pedestrians = [NodePath("../../Walker")]
 
-[node name="Zone" type="Area3D" parent="BusyZebraCheck"]
+[node name="Zone" type="Area3D" parent="Checks/BusyZebraCheck"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 script = ExtResource("zone")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="BusyZebraCheck/Zone"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/BusyZebraCheck/Zone"]
 shape = SubResource("Shape_crossing")
 
-[node name="QuietZebraCheck" type="Node3D" parent="." node_paths=PackedStringArray("crossing_zone")]
+[node name="QuietZebraCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("crossing_zone")]
 script = ExtResource("crossing")
 crossing_zone = NodePath("Zone")
 
-[node name="Zone" type="Area3D" parent="QuietZebraCheck"]
+[node name="Zone" type="Area3D" parent="Checks/QuietZebraCheck"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -60)
 script = ExtResource("zone")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="QuietZebraCheck/Zone"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/QuietZebraCheck/Zone"]
 shape = SubResource("Shape_crossing")
 
-[node name="LineCheck" type="Node3D" parent="."]
-script = ExtResource("lines")
-
-[node name="ContactCheck" type="Node3D" parent="."]
-script = ExtResource("contact")
-
-[node name="GoalCheck" type="Node3D" parent="." node_paths=PackedStringArray("zone")]
+[node name="GoalCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("zone")]
 script = ExtResource("goal")
 zone = NodePath("Zone")
 
-[node name="Zone" type="Area3D" parent="GoalCheck"]
+[node name="Zone" type="Area3D" parent="Checks/GoalCheck"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 1.5, -100)
 script = ExtResource("zone")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="GoalCheck/Zone"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/GoalCheck/Zone"]
 shape = SubResource("Shape_goal")

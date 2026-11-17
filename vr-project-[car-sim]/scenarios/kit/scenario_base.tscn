@@ -1,0 +1,24 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenarios/core/scenario.gd" id="scenario"]
+[ext_resource type="PackedScene" path="res://scenarios/kit/road_environment.tscn" id="environment"]
+[ext_resource type="Script" path="res://scenarios/checks/contact_check.gd" id="contact"]
+[ext_resource type="Script" path="res://scenarios/checks/line_check.gd" id="lines"]
+
+[node name="Scenario" type="Node3D" node_paths=PackedStringArray("spawn_point")]
+script = ExtResource("scenario")
+spawn_point = NodePath("SpawnPoint")
+
+[node name="Environment" parent="." instance=ExtResource("environment")]
+
+[node name="SpawnPoint" type="Marker3D" parent="."]
+
+[node name="Markings" type="Node3D" parent="."]
+
+[node name="Checks" type="Node3D" parent="."]
+
+[node name="ContactCheck" type="Node3D" parent="Checks"]
+script = ExtResource("contact")
+
+[node name="LineCheck" type="Node3D" parent="Checks"]
+script = ExtResource("lines")

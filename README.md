@@ -27,10 +27,17 @@ range, and its `look_direction()` is the same in both modes.
 
 ## Scenarios
 
-A scenario is a scene under `vr-project-[car-sim]/scenarios/scenes/` whose root carries the
-`Scenario` script. It holds the world, a `Marker3D` spawn point, and the checks that judge the
-drive. Its `ScenarioDefinition` gives the title, the briefing, the time limit, the scoring policy,
-and the car scene to spawn.
+A scenario is a scene under `vr-project-[car-sim]/scenarios/scenes/<name>/` that inherits
+`scenarios/kit/scenario_base.tscn`. The base gives the `Scenario` root, the shared
+`RoadEnvironment` (daylight, sky, and a grass ground sized per scenario), a `SpawnPoint`, a
+`Markings` node, and a `Checks` node already holding `ContactCheck` and `LineCheck`. The scenario
+adds its roads, markings, other road users, zones, and checks. Scenarios are laid out with the car
+driving towards -Z in the right-hand lane, centred on x = 1.75.
+
+Its `ScenarioDefinition`, `definition.tres` beside the scene, gives the id, the title, the menu
+category and difficulty, the briefing, the time limit, the scoring policy, and the car scene to
+spawn. `scenarios/catalogue.tres`, a `ScenarioCatalogue`, lists every definition in menu order;
+menus read it and start a scenario with `ExamRunner.load_definition`.
 
 Checks are nodes placed in the scene, each watching one rule:
 
@@ -76,6 +83,20 @@ and reports contact. `ExamRunner` (`scenarios/scenes/exam_runner.tscn`) spawns a
 car and runs an `ExamSession`. The session's signals (`briefing_started`, `started`,
 `fault_committed`, `finished`) and methods (`begin`, `abort`, `restart`) are the interface for the
 UI; `finished` carries a `ScenarioResult` with the outcome and every fault.
+
+### Building a scenario
+
+1. Create `scenarios/scenes/<name>/<name>.tscn` as a new inherited scene of
+   `scenarios/kit/scenario_base.tscn`, and set the environment's ground size to cover the roads.
+2. Add the roads (meshes with `scenarios/kit/asphalt.tres`), the `RoadMarking` paths under
+   `Markings`, parked cars (`scenarios/kit/parked_car.tscn`), and any scripted road users.
+3. Add the checks under `Checks`, each with its zones as children. Faults default to the right
+   `FaultDef`, so only a different fault needs setting. The editor flags a check missing a zone,
+   and fills each zone with a colour by role: green for a goal, blue for a junction exit, yellow
+   for no parking, red where the car must give way or stop.
+4. Create `definition.tres` beside the scene, set the scene root's `definition` to it, and add it
+   to `scenarios/catalogue.tres`.
+5. Add `tests/cases/scenario_<name>_test.gd` with a clean drive and one failing drive per rule.
 
 The scenario tests run headless, one case file per framework area and per scenario under
 `tests/cases/`:

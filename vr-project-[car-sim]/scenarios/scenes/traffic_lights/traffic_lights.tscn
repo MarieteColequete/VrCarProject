@@ -1,50 +1,20 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://scenarios/core/scenario.gd" id="scenario"]
-[ext_resource type="Script" path="res://scenarios/data/scenario_definition.gd" id="definition"]
-[ext_resource type="Resource" path="res://scenarios/data/default_policy.tres" id="policy"]
-[ext_resource type="PackedScene" path="res://scenarios/scenes/debug_car.tscn" id="car"]
+[ext_resource type="PackedScene" path="res://scenarios/kit/scenario_base.tscn" id="base"]
+[ext_resource type="Resource" path="res://scenarios/scenes/traffic_lights/definition.tres" id="definition"]
+[ext_resource type="Material" path="res://scenarios/kit/asphalt.tres" id="asphalt"]
 [ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="marking"]
 [ext_resource type="Script" path="res://scenarios/traffic/traffic_light.gd" id="light"]
 [ext_resource type="Script" path="res://scenarios/checks/trigger_zone.gd" id="zone"]
 [ext_resource type="Script" path="res://scenarios/checks/traffic_light_check.gd" id="lightcheck"]
 [ext_resource type="Script" path="res://scenarios/checks/speed_limit_check.gd" id="speed"]
-[ext_resource type="Script" path="res://scenarios/checks/line_check.gd" id="lines"]
-[ext_resource type="Script" path="res://scenarios/checks/contact_check.gd" id="contact"]
 [ext_resource type="Script" path="res://scenarios/checks/goal_check.gd" id="goal"]
-
-[sub_resource type="Resource" id="Definition"]
-script = ExtResource("definition")
-title = "Traffic lights"
-briefing = "Drive along the road at up to 50 km/h through two sets of traffic lights. Stop for red, and for amber when you can stop safely."
-time_limit = 120.0
-policy = ExtResource("policy")
-car_scene = ExtResource("car")
-
-[sub_resource type="Environment" id="Environment_sky"]
-background_mode = 1
-background_color = Color(0.55, 0.7, 0.85, 1)
-ambient_light_source = 2
-ambient_light_color = Color(0.8, 0.8, 0.85, 1)
-ambient_light_energy = 0.6
-
-[sub_resource type="BoxShape3D" id="Shape_ground"]
-size = Vector3(200, 0.2, 300)
-
-[sub_resource type="PlaneMesh" id="Mesh_ground"]
-size = Vector2(200, 300)
-
-[sub_resource type="StandardMaterial3D" id="Material_ground"]
-albedo_color = Color(0.3, 0.5, 0.25, 1)
 
 [sub_resource type="BoxMesh" id="Mesh_road"]
 size = Vector3(7, 0.02, 250)
 
 [sub_resource type="BoxMesh" id="Mesh_cross"]
 size = Vector3(100, 0.02, 7)
-
-[sub_resource type="StandardMaterial3D" id="Material_asphalt"]
-albedo_color = Color(0.2, 0.2, 0.22, 1)
 
 [sub_resource type="BoxShape3D" id="Shape_trigger"]
 size = Vector3(8, 3, 3)
@@ -93,48 +63,30 @@ _data = {
 }
 point_count = 2
 
-[node name="TrafficLights" type="Node3D" node_paths=PackedStringArray("spawn_point")]
-script = ExtResource("scenario")
-definition = SubResource("Definition")
-spawn_point = NodePath("SpawnPoint")
+[node name="TrafficLights" instance=ExtResource("base")]
+definition = ExtResource("definition")
 
-[node name="Sun" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.8660254, -0.35355338, 0.35355338, 0, 0.70710677, 0.70710677, -0.5, -0.61237246, 0.61237246, 0, 20, 0)
-shadow_enabled = true
-
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
-environment = SubResource("Environment_sky")
-
-[node name="Ground" type="StaticBody3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -40)
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
-shape = SubResource("Shape_ground")
-
-[node name="Grass" type="MeshInstance3D" parent="Ground"]
-mesh = SubResource("Mesh_ground")
-surface_material_override/0 = SubResource("Material_ground")
+[node name="Environment" parent="."]
+ground_size = Vector2(200, 300)
+ground_offset = Vector3(0, 0, -40)
 
 [node name="Road" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -40)
 mesh = SubResource("Mesh_road")
-surface_material_override/0 = SubResource("Material_asphalt")
+surface_material_override/0 = ExtResource("asphalt")
 
 [node name="CrossRoad1" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.012, -3.5)
 mesh = SubResource("Mesh_cross")
-surface_material_override/0 = SubResource("Material_asphalt")
+surface_material_override/0 = ExtResource("asphalt")
 
 [node name="CrossRoad2" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.012, -103.5)
 mesh = SubResource("Mesh_cross")
-surface_material_override/0 = SubResource("Material_asphalt")
+surface_material_override/0 = ExtResource("asphalt")
 
-[node name="SpawnPoint" type="Marker3D" parent="."]
+[node name="SpawnPoint" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 75)
-
-[node name="Markings" type="Node3D" parent="."]
 
 [node name="CentreLine" type="Path3D" parent="Markings"]
 curve = SubResource("Curve_CentreLine")
@@ -178,17 +130,17 @@ red_amber_time = 1.0
 amber_time = 4.0
 trigger = NodePath("../FirstTrigger")
 
-[node name="FirstLightCheck" type="Node3D" parent="." node_paths=PackedStringArray("light", "line_zone")]
+[node name="FirstLightCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("light", "line_zone")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 0)
 script = ExtResource("lightcheck")
-light = NodePath("../FirstLight")
+light = NodePath("../../FirstLight")
 line_zone = NodePath("LineZone")
 
-[node name="LineZone" type="Area3D" parent="FirstLightCheck"]
+[node name="LineZone" type="Area3D" parent="Checks/FirstLightCheck"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -1.5)
 script = ExtResource("zone")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="FirstLightCheck/LineZone"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/FirstLightCheck/LineZone"]
 shape = SubResource("Shape_line")
 
 [node name="SecondTrigger" type="Area3D" parent="."]
@@ -208,44 +160,38 @@ red_amber_time = 1.0
 amber_time = 3.0
 trigger = NodePath("../SecondTrigger")
 
-[node name="SecondLightCheck" type="Node3D" parent="." node_paths=PackedStringArray("light", "line_zone")]
+[node name="SecondLightCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("light", "line_zone")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, -100)
 script = ExtResource("lightcheck")
-light = NodePath("../SecondLight")
+light = NodePath("../../SecondLight")
 line_zone = NodePath("LineZone")
 
-[node name="LineZone" type="Area3D" parent="SecondLightCheck"]
+[node name="LineZone" type="Area3D" parent="Checks/SecondLightCheck"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -1.5)
 script = ExtResource("zone")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SecondLightCheck/LineZone"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/SecondLightCheck/LineZone"]
 shape = SubResource("Shape_line")
 
-[node name="SpeedLimitCheck" type="Node3D" parent="." node_paths=PackedStringArray("zone")]
+[node name="SpeedLimitCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("zone")]
 script = ExtResource("speed")
 zone = NodePath("Zone")
 limit_kmh = 50.0
 
-[node name="Zone" type="Area3D" parent="SpeedLimitCheck"]
+[node name="Zone" type="Area3D" parent="Checks/SpeedLimitCheck"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 1.5, -40)
 script = ExtResource("zone")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SpeedLimitCheck/Zone"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/SpeedLimitCheck/Zone"]
 shape = SubResource("Shape_speed")
 
-[node name="LineCheck" type="Node3D" parent="."]
-script = ExtResource("lines")
-
-[node name="ContactCheck" type="Node3D" parent="."]
-script = ExtResource("contact")
-
-[node name="GoalCheck" type="Node3D" parent="." node_paths=PackedStringArray("zone")]
+[node name="GoalCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("zone")]
 script = ExtResource("goal")
 zone = NodePath("Zone")
 
-[node name="Zone" type="Area3D" parent="GoalCheck"]
+[node name="Zone" type="Area3D" parent="Checks/GoalCheck"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 1.5, -150)
 script = ExtResource("zone")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="GoalCheck/Zone"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/GoalCheck/Zone"]
 shape = SubResource("Shape_goal")

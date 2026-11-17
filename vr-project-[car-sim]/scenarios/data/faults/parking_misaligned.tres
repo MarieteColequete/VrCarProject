@@ -6,5 +6,5 @@
 script = ExtResource("1_fault")
 id = &"parking_misaligned"
 title = "Parked crooked"
-description = "The vehicle ended off the facing the bay requires by more than the tolerance."
+description = "The vehicle ended facing further from the direction the bay requires than the tolerance allows."
 tier = &"minor"

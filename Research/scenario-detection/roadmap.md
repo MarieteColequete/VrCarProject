@@ -26,7 +26,7 @@ own branch). That is decided per phase, on order.
 - **Each new check gets scripted drives** in `tests/run_tests.gd`: one passing and one failing
   per rule.
 
-Status: phases 1 to 5 are built; phase 6 is next.
+Status: phases 1 to 5 are built; phase 6 is in progress.
 
 ## Phase 1: probe and engine upgrades (needed by everything below)
 
@@ -81,7 +81,7 @@ tested against the index:
 | Marking | Rule | Default fault |
 |---|---|---|
 | solid / double solid | any wheel crosses | serious (`line_solid_crossed`) |
-| dashed | crossed without the matching indicator on | minor (`no_indicator`) |
+| dashed | crossed without the matching indicator on | minor (`no_indicator_lane_change`) |
 | dashed / solid | a wheel rides on the line longer than the grace time | minor (`line_straddled`) |
 | stop / give way line | handled by `StopCheck` and `YieldCheck`; `LineCheck` ignores them | none |
 | kerb | a wheel crosses it | serious (`kerb_mounted`) |
@@ -176,7 +176,18 @@ Deterministic timing, from triggers and a seed, keeps the scripted drives reprod
 - `give_way_junction` and `roundabout`: a scripted stream of priority traffic with gaps of known
   size.
 
-## Phase 6: reactive traffic AI (after the scripted set is stable)
+## Phase 6: framework quality pass
+
+The scenario system as an internal framework to build more scenarios on:
+- Tests split into one case per framework area and per scenario, on a `TestCase` base.
+- `Check` helpers (`watch`, `report_here`, `required_exports`), `Episode`, default faults, editor
+  configuration warnings, and per-tick caching of the footprint and the wheel crossings.
+- An authoring kit: `scenario_base.tscn`, the shared `RoadEnvironment`, kit materials and parked
+  car, a definition file per scenario, and the `ScenarioCatalogue`; zones fill by role in the
+  editor.
+- A debug HUD and a sandbox scene that run any catalogued scenario.
+
+## Phase 7: reactive traffic AI (after the scripted set is stable)
 
 - **`TrafficAgent`** replaces the fixed speed profile with behaviour:
   - car following (IDM-style acceleration from the gap and closing speed);
@@ -193,14 +204,8 @@ Deterministic timing, from triggers and a seed, keeps the scripted drives reprod
 
 ## Authoring and tooling, alongside the phases
 
-- **Gizmos.** `@tool` gizmos for zones, bays, markings and conflict zones, coloured by type, so a
-  scenario reads at a glance in the editor.
-- **Scenario catalogue.** A `ScenarioCatalogue` resource lists the scenarios with title, category
-  and difficulty, and is what the menu team reads.
 - **Faults.** The fault library grows in `scenarios/data/faults/`, one `.tres` per rule. The
   default policy stays generic.
-- **Tests.** `tests/run_tests.gd` splits into one file per area (`test_scoring.gd`,
-  `test_lines.gd`, …) behind the same runner command once it grows past a few hundred lines.
 
 ## Order and size
 
@@ -210,7 +215,8 @@ Deterministic timing, from triggers and a seed, keeps the scripted drives reprod
 4. Scripted agents and traffic lights: medium.
 5. Checks and scenarios for lane change, crossing, lights, give way and roundabout: large; one
    scenario per commit.
-6. Reactive AI: large; its own branch.
+6. Framework quality pass: medium.
+7. Reactive AI: large; its own branch.
 
 ## Verification
 

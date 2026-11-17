@@ -1,51 +1,21 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://scenarios/core/scenario.gd" id="scenario"]
-[ext_resource type="Script" path="res://scenarios/data/scenario_definition.gd" id="definition"]
-[ext_resource type="Resource" path="res://scenarios/data/default_policy.tres" id="policy"]
-[ext_resource type="PackedScene" path="res://scenarios/scenes/debug_car.tscn" id="car"]
+[ext_resource type="PackedScene" path="res://scenarios/kit/scenario_base.tscn" id="base"]
+[ext_resource type="Resource" path="res://scenarios/scenes/give_way_junction/definition.tres" id="definition"]
+[ext_resource type="Material" path="res://scenarios/kit/asphalt.tres" id="asphalt"]
 [ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="marking"]
 [ext_resource type="Script" path="res://scenarios/traffic/scripted_agent.gd" id="agent"]
 [ext_resource type="Script" path="res://scenarios/checks/trigger_zone.gd" id="zone"]
 [ext_resource type="Script" path="res://scenarios/checks/yield_check.gd" id="yield"]
 [ext_resource type="Script" path="res://scenarios/checks/junction_check.gd" id="junction"]
 [ext_resource type="Script" path="res://scenarios/checks/junction_exit.gd" id="exit"]
-[ext_resource type="Script" path="res://scenarios/checks/line_check.gd" id="lines"]
-[ext_resource type="Script" path="res://scenarios/checks/contact_check.gd" id="contact"]
 [ext_resource type="Script" path="res://scenarios/checks/goal_check.gd" id="goal"]
-
-[sub_resource type="Resource" id="Definition"]
-script = ExtResource("definition")
-title = "Give way junction"
-briefing = "Drive to the end of the road and turn right onto the main road. Give way to the traffic on the main road, and go when there is a safe gap."
-time_limit = 120.0
-policy = ExtResource("policy")
-car_scene = ExtResource("car")
-
-[sub_resource type="Environment" id="Environment_sky"]
-background_mode = 1
-background_color = Color(0.55, 0.7, 0.85, 1)
-ambient_light_source = 2
-ambient_light_color = Color(0.8, 0.8, 0.85, 1)
-ambient_light_energy = 0.6
-
-[sub_resource type="BoxShape3D" id="Shape_ground"]
-size = Vector3(200, 0.2, 120)
-
-[sub_resource type="PlaneMesh" id="Mesh_ground"]
-size = Vector2(200, 120)
-
-[sub_resource type="StandardMaterial3D" id="Material_ground"]
-albedo_color = Color(0.3, 0.5, 0.25, 1)
 
 [sub_resource type="BoxMesh" id="Mesh_minor"]
 size = Vector3(7, 0.02, 45)
 
 [sub_resource type="BoxMesh" id="Mesh_main"]
 size = Vector3(160, 0.02, 7)
-
-[sub_resource type="StandardMaterial3D" id="Material_asphalt"]
-albedo_color = Color(0.2, 0.2, 0.22, 1)
 
 [sub_resource type="BoxShape3D" id="Shape_approach"]
 size = Vector3(4, 3, 6)
@@ -129,43 +99,25 @@ _data = {
 }
 point_count = 2
 
-[node name="GiveWayJunction" type="Node3D" node_paths=PackedStringArray("spawn_point")]
-script = ExtResource("scenario")
-definition = SubResource("Definition")
-spawn_point = NodePath("SpawnPoint")
+[node name="GiveWayJunction" instance=ExtResource("base")]
+definition = ExtResource("definition")
 
-[node name="Sun" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.8660254, -0.35355338, 0.35355338, 0, 0.70710677, 0.70710677, -0.5, -0.61237246, 0.61237246, 0, 20, 0)
-shadow_enabled = true
-
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
-environment = SubResource("Environment_sky")
-
-[node name="Ground" type="StaticBody3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 10)
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
-shape = SubResource("Shape_ground")
-
-[node name="Grass" type="MeshInstance3D" parent="Ground"]
-mesh = SubResource("Mesh_ground")
-surface_material_override/0 = SubResource("Material_ground")
+[node name="Environment" parent="."]
+ground_size = Vector2(200, 120)
+ground_offset = Vector3(0, 0, 10)
 
 [node name="MinorRoad" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 22.5)
 mesh = SubResource("Mesh_minor")
-surface_material_override/0 = SubResource("Material_asphalt")
+surface_material_override/0 = ExtResource("asphalt")
 
 [node name="MainRoad" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.012, -3.5)
 mesh = SubResource("Mesh_main")
-surface_material_override/0 = SubResource("Material_asphalt")
+surface_material_override/0 = ExtResource("asphalt")
 
-[node name="SpawnPoint" type="Marker3D" parent="."]
+[node name="SpawnPoint" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 40)
-
-[node name="Markings" type="Node3D" parent="."]
 
 [node name="MinorCentre" type="Path3D" parent="Markings"]
 curve = SubResource("Curve_MinorCentre")
@@ -246,53 +198,47 @@ script = ExtResource("zone")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="ApproachZone"]
 shape = SubResource("Shape_approach")
 
-[node name="YieldCheck" type="Node3D" parent="." node_paths=PackedStringArray("conflict_zone", "approach_zone", "agents")]
+[node name="YieldCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("conflict_zone", "approach_zone", "agents")]
 script = ExtResource("yield")
 conflict_zone = NodePath("ConflictZone")
-approach_zone = NodePath("../ApproachZone")
-agents = [NodePath("../CarA"), NodePath("../CarB"), NodePath("../CarC"), NodePath("../CarD")]
+approach_zone = NodePath("../../ApproachZone")
+agents = [NodePath("../../CarA"), NodePath("../../CarB"), NodePath("../../CarC"), NodePath("../../CarD")]
 
-[node name="ConflictZone" type="Area3D" parent="YieldCheck"]
+[node name="ConflictZone" type="Area3D" parent="Checks/YieldCheck"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -1.75)
 script = ExtResource("zone")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="YieldCheck/ConflictZone"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/YieldCheck/ConflictZone"]
 shape = SubResource("Shape_conflict")
 
-[node name="JunctionCheck" type="Node3D" parent="." node_paths=PackedStringArray("approach_zone")]
+[node name="JunctionCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("approach_zone")]
 script = ExtResource("junction")
-approach_zone = NodePath("../ApproachZone")
+approach_zone = NodePath("../../ApproachZone")
 
-[node name="RightExit" type="Area3D" parent="JunctionCheck"]
+[node name="RightExit" type="Area3D" parent="Checks/JunctionCheck"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 1.5, -1.75)
 script = ExtResource("exit")
 side = 3
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="JunctionCheck/RightExit"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/JunctionCheck/RightExit"]
 shape = SubResource("Shape_exit")
 
-[node name="LeftExit" type="Area3D" parent="JunctionCheck"]
+[node name="LeftExit" type="Area3D" parent="Checks/JunctionCheck"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 1.5, -5.25)
 script = ExtResource("exit")
 side = 2
 allowed = false
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="JunctionCheck/LeftExit"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/JunctionCheck/LeftExit"]
 shape = SubResource("Shape_exit")
 
-[node name="LineCheck" type="Node3D" parent="."]
-script = ExtResource("lines")
-
-[node name="ContactCheck" type="Node3D" parent="."]
-script = ExtResource("contact")
-
-[node name="GoalCheck" type="Node3D" parent="." node_paths=PackedStringArray("zone")]
+[node name="GoalCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("zone")]
 script = ExtResource("goal")
 zone = NodePath("Zone")
 
-[node name="Zone" type="Area3D" parent="GoalCheck"]
+[node name="Zone" type="Area3D" parent="Checks/GoalCheck"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 1.5, -3.5)
 script = ExtResource("zone")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="GoalCheck/Zone"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/GoalCheck/Zone"]
 shape = SubResource("Shape_goal")

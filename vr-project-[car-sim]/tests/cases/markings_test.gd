@@ -67,14 +67,14 @@ func _test_lines() -> void:
 	r = await drive([
 		{to = at(-10), speed = 8.0}, {to = Vector3(-1.75, 0, -25), speed = 8.0},
 		{to = Vector3(-1.75, 0, -100), speed = 8.0}], LINES_FIXTURE)
-	expect_only(r, &"no_indicator",
+	expect_only(r, &"no_indicator_lane_change",
 		"crossing the dashed line without indicating is one minor fault")
 
 	r = await drive([
 		{indicator = VehicleProbe.Indicator.RIGHT}, {to = at(-10), speed = 8.0},
 		{to = Vector3(-1.75, 0, -25), speed = 8.0}, {to = Vector3(-1.75, 0, -100), speed = 8.0}],
 		LINES_FIXTURE)
-	expect_only(r, &"no_indicator", "indicating the wrong way is no indication", &"")
+	expect_only(r, &"no_indicator_lane_change", "indicating the wrong way is no indication", &"")
 
 	r = await drive([
 		{indicator = left}, {to = at(-50), speed = 8.0},
