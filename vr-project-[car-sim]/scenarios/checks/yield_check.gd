@@ -7,8 +7,8 @@ extends Check
 ## [member approach_zone] for longer than [member grace] while every priority road user is at
 ## least [member clear_gap] seconds away is undue hesitation.
 ##
-## Each road user's arrival comes from its script: [method ScriptedAgent.time_to] the point of its
-## path nearest the conflict zone.
+## Each road user's arrival comes from its script: [method ScriptedAgent.time_to_point] the
+## conflict zone, along its path or the lane it continues onto.
 
 ## Where priority traffic crosses the car's path.
 @export var conflict_zone: TriggerZone
@@ -28,7 +28,6 @@ extends Check
 @export var hesitation_fault: FaultDef = preload("res://scenarios/data/faults/undue_hesitation.tres")
 
 var _hesitation := Episode.new()
-var _offsets := {}
 
 
 func required_exports() -> PackedStringArray:
@@ -39,23 +38,19 @@ func _on_bound() -> void:
 	watch(conflict_zone, func(_p: VehicleProbe) -> void:
 		if next_arrival() < safe_gap:
 			report_here(give_way_fault))
-	if conflict_zone == null:
-		return
-	for agent in agents:
-		if agent:
-			_offsets[agent] = agent.offset_nearest(conflict_zone.global_position)
 
 
 ## Seconds until the first priority road user reaches the conflict zone; 0 when one is in it,
 ## INF when none is coming.
 func next_arrival() -> float:
 	var soonest := INF
-	for agent in _offsets:
-		if agent.is_done():
+	var centre := conflict_zone.global_position
+	for agent in agents:
+		if agent == null or agent.is_done():
 			continue
 		if conflict_zone.contains_point(agent.global_position, zone_margin):
 			return 0.0
-		soonest = minf(soonest, agent.time_to(_offsets[agent]))
+		soonest = minf(soonest, agent.time_to_point(centre))
 	return soonest
 
 

@@ -85,6 +85,7 @@ static func of(body: Node) -> VehicleProbe:
 
 func _ready() -> void:
 	get_parent().set_meta(META_KEY, self)
+	add_to_group(Layers.GROUP_VEHICLE)
 	_hull = Area3D.new()
 	_hull.name = "ContactHull"
 	_hull.collision_layer = Layers.DETECTION

@@ -83,7 +83,15 @@ same way each time. A `TrafficSensor` sweeps the path ahead every tick, and when
 the way (the player's car, another road user, a pedestrian, an obstacle) the agent slows or stops
 by the Intelligent Driver Model, then returns to its script. It reports each change through its
 `reacted` signal, and braking harder than its `hard_brake` through `forced_to_brake`; a pedestrian
-waits for a car standing on its way. A `TrafficLight` cycles on timers, or holds green until the car approaches and
+waits for a car standing on its way.
+
+Roads are described for road users by `TrafficLane` paths, each along a lane's centre in the
+direction of traffic: its speed limit, the lanes it continues onto, its light and stop line, the
+lanes it gives way to, its pedestrian crossings, and the lanes beside it. An agent whose path is a
+lane keeps to the limit, stops at the line on red (and on amber where it can still stop), waits at
+the line until the priority lanes are clear of road users and of the player's car for the lane's
+safe gap, waits before a crossing in use, and continues onto the next lane named in its `route`,
+or picked from its `route_seed`. In the editor a lane shows its direction and its stop line. A `TrafficLight` cycles on timers, or holds green until the car approaches and
 then changes, so a scenario can place the change at a chosen distance. An `AgentSpawner` fills
 parking bays with parked cars chosen from a seed: the same seed gives the same car park.
 

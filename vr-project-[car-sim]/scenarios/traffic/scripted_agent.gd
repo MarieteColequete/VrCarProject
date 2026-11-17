@@ -13,6 +13,11 @@ extends AnimatableBody3D
 ## its scripted speed once the way is clear. It reports what it does through [signal reacted], and
 ## [signal forced_to_brake] when it had to brake harder than [member hard_brake].
 ##
+## When its path is a [TrafficLane], it also follows the lane's rules: its speed limit, its light,
+## giving way to the lanes with priority, and waiting before a crossing in use. At the lane's end it
+## continues onto one of the lane's next lanes: the first one listed in [member route], or one
+## picked from [member route_seed], so the same seed always takes the same way.
+##
 ## Cars sit on the obstacle layer and pedestrians on the pedestrian layer and in the pedestrian
 ## group (see [Layers]), so the [ContactCheck] tells them apart. Without a
 ## [CollisionShape3D] child, it builds a box of [member body_size].
@@ -42,6 +47,10 @@ enum State { WAITING, MOVING, PAUSED, DONE }
 @export var pause_time := 0.0
 @export var body_size := Vector3(1.8, 1.4, 4.2)
 @export var colour := Color(0.85, 0.75, 0.2)
+## On lanes: the lanes to take where a lane offers a choice, in order; others are picked from
+## [member route_seed].
+@export var route: Array[TrafficLane] = []
+@export var route_seed := 0
 
 @export_group("Reactions")
 ## Looks ahead and reacts to what is in the way; off, it plays its script whatever happens.
@@ -72,6 +81,10 @@ var leader: TrafficSensor.Leader
 
 var _sensor: TrafficSensor
 var _braking_hard := false
+var _upcoming: TrafficLane
+var _rng := RandomNumberGenerator.new()
+# The stop line this agent has committed to crossing on the current lane.
+var _committed := false
 
 var _armed := false
 var _clock := 0.0
@@ -86,6 +99,7 @@ func _ready() -> void:
 		return
 	collision_layer = Layers.PEDESTRIAN if pedestrian else Layers.OBSTACLE
 	collision_mask = 0
+	add_to_group(Layers.GROUP_ROAD_USER)
 	if pedestrian:
 		add_to_group(Layers.GROUP_PEDESTRIAN)
 	if not _has_shape():
@@ -93,6 +107,8 @@ func _ready() -> void:
 	_sensor = TrafficSensor.new(self, body_size)
 	if path and path.curve:
 		_length = path.curve.get_baked_length()
+	_rng.seed = route_seed
+	_upcoming = _choose_next(path as TrafficLane)
 	_armed = trigger == null
 	if trigger:
 		trigger.vehicle_entered.connect(func(_p: VehicleProbe) -> void: _armed = true)
@@ -117,7 +133,32 @@ func time_to(offset: float) -> float:
 		wait = maxf(pause_time - _paused_for, 0.0)
 	if pause_at >= 0.0 and not _paused_this_lap and pause_at <= offset and state != State.PAUSED:
 		wait += pause_time
-	return wait + remaining / maxf(speed, 0.001)
+	return wait + remaining / maxf(script_speed(), 0.001)
+
+
+## Seconds until the agent reaches the point of its route nearest [param point], world space: on
+## its current path, or on the lane it continues onto; INF when its route does not pass within a
+## few metres of it.
+func time_to_point(point: Vector3) -> float:
+	if path == null:
+		return INF
+	var local := path.to_local(point)
+	var offset := path.curve.get_closest_offset(local)
+	var off := local - path.curve.sample_baked(offset)
+	off.y = 0.0
+	if off.length() <= 3.0 and offset >= progress - 0.5:
+		return time_to(offset)
+	if _upcoming:
+		var where := _upcoming.project(point)
+		if where.y <= 3.0:
+			var to_end := time_to(_length)
+			return to_end + where.x / maxf(minf(speed, _limit_of(_upcoming)), 0.001)
+	return INF
+
+
+## The speed the script asks for here: the agent's speed, capped by its lane's limit.
+func script_speed() -> float:
+	return minf(speed, _limit_of(path as TrafficLane))
 
 
 func _physics_process(delta: float) -> void:
@@ -128,7 +169,7 @@ func _physics_process(delta: float) -> void:
 			_clock += delta
 			if _clock >= start_delay:
 				state = State.MOVING
-				current_speed = speed
+				current_speed = script_speed()
 				started.emit()
 		State.PAUSED:
 			_paused_for += delta
@@ -148,6 +189,8 @@ func forward() -> Vector3:
 ## The point of the path [param offset] metres along it, world space; past the end, the end, or
 ## round again on a looping path.
 func path_point(offset: float) -> Vector3:
+	if offset > _length and _upcoming:
+		return _upcoming.point_at(offset - _length)
 	if loop and _length > 0.0:
 		offset = fposmod(offset, _length)
 	return path.global_transform * path.curve.sample_baked(clampf(offset, 0.0, _length))
@@ -166,33 +209,46 @@ func offset_nearest(point: Vector3) -> float:
 
 ## This tick's speed: the script's, unless what is ahead forces a reaction.
 func _drive(delta: float) -> float:
+	var target := script_speed()
 	if not reactive or _sensor == null:
-		current_speed = speed
+		current_speed = target
 		return current_speed
 	leader = _sensor.sense(get_world_3d().direct_space_state, _ahead())
+	var rule := _rule_kind()
+	if not rule.is_empty():
+		var stop := TrafficSensor.Leader.new()
+		stop.gap = _rule_gap
+		if leader == null or stop.gap < leader.gap:
+			leader = stop
+		else:
+			rule = &""
 	var v := current_speed
-	var accel := max_accel if v < speed else 0.0
+	var accel := max_accel if v < target else 0.0
 	var kind: StringName = &""
 	# Once reacting, the model keeps control until the agent is back at its scripted speed with
 	# nothing holding it back, so it neither creeps up on a leader nor lets go too early.
 	if leader and (not reaction.is_empty() or _forced(leader, v)):
 		var model := _idm(v, leader)
-		if not reaction.is_empty() and v >= speed - 0.01 and model >= 0.0:
+		if not reaction.is_empty() and v >= target - 0.01 and model >= 0.0:
 			model = 0.0
 		else:
 			accel = model
 			kind = &"stopped" if v + accel * delta < 0.3 else &"following"
+			if not rule.is_empty():
+				kind = rule
 		if accel < -hard_brake and leader.body and not _braking_hard:
 			_braking_hard = true
 			forced_to_brake.emit(leader.body, -accel)
 	if accel >= -hard_brake:
 		_braking_hard = false
-	current_speed = clampf(v + accel * delta, 0.0, speed)
-	if leader and (leader.gap <= 0.05 or (kind == &"stopped" and absf(leader.speed) < 0.1)):
+	current_speed = clampf(v + accel * delta, 0.0, target)
+	if leader and (leader.gap <= 0.05 or (v + accel * delta < 0.3 and not kind.is_empty()
+			and kind != &"following" and absf(leader.speed) < 0.1)):
 		# Behind something standing still the agent stands still too, rather than creeping up at
 		# the model's crawl, and it never moves into what it already touches.
 		current_speed = 0.0
-		kind = &"stopped"
+		if kind.is_empty() or kind == &"following":
+			kind = &"stopped"
 	if kind != reaction:
 		reaction = kind
 		reacted.emit(&"resumed" if kind.is_empty() else kind, leader.body if leader else null)
@@ -216,7 +272,7 @@ func _idm(v: float, ahead: TrafficSensor.Leader) -> float:
 	var wanted := min_gap + maxf(0.0, v * time_headway
 		+ v * closing / (2.0 * sqrt(max_accel * comfort_decel)))
 	var gap := maxf(ahead.gap, 0.05)
-	var free := 1.0 - pow(v / maxf(speed, 0.1), 4.0)
+	var free := 1.0 - pow(v / maxf(script_speed(), 0.1), 4.0)
 	return maxf(max_accel * (free - (wanted / gap) * (wanted / gap)), -max_decel)
 
 
@@ -224,7 +280,7 @@ func _idm(v: float, ahead: TrafficSensor.Leader) -> float:
 func _ahead() -> PackedVector3Array:
 	var points := PackedVector3Array()
 	var front := progress + body_size.z * 0.5
-	var look := speed * 3.0 + 5.0
+	var look := script_speed() * 3.0 + 5.0
 	for i in TrafficSensor.SEGMENTS + 1:
 		points.append(path_point(front + look * i / TrafficSensor.SEGMENTS))
 	return points
@@ -238,6 +294,9 @@ func _advance(step: float) -> void:
 		_paused_this_lap = true
 		_paused_for = 0.0
 		state = State.PAUSED
+	elif progress >= length and _upcoming:
+		progress -= length
+		_enter(_upcoming)
 	elif progress >= length:
 		if loop:
 			progress = fmod(progress, length)
@@ -247,6 +306,63 @@ func _advance(step: float) -> void:
 			state = State.DONE
 			finished.emit()
 	_place(progress)
+
+
+var _rule_gap := INF
+
+
+## The lane rule holding the agent back now, as a reaction kind, with its stop line's gap in
+## [member _rule_gap]; empty when no rule applies.
+func _rule_kind() -> StringName:
+	var lane := path as TrafficLane
+	if lane == null:
+		return &""
+	var front := progress + body_size.z * 0.5
+	# The model keeps min_gap to a leader; a stop line is kept at about a metre instead.
+	var slack := min_gap - 1.0
+	for stop in lane.crossing_stops():
+		var gap := stop - front
+		if gap > -0.5 and lane.crossing_in_use(stop):
+			_rule_gap = gap + slack
+			return &"yielding"
+	var gap := lane.stop_at() - front
+	if gap < -0.5 or _committed:
+		return &""
+	var v := current_speed
+	if lane.light and (lane.light.is_red() or lane.light.state == TrafficLight.Light.AMBER):
+		# Stop only where stopping is still possible; past that point, go through.
+		if gap >= v * v / (2.0 * max_decel) or v < 0.5:
+			_rule_gap = gap + slack
+			return &"waiting_light"
+		_committed = true
+		return &""
+	if not lane.give_way_to.is_empty():
+		if not lane.way_is_clear():
+			_rule_gap = gap + slack
+			return &"yielding"
+		if gap < 1.5:
+			_committed = true
+	return &""
+
+
+func _enter(lane: TrafficLane) -> void:
+	path = lane
+	_length = lane.length()
+	_committed = false
+	_upcoming = _choose_next(lane)
+
+
+func _choose_next(lane: TrafficLane) -> TrafficLane:
+	if lane == null or lane.next.is_empty():
+		return null
+	for wanted in route:
+		if lane.next.has(wanted):
+			return wanted
+	return lane.next[_rng.randi_range(0, lane.next.size() - 1)]
+
+
+static func _limit_of(lane: TrafficLane) -> float:
+	return lane.speed_limit if lane and lane.speed_limit > 0.0 else INF
 
 
 func _place(offset: float) -> void:

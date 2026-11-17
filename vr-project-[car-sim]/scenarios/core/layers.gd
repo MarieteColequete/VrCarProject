@@ -16,3 +16,7 @@ const DETECTION := 1 << 4
 ## Scripted pedestrians also join this group, so contact with them reads as a pedestrian even
 ## through a child body.
 const GROUP_PEDESTRIAN := &"pedestrian"
+## Every scripted road user, so lanes can find who is on them.
+const GROUP_ROAD_USER := &"road_user"
+## Every car with a [VehicleProbe], such as the player's, so road users can give way to it.
+const GROUP_VEHICLE := &"vehicle"
