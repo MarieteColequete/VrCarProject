@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="FaultDef" format=3]
+
+[ext_resource type="Script" path="res://scenarios/data/fault_def.gd" id="1_fault"]
+
+[resource]
+script = ExtResource("1_fault")
+id = &"no_indicator_lane_change"
+title = "Changed lanes without indicating"
+description = "The vehicle crossed a dashed line without first indicating that way for long enough."
+tier = &"minor"

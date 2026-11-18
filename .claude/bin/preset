@@ -1,0 +1,13 @@
+#!/bin/sh
+# Preset: runs the preset's tool, picking the build for this platform from the ones beside this
+# file. The hooks and skills call this launcher, so one settings file serves every platform; under
+# Git Bash it runs the Windows build, and preset.cmd does the same for cmd and PowerShell. A
+# platform without a build gets one line saying so and exit code 126.
+dir=${0%/*}
+[ "$dir" = "$0" ] && dir=.
+case $(uname -sm) in
+    'Linux x86_64') exec "$dir/preset-linux-x86_64" "$@" ;;
+    MINGW*x86_64 | MSYS*x86_64 | CYGWIN*x86_64) exec "$dir/preset-windows-x86_64.exe" "$@" ;;
+esac
+echo "preset: no build of the tool for $(uname -sm); it ships for Linux and Windows on x86_64" >&2
+exit 126

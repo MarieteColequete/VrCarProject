@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ScenarioCatalogue" format=3]
+
+[ext_resource type="Script" path="res://scenarios/data/scenario_catalogue.gd" id="script"]
+[ext_resource type="Script" path="res://scenarios/data/scenario_definition.gd" id="definition"]
+[ext_resource type="Resource" path="res://scenarios/scenes/stop_junction/definition.tres" id="stop_junction"]
+[ext_resource type="Resource" path="res://scenarios/scenes/traffic_lights/definition.tres" id="traffic_lights"]
+[ext_resource type="Resource" path="res://scenarios/scenes/pedestrian_crossing/definition.tres" id="pedestrian_crossing"]
+[ext_resource type="Resource" path="res://scenarios/scenes/lane_change_overtake/definition.tres" id="lane_change_overtake"]
+[ext_resource type="Resource" path="res://scenarios/scenes/give_way_junction/definition.tres" id="give_way_junction"]
+[ext_resource type="Resource" path="res://scenarios/scenes/roundabout/definition.tres" id="roundabout"]
+[ext_resource type="Resource" path="res://scenarios/scenes/bay_parking/definition.tres" id="bay_parking"]
+[ext_resource type="Resource" path="res://scenarios/scenes/parallel_parking/definition.tres" id="parallel_parking"]
+[ext_resource type="Resource" path="res://scenarios/scenes/busy_junction/definition.tres" id="busy_junction"]
+
+[resource]
+script = ExtResource("script")
+scenarios = Array[ExtResource("definition")]([ExtResource("stop_junction"), ExtResource("traffic_lights"), ExtResource("pedestrian_crossing"), ExtResource("lane_change_overtake"), ExtResource("give_way_junction"), ExtResource("roundabout"), ExtResource("bay_parking"), ExtResource("parallel_parking"), ExtResource("busy_junction")])

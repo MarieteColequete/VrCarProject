@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="FaultDef" format=3]
+
+[ext_resource type="Script" path="res://scenarios/data/fault_def.gd" id="1_fault"]
+
+[resource]
+script = ExtResource("1_fault")
+id = &"contact_obstacle"
+title = "Hit an obstacle"
+description = "The vehicle made contact with a vehicle or object."
+tier = &"critical"

@@ -1,0 +1,37 @@
+{
+  "merge_requests": {
+    "merge_method": "ff",
+    "squash_option": "never",
+    "only_allow_merge_if_all_discussions_are_resolved": true,
+    "resolve_outdated_diff_discussions": true,
+    "remove_source_branch_after_merge": true
+  },
+  "pipelines": {
+    "only_allow_merge_if_pipeline_succeeds": true,
+    "allow_merge_on_skipped_pipeline": false,
+    "auto_cancel_pending_pipelines": "enabled"
+  },
+  "ci_security": {
+    "ci_pipeline_variables_minimum_override_role": "no_one_allowed",
+    "ci_allow_fork_pipelines_to_run_in_parent_project": false,
+    "public_jobs": false,
+    "job_token_inbound_allowlist": true
+  },
+  "protection": {
+    "branches": [
+      { "name": "dev", "push_access_level": 0, "merge_access_level": 40, "allow_force_push": false },
+      { "name": "main", "push_access_level": 0, "merge_access_level": 40, "allow_force_push": false }
+    ],
+    "tags": [
+      { "name": "v*", "create_access_level": 40 }
+    ]
+  },
+  "account": {
+    "signing_key_usage": ["signing", "auth_and_signing"],
+    "two_factor": true
+  },
+  "audit": {
+    "token_expiry_days": 30,
+    "member_access_above": 30
+  }
+}

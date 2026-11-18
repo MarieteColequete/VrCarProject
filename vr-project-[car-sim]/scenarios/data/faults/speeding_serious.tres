@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="FaultDef" format=3]
+
+[ext_resource type="Script" path="res://scenarios/data/fault_def.gd" id="1_fault"]
+
+[resource]
+script = ExtResource("1_fault")
+id = &"speeding_serious"
+title = "Exceeded the speed limit by a wide margin"
+description = "The vehicle drove above the posted speed limit by at least the serious margin."
+tier = &"serious"
