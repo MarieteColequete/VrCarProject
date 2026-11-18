@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="ScoringPolicy" format=3]
+
+[ext_resource type="Script" path="res://scenarios/data/scoring_policy.gd" id="1_policy"]
+[ext_resource type="Script" path="res://scenarios/data/fault_tier.gd" id="2_tier"]
+
+[sub_resource type="Resource" id="Tier_critical"]
+script = ExtResource("2_tier")
+id = &"critical"
+title = "Critical"
+eliminating = true
+max_allowed = 0
+
+[sub_resource type="Resource" id="Tier_serious"]
+script = ExtResource("2_tier")
+id = &"serious"
+title = "Serious"
+max_allowed = 1
+
+[sub_resource type="Resource" id="Tier_minor"]
+script = ExtResource("2_tier")
+id = &"minor"
+title = "Minor"
+max_allowed = 9
+
+[resource]
+script = ExtResource("1_policy")
+tiers = Array[ExtResource("2_tier")]([SubResource("Tier_critical"), SubResource("Tier_serious"), SubResource("Tier_minor")])

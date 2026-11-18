@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="FaultDef" format=3]
+
+[ext_resource type="Script" path="res://scenarios/data/fault_def.gd" id="1_fault"]
+
+[resource]
+script = ExtResource("1_fault")
+id = &"parking_misaligned"
+title = "Parked crooked"
+description = "The vehicle ended facing further from the direction the bay requires than the tolerance allows."
+tier = &"minor"

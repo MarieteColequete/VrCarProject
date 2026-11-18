@@ -1,0 +1,244 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenarios/kit/scenario_base.tscn" id="base"]
+[ext_resource type="Resource" path="res://scenarios/scenes/give_way_junction/definition.tres" id="definition"]
+[ext_resource type="Material" path="res://scenarios/kit/asphalt.tres" id="asphalt"]
+[ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="marking"]
+[ext_resource type="Script" path="res://scenarios/traffic/scripted_agent.gd" id="agent"]
+[ext_resource type="Script" path="res://scenarios/checks/trigger_zone.gd" id="zone"]
+[ext_resource type="Script" path="res://scenarios/checks/yield_check.gd" id="yield"]
+[ext_resource type="Script" path="res://scenarios/checks/junction_check.gd" id="junction"]
+[ext_resource type="Script" path="res://scenarios/checks/junction_exit.gd" id="exit"]
+[ext_resource type="Script" path="res://scenarios/checks/goal_check.gd" id="goal"]
+
+[sub_resource type="BoxMesh" id="Mesh_minor"]
+size = Vector3(7, 0.02, 45)
+
+[sub_resource type="BoxMesh" id="Mesh_main"]
+size = Vector3(160, 0.02, 7)
+
+[sub_resource type="BoxShape3D" id="Shape_approach"]
+size = Vector3(4, 3, 6)
+
+[sub_resource type="BoxShape3D" id="Shape_conflict"]
+size = Vector3(8, 3, 3.5)
+
+[sub_resource type="BoxShape3D" id="Shape_exit"]
+size = Vector3(3, 3, 3.5)
+
+[sub_resource type="BoxShape3D" id="Shape_goal"]
+size = Vector3(4, 3, 7)
+
+[sub_resource type="Curve3D" id="Curve_MinorCentre"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, 45, 0, 0, 0, 0, 0, 0, 0, 0, 0.5),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_MinorKerbRight"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 3.5, 0, 45, 0, 0, 0, 0, 0, 0, 3.5, 0, 0),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_MinorKerbLeft"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -3.5, 0, 45, 0, 0, 0, 0, 0, 0, -3.5, 0, 0),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_GiveWayLine"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0, 3.5, 0, 0.5),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_MainCentreWest"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -80, 0, -3.5, 0, 0, 0, 0, 0, 0, -4, 0, -3.5),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_MainCentreEast"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 4, 0, -3.5, 0, 0, 0, 0, 0, 0, 80, 0, -3.5),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_MainKerbNearWest"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -80, 0, 0, 0, 0, 0, 0, 0, 0, -3.5, 0, 0),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_MainKerbNearEast"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 3.5, 0, 0, 0, 0, 0, 0, 0, 0, 80, 0, 0),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_MainKerbFar"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -80, 0, -7, 0, 0, 0, 0, 0, 0, 80, 0, -7),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_Stream"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -70, 0, -1.75, 0, 0, 0, 0, 0, 0, 90, 0, -1.75),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[node name="GiveWayJunction" instance=ExtResource("base")]
+definition = ExtResource("definition")
+
+[node name="Environment" parent="."]
+ground_size = Vector2(200, 120)
+ground_offset = Vector3(0, 0, 10)
+
+[node name="MinorRoad" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 22.5)
+mesh = SubResource("Mesh_minor")
+surface_material_override/0 = ExtResource("asphalt")
+
+[node name="MainRoad" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.012, -3.5)
+mesh = SubResource("Mesh_main")
+surface_material_override/0 = ExtResource("asphalt")
+
+[node name="SpawnPoint" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 40)
+
+[node name="MinorCentre" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_MinorCentre")
+script = ExtResource("marking")
+kind = 1
+
+[node name="MinorKerbRight" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_MinorKerbRight")
+script = ExtResource("marking")
+kind = 8
+
+[node name="MinorKerbLeft" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_MinorKerbLeft")
+script = ExtResource("marking")
+kind = 8
+
+[node name="GiveWayLine" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_GiveWayLine")
+script = ExtResource("marking")
+kind = 4
+
+[node name="MainCentreWest" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_MainCentreWest")
+script = ExtResource("marking")
+kind = 1
+
+[node name="MainCentreEast" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_MainCentreEast")
+script = ExtResource("marking")
+kind = 1
+
+[node name="MainKerbNearWest" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_MainKerbNearWest")
+script = ExtResource("marking")
+kind = 8
+
+[node name="MainKerbNearEast" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_MainKerbNearEast")
+script = ExtResource("marking")
+kind = 8
+
+[node name="MainKerbFar" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_MainKerbFar")
+script = ExtResource("marking")
+kind = 8
+
+[node name="StreamPath" type="Path3D" parent="."]
+curve = SubResource("Curve_Stream")
+
+[node name="CarA" type="AnimatableBody3D" parent="." node_paths=PackedStringArray("path")]
+script = ExtResource("agent")
+path = NodePath("../StreamPath")
+speed = 10.0
+start_delay = 0.0
+
+[node name="CarB" type="AnimatableBody3D" parent="." node_paths=PackedStringArray("path")]
+script = ExtResource("agent")
+path = NodePath("../StreamPath")
+speed = 10.0
+start_delay = 2.0
+
+[node name="CarC" type="AnimatableBody3D" parent="." node_paths=PackedStringArray("path")]
+script = ExtResource("agent")
+path = NodePath("../StreamPath")
+speed = 10.0
+start_delay = 4.0
+
+[node name="CarD" type="AnimatableBody3D" parent="." node_paths=PackedStringArray("path")]
+script = ExtResource("agent")
+path = NodePath("../StreamPath")
+speed = 10.0
+start_delay = 30.0
+
+[node name="ApproachZone" type="Area3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 1.5, 3.5)
+script = ExtResource("zone")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ApproachZone"]
+shape = SubResource("Shape_approach")
+
+[node name="YieldCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("conflict_zone", "approach_zone", "agents")]
+script = ExtResource("yield")
+conflict_zone = NodePath("ConflictZone")
+approach_zone = NodePath("../../ApproachZone")
+agents = [NodePath("../../CarA"), NodePath("../../CarB"), NodePath("../../CarC"), NodePath("../../CarD")]
+
+[node name="ConflictZone" type="Area3D" parent="Checks/YieldCheck"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -1.75)
+script = ExtResource("zone")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/YieldCheck/ConflictZone"]
+shape = SubResource("Shape_conflict")
+
+[node name="JunctionCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("approach_zone")]
+script = ExtResource("junction")
+approach_zone = NodePath("../../ApproachZone")
+
+[node name="RightExit" type="Area3D" parent="Checks/JunctionCheck"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 1.5, -1.75)
+script = ExtResource("exit")
+side = 3
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/JunctionCheck/RightExit"]
+shape = SubResource("Shape_exit")
+
+[node name="LeftExit" type="Area3D" parent="Checks/JunctionCheck"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 1.5, -5.25)
+script = ExtResource("exit")
+side = 2
+allowed = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/JunctionCheck/LeftExit"]
+shape = SubResource("Shape_exit")
+
+[node name="GoalCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("zone")]
+script = ExtResource("goal")
+zone = NodePath("Zone")
+
+[node name="Zone" type="Area3D" parent="Checks/GoalCheck"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 1.5, -3.5)
+script = ExtResource("zone")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/GoalCheck/Zone"]
+shape = SubResource("Shape_goal")

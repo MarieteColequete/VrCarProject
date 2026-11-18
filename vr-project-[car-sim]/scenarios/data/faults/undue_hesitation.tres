@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="FaultDef" format=3]
+
+[ext_resource type="Script" path="res://scenarios/data/fault_def.gd" id="1_fault"]
+
+[resource]
+script = ExtResource("1_fault")
+id = &"undue_hesitation"
+title = "Waited when the way was clear"
+description = "The vehicle stayed stopped at a give way point for longer than needed while the road was clear."
+tier = &"minor"

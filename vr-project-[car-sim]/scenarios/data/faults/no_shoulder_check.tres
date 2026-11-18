@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="FaultDef" format=3]
+
+[ext_resource type="Script" path="res://scenarios/data/fault_def.gd" id="1_fault"]
+
+[resource]
+script = ExtResource("1_fault")
+id = &"no_shoulder_check"
+title = "Did not check over the shoulder"
+description = "The driver changed lanes or moved off without looking over the shoulder on that side first."
+tier = &"minor"

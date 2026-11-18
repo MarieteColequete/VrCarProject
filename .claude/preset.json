@@ -1,0 +1,359 @@
+{
+  "files": {
+    ".claude/bin/preset": "c2b47920f79ac690c9a4e75393310abe6a671f5f35c9cf5ce99e03a74204d784",
+    ".claude/bin/preset.cmd": "12691ba27777c81ecafa9a3646430e496999062ca762dfbd7e7ec090d5491815",
+    ".claude/rules/preset/changelog.md": "a4a1656594417fefc944d94d4960d4461cafae8296db41510b79a5739236268b",
+    ".claude/rules/preset/compatibility.md": "1c5bcd81236e589c4e1ba42330116bbcff0fa14b51930a6b4718f4f2e81b1c6f",
+    ".claude/rules/preset/configuration.md": "ab663539a30b28153f12dd7af72a484a212abad4ed97c88c029a3c56417bb219",
+    ".claude/rules/preset/documents.md": "901511887132c26719d029c15016e87bcc5bbfa35fef779bf07dc36926c38a3b",
+    ".claude/rules/preset/enforcement.md": "92c11a6fa9e9dd5d7c7c4a78c52f0e0e1f0a0d6c831a99469fec2c534a738f60",
+    ".claude/rules/preset/evaluation.md": "1dc9e307b529b6dd929feb695d6ba45bcb7a4fee6e249404a0b1ed42000656be",
+    ".claude/rules/preset/git-workflow.md": "985e030713b61a3b18c0474333d3283ced56b187268ee946ccd5838055ff6d16",
+    ".claude/rules/preset/knowledge.md": "8652bf9b90cf75628e624406cbbe01bb05a39380af3ccf029aa700f0b29658e9",
+    ".claude/rules/preset/msc.md": "d21a955f17d2c4fdc86dfffd290b147067f7d4e2bdda5eedacf232931894c65e",
+    ".claude/rules/preset/research-cache.md": "444e3526dc3a4b73e23f532b412dbe0194877fb70a1f8994c431473823c7c038",
+    ".claude/rules/preset/rust.md": "bc22530c8432d9621297cf5a8ead2255ed90f651d5a691cfd3fba3e82b40b4b9",
+    ".claude/rules/preset/tdd.md": "6a425287097ed851277db834fb19125429188e1e4cbc387ef2b7dcfd29dd7e16",
+    ".claude/rules/preset/tooling.md": "f8fda6b966e5293c5deb708b123bd11a64d9d56ed9ddcc7f40af3adc58ecc691",
+    ".claude/rules/preset/writing.md": "68c8f1b73ed32e295f016872e6caa238ceb3123a479c119dc500ba0c1f2ca0f0",
+    ".claude/skills/adopt-preset/SKILL.md": "bc5bf919ce06baf587ef2b51379d02efe313b8c90135ad87733eddc44f3dcdfe",
+    ".claude/skills/doc-lint/SKILL.md": "1b05d85d328fec3a0c828db66fcec72e1f149f83e6f624cbb31ea0649ebe943b",
+    ".claude/skills/host-setup/SKILL.md": "f9f9b81f90d24675c541b07450c2af29c2283a6fc35d4c4a32c26956898f61b4",
+    ".claude/skills/hosting/SKILL.md": "c2d0dc2a27d4286a47153b25dae778b96fb932d99e4e39ca55247411ab06f467",
+    ".claude/skills/hosting/gitlab/settings.json": "dcb9b41d279eca0277d00d43e4c876e7e24d8a6ed35c9551fe4fd435580bb34f",
+    ".claude/skills/land/SKILL.md": "e855b7a94050b87022fce12d492c2937aad3ce80224187269dcaadf574a9e0f0",
+    ".claude/skills/propose-release/SKILL.md": "29ed23e639736f8bc8ecf749dacc72113b7a65a81802c8ffcb812d2552bea5d5",
+    ".claude/skills/release/SKILL.md": "f9cf280f2fc017d606828b272f7258056032a12659c51c4a97aa6fbfefb643bd",
+    ".claude/skills/research-topic/SKILL.md": "2e34027fac78f528baea09c97a8e6341067ef4739e176d843d990cafc716adee",
+    ".claude/skills/write-proposal/SKILL.md": "cf5fb2b039047f534247945d0bc8870801d1f635d2a935dbf9df8fd9e26da1f5",
+    ".gitlab/ci/signatures.yml": "196a5d97c710c5160b747feb21e4bcba49037235c835a7ecddae32643a555cb6",
+    ".gitlab/ci/verify-signatures.sh": "b5948c6ad1c54b614c22998926b49a32b779dd8898417354e21cf11a9febdc9f"
+  },
+  "settings": {
+    "$schema": "https://json.schemastore.org/claude-code-settings.json",
+    "attribution": {
+      "commit": "",
+      "pr": ""
+    },
+    "hooks": {
+      "ConfigChange": [
+        {
+          "hooks": [
+            {
+              "args": [
+                "${CLAUDE_PROJECT_DIR}/.claude/bin/preset",
+                "hook",
+                "config-change"
+              ],
+              "command": "sh",
+              "timeout": 10,
+              "type": "command"
+            }
+          ]
+        }
+      ],
+      "InstructionsLoaded": [
+        {
+          "hooks": [
+            {
+              "args": [
+                "${CLAUDE_PROJECT_DIR}/.claude/bin/preset",
+                "hook",
+                "instructions-loaded"
+              ],
+              "command": "sh",
+              "timeout": 10,
+              "type": "command"
+            }
+          ]
+        }
+      ],
+      "PermissionDenied": [
+        {
+          "hooks": [
+            {
+              "args": [
+                "${CLAUDE_PROJECT_DIR}/.claude/bin/preset",
+                "hook",
+                "permission-denied"
+              ],
+              "command": "sh",
+              "timeout": 10,
+              "type": "command"
+            }
+          ]
+        }
+      ],
+      "PostToolUse": [
+        {
+          "hooks": [
+            {
+              "args": [
+                "${CLAUDE_PROJECT_DIR}/.claude/bin/preset",
+                "hook",
+                "dashes"
+              ],
+              "command": "sh",
+              "if": "Edit(*.md)",
+              "timeout": 10,
+              "type": "command"
+            }
+          ],
+          "matcher": "Write|Edit|MultiEdit"
+        }
+      ],
+      "PreToolUse": [
+        {
+          "hooks": [
+            {
+              "args": [
+                "${CLAUDE_PROJECT_DIR}/.claude/bin/preset",
+                "hook",
+                "guard"
+              ],
+              "command": "sh",
+              "onFailure": "block",
+              "timeout": 10,
+              "type": "command"
+            }
+          ],
+          "matcher": "Bash|PowerShell"
+        },
+        {
+          "hooks": [
+            {
+              "args": [
+                "${CLAUDE_PROJECT_DIR}/.claude/bin/preset",
+                "hook",
+                "dashes"
+              ],
+              "command": "sh",
+              "timeout": 10,
+              "type": "command"
+            }
+          ],
+          "matcher": "Write|Edit|MultiEdit"
+        }
+      ],
+      "SessionStart": [
+        {
+          "hooks": [
+            {
+              "command": "sh \"${CLAUDE_PROJECT_DIR}/.claude/bin/preset\" self-check >/dev/null 2>&1 && sh \"${CLAUDE_PROJECT_DIR}/.claude/bin/preset\" hook session-start || echo '{\"systemMessage\": \"Agent configuration: the preset tool (.claude/bin/preset) does not run here or git is missing, so Bash and PowerShell commands are blocked and the writing checks and the stop gate do not run in this session.\", \"hookSpecificOutput\": {\"hookEventName\": \"SessionStart\", \"additionalContext\": \"The preset checks cannot run in this session: the preset tool (.claude/bin/preset) has no build that runs on this platform, or git is not on PATH. Without the command guard every Bash and PowerShell command is blocked until the author fixes it; the dash checks and the stop gate do not run either. Report this to the author instead of working around it.\"}}'",
+              "timeout": 10,
+              "type": "command"
+            }
+          ]
+        }
+      ],
+      "Stop": [
+        {
+          "hooks": [
+            {
+              "args": [
+                "${CLAUDE_PROJECT_DIR}/.claude/bin/preset",
+                "hook",
+                "stop"
+              ],
+              "asyncRewake": true,
+              "command": "sh",
+              "timeout": 900,
+              "type": "command"
+            }
+          ]
+        }
+      ]
+    },
+    "includeGitInstructions": false,
+    "permissions": {
+      "allow": [
+        "Bash(git status *)",
+        "Bash(git diff *)",
+        "Bash(git log *)",
+        "Bash(git show *)",
+        "Bash(git branch)",
+        "Bash(git branch --show-current)",
+        "Bash(git branch --list *)",
+        "Bash(git branch -a)",
+        "Bash(git branch -r)",
+        "Bash(git branch -vv)",
+        "Bash(git remote -v)",
+        "Bash(cargo check *)",
+        "Bash(cargo build *)",
+        "Bash(cargo test *)",
+        "Bash(cargo clippy *)",
+        "Bash(cargo fmt *)",
+        "Bash(cargo doc *)",
+        "Bash(cargo tree *)"
+      ],
+      "ask": [
+        "Bash(git add *)",
+        "Bash(git commit *)",
+        "Bash(git push *)",
+        "Bash(git pull *)",
+        "Bash(git rebase *)",
+        "Bash(git reset *)",
+        "Bash(git merge *)",
+        "Bash(git cherry-pick *)",
+        "Bash(git revert *)",
+        "Bash(git am *)",
+        "Bash(git update-ref *)",
+        "Bash(git commit-tree *)",
+        "Bash(git filter-branch *)",
+        "Bash(git reflog expire *)",
+        "Bash(git gc *)",
+        "Bash(git tag *)",
+        "Bash(git branch -D *)",
+        "Bash(git branch -d *)",
+        "Bash(git branch -f *)",
+        "Bash(git branch -M *)",
+        "Bash(git branch --delete *)",
+        "Bash(git branch --force *)",
+        "Bash(git switch *)",
+        "Bash(git checkout -B *)",
+        "Bash(git restore *)",
+        "Bash(git checkout -- *)",
+        "Bash(git checkout .)",
+        "Bash(git stash *)",
+        "Bash(git clean *)",
+        "Bash(git config *)",
+        "Bash(git -c *)",
+        "Bash(git -C *)",
+        "Bash(glab mr create *)",
+        "Bash(glab mr merge *)",
+        "Bash(glab mr update *)",
+        "Bash(glab mr note *)",
+        "Bash(glab mr approve *)",
+        "Bash(glab mr revoke *)",
+        "Bash(glab mr close *)",
+        "Bash(glab mr reopen *)",
+        "Bash(glab mr rebase *)",
+        "Bash(glab mr delete *)",
+        "Bash(glab release *)",
+        "Bash(glab api *)",
+        "Bash(glab issue create *)",
+        "Bash(glab issue update *)",
+        "Bash(glab issue note *)",
+        "Bash(glab issue close *)",
+        "Bash(glab issue reopen *)",
+        "Bash(glab issue delete *)",
+        "Bash(glab repo delete *)",
+        "Bash(glab repo archive *)",
+        "Bash(glab repo transfer *)",
+        "Bash(sh *bin/preset land*)",
+        "Bash(sh *bin/preset hosting*)",
+        "PowerShell(git add *)",
+        "PowerShell(git commit *)",
+        "PowerShell(git push *)",
+        "PowerShell(git pull *)",
+        "PowerShell(git rebase *)",
+        "PowerShell(git reset *)",
+        "PowerShell(git merge *)",
+        "PowerShell(git cherry-pick *)",
+        "PowerShell(git revert *)",
+        "PowerShell(git am *)",
+        "PowerShell(git update-ref *)",
+        "PowerShell(git commit-tree *)",
+        "PowerShell(git filter-branch *)",
+        "PowerShell(git reflog expire *)",
+        "PowerShell(git gc *)",
+        "PowerShell(git tag *)",
+        "PowerShell(git branch -D *)",
+        "PowerShell(git branch -d *)",
+        "PowerShell(git branch -f *)",
+        "PowerShell(git branch -M *)",
+        "PowerShell(git branch --delete *)",
+        "PowerShell(git branch --force *)",
+        "PowerShell(git switch *)",
+        "PowerShell(git checkout -B *)",
+        "PowerShell(git restore *)",
+        "PowerShell(git checkout -- *)",
+        "PowerShell(git checkout .)",
+        "PowerShell(git stash *)",
+        "PowerShell(git clean *)",
+        "PowerShell(git config *)",
+        "PowerShell(git -c *)",
+        "PowerShell(git -C *)",
+        "PowerShell(glab mr create *)",
+        "PowerShell(glab mr merge *)",
+        "PowerShell(glab mr update *)",
+        "PowerShell(glab mr note *)",
+        "PowerShell(glab mr approve *)",
+        "PowerShell(glab mr revoke *)",
+        "PowerShell(glab mr close *)",
+        "PowerShell(glab mr reopen *)",
+        "PowerShell(glab mr rebase *)",
+        "PowerShell(glab mr delete *)",
+        "PowerShell(glab release *)",
+        "PowerShell(glab api *)",
+        "PowerShell(glab issue create *)",
+        "PowerShell(glab issue update *)",
+        "PowerShell(glab issue note *)",
+        "PowerShell(glab issue close *)",
+        "PowerShell(glab issue reopen *)",
+        "PowerShell(glab issue delete *)",
+        "PowerShell(glab repo delete *)",
+        "PowerShell(glab repo archive *)",
+        "PowerShell(glab repo transfer *)",
+        "PowerShell(sh *bin/preset land*)",
+        "PowerShell(sh *bin/preset hosting*)",
+        "Edit(/.claude/settings.json)",
+        "Edit(/.claude/settings.local.json)",
+        "Edit(/.claude/project.json)",
+        "Edit(/.claude/preset.json)",
+        "Edit(/.claude/bin/**)",
+        "Edit(/.claude/hooks/**)",
+        "Edit(/.claude/rules/preset/**)",
+        "Edit(/.claude/skills/adopt-preset/**)",
+        "Edit(/.claude/skills/doc-lint/**)",
+        "Edit(/.claude/skills/propose-release/**)",
+        "Edit(/.claude/skills/research-topic/**)",
+        "Edit(/.claude/skills/land/**)",
+        "Edit(/.claude/skills/host-setup/**)",
+        "Edit(/.claude/skills/hosting/**)",
+        "Edit(/.claude/skills/release/**)",
+        "Edit(/.claude/skills/write-proposal/**)",
+        "Edit(/.gitlab/ci/**)",
+        "Edit(/.allowed_signers)",
+        "Edit(/.gitlab-ci.yml)",
+        "Edit(/.git/config)",
+        "Edit(/.git/hooks/**)",
+        "Read(~/.ssh/id_*)",
+        "Read(**/.env)",
+        "Read(**/.env.*)",
+        "Read(~/.aws/credentials)",
+        "Read(~/.netrc)"
+      ],
+      "blockWritesOutsideWorkingDirectories": true,
+      "deny": [
+        "Bash(git *--no-gpg-sign*)",
+        "Bash(git *commit.gpgsign=false*)",
+        "Bash(git *commit.gpgSign=false*)",
+        "Bash(git config *gpgsign false*)",
+        "Bash(git config *gpgSign false*)",
+        "Bash(git *--no-verify*)",
+        "Bash(git push * dev)",
+        "Bash(git push * main)",
+        "Bash(git push *:dev)",
+        "Bash(git push *:main)",
+        "PowerShell(git *--no-gpg-sign*)",
+        "PowerShell(git *commit.gpgsign=false*)",
+        "PowerShell(git *commit.gpgSign=false*)",
+        "PowerShell(git config *gpgsign false*)",
+        "PowerShell(git config *gpgSign false*)",
+        "PowerShell(git *--no-verify*)",
+        "PowerShell(git push * dev)",
+        "PowerShell(git push * main)",
+        "PowerShell(git push *:dev)",
+        "PowerShell(git push *:main)",
+        "Edit(*.pdf)",
+        "Edit(*.odt)",
+        "Edit(*.docx)",
+        "Edit(*.pptx)",
+        "Edit(*.xlsx)"
+      ]
+    }
+  },
+  "source": "7fc64fc8d13e9c06",
+  "version": "0.8.1-alpha"
+}

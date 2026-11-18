@@ -1,0 +1,385 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenarios/kit/scenario_base.tscn" id="base"]
+[ext_resource type="Resource" path="res://scenarios/scenes/roundabout/definition.tres" id="definition"]
+[ext_resource type="Material" path="res://scenarios/kit/asphalt.tres" id="asphalt"]
+[ext_resource type="Material" path="res://scenarios/kit/grass.tres" id="grass"]
+[ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="marking"]
+[ext_resource type="Script" path="res://scenarios/traffic/scripted_agent.gd" id="agent"]
+[ext_resource type="Script" path="res://scenarios/checks/trigger_zone.gd" id="zone"]
+[ext_resource type="Script" path="res://scenarios/checks/yield_check.gd" id="yield"]
+[ext_resource type="Script" path="res://scenarios/checks/junction_check.gd" id="junction"]
+[ext_resource type="Script" path="res://scenarios/checks/junction_exit.gd" id="exit"]
+[ext_resource type="Script" path="res://scenarios/checks/goal_check.gd" id="goal"]
+
+[sub_resource type="CylinderMesh" id="Mesh_ring"]
+top_radius = 14.0
+bottom_radius = 14.0
+height = 0.02
+radial_segments = 48
+
+[sub_resource type="CylinderMesh" id="Mesh_island"]
+top_radius = 6.0
+bottom_radius = 6.0
+height = 0.15
+radial_segments = 36
+
+[sub_resource type="BoxMesh" id="Mesh_arm_ns"]
+size = Vector3(7, 0.02, 48)
+
+[sub_resource type="BoxMesh" id="Mesh_arm_ew"]
+size = Vector3(48, 0.02, 7)
+
+[sub_resource type="BoxShape3D" id="Shape_approach"]
+size = Vector3(4, 3, 6)
+
+[sub_resource type="BoxShape3D" id="Shape_conflict"]
+size = Vector3(8, 3, 5)
+
+[sub_resource type="BoxShape3D" id="Shape_exit_ns"]
+size = Vector3(3.5, 3, 3)
+
+[sub_resource type="BoxShape3D" id="Shape_exit_ew"]
+size = Vector3(3, 3, 3.5)
+
+[sub_resource type="BoxShape3D" id="Shape_goal"]
+size = Vector3(7, 3, 4)
+
+[sub_resource type="Curve3D" id="Curve_SouthCentre"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, 60, 0, 0, 0, 0, 0, 0, 0, 0, 14),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_NorthCentre"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, -60, 0, 0, 0, 0, 0, 0, 0, 0, -14),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_EastCentre"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 60, 0, 0, 0, 0, 0, 0, 0, 0, 14, 0, 0),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_WestCentre"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -60, 0, 0, 0, 0, 0, 0, 0, 0, -14, 0, 0),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_SouthKerbA"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -3.5, 0, 60, 0, 0, 0, 0, 0, 0, -3.5, 0, 14),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_NorthKerbA"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -3.5, 0, -60, 0, 0, 0, 0, 0, 0, -3.5, 0, -14),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_EastKerbA"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 60, 0, -3.5, 0, 0, 0, 0, 0, 0, 14, 0, -3.5),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_WestKerbA"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -60, 0, -3.5, 0, 0, 0, 0, 0, 0, -14, 0, -3.5),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_SouthKerbB"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 3.5, 0, 60, 0, 0, 0, 0, 0, 0, 3.5, 0, 14),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_NorthKerbB"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 3.5, 0, -60, 0, 0, 0, 0, 0, 0, 3.5, 0, -14),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_EastKerbB"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 60, 0, 3.5, 0, 0, 0, 0, 0, 0, 14, 0, 3.5),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_WestKerbB"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -60, 0, 3.5, 0, 0, 0, 0, 0, 0, -14, 0, 3.5),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_SouthGiveWay"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 3.5, 0, 14),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_NorthGiveWay"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -3.5, 0, -14, 0, 0, 0, 0, 0, 0, 0, 0, -14),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_EastGiveWay"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 14, 0, -3.5, 0, 0, 0, 0, 0, 0, 14, 0, 0),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_WestGiveWay"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -14, 0, 0, 0, 0, 0, 0, 0, 0, -14, 0, 3.5),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_Island"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 5.9088, 0, 1.0419, 0, 0, 0, 0, 0, 0, 5.6382, 0, 2.0521, 0, 0, 0, 0, 0, 0, 5.1962, 0, 3, 0, 0, 0, 0, 0, 0, 4.5963, 0, 3.8567, 0, 0, 0, 0, 0, 0, 3.8567, 0, 4.5963, 0, 0, 0, 0, 0, 0, 3, 0, 5.1962, 0, 0, 0, 0, 0, 0, 2.0521, 0, 5.6382, 0, 0, 0, 0, 0, 0, 1.0419, 0, 5.9088, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, -1.0419, 0, 5.9088, 0, 0, 0, 0, 0, 0, -2.0521, 0, 5.6382, 0, 0, 0, 0, 0, 0, -3, 0, 5.1962, 0, 0, 0, 0, 0, 0, -3.8567, 0, 4.5963, 0, 0, 0, 0, 0, 0, -4.5963, 0, 3.8567, 0, 0, 0, 0, 0, 0, -5.1962, 0, 3, 0, 0, 0, 0, 0, 0, -5.6382, 0, 2.0521, 0, 0, 0, 0, 0, 0, -5.9088, 0, 1.0419, 0, 0, 0, 0, 0, 0, -6, 0, 0, 0, 0, 0, 0, 0, 0, -5.9088, 0, -1.0419, 0, 0, 0, 0, 0, 0, -5.6382, 0, -2.0521, 0, 0, 0, 0, 0, 0, -5.1962, 0, -3, 0, 0, 0, 0, 0, 0, -4.5963, 0, -3.8567, 0, 0, 0, 0, 0, 0, -3.8567, 0, -4.5963, 0, 0, 0, 0, 0, 0, -3, 0, -5.1962, 0, 0, 0, 0, 0, 0, -2.0521, 0, -5.6382, 0, 0, 0, 0, 0, 0, -1.0419, 0, -5.9088, 0, 0, 0, 0, 0, 0, 0, 0, -6, 0, 0, 0, 0, 0, 0, 1.0419, 0, -5.9088, 0, 0, 0, 0, 0, 0, 2.0521, 0, -5.6382, 0, 0, 0, 0, 0, 0, 3, 0, -5.1962, 0, 0, 0, 0, 0, 0, 3.8567, 0, -4.5963, 0, 0, 0, 0, 0, 0, 4.5963, 0, -3.8567, 0, 0, 0, 0, 0, 0, 5.1962, 0, -3, 0, 0, 0, 0, 0, 0, 5.6382, 0, -2.0521, 0, 0, 0, 0, 0, 0, 5.9088, 0, -1.0419, 0, 0, 0, 0, 0, 0, 6, 0, 0),
+"tilts": PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+}
+point_count = 37
+
+[sub_resource type="Curve3D" id="Curve_Stream"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -60, 0, 1.75, 0, 0, 0, 0, 0, 0, -9.8481, 0, 1.7365, 0, 0, 0, 0, 0, 0, -9.3969, 0, 3.4202, 0, 0, 0, 0, 0, 0, -8.6603, 0, 5, 0, 0, 0, 0, 0, 0, -7.6604, 0, 6.4279, 0, 0, 0, 0, 0, 0, -6.4279, 0, 7.6604, 0, 0, 0, 0, 0, 0, -5, 0, 8.6603, 0, 0, 0, 0, 0, 0, -3.4202, 0, 9.3969, 0, 0, 0, 0, 0, 0, -1.7365, 0, 9.8481, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 1.7365, 0, 9.8481, 0, 0, 0, 0, 0, 0, 3.4202, 0, 9.3969, 0, 0, 0, 0, 0, 0, 5, 0, 8.6603, 0, 0, 0, 0, 0, 0, 6.4279, 0, 7.6604, 0, 0, 0, 0, 0, 0, 7.6604, 0, 6.4279, 0, 0, 0, 0, 0, 0, 8.6603, 0, 5, 0, 0, 0, 0, 0, 0, 9.3969, 0, 3.4202, 0, 0, 0, 0, 0, 0, 9.8481, 0, 1.7365, 0, 0, 0, 0, 0, 0, 60, 0, 1.75),
+"tilts": PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+}
+point_count = 19
+
+[node name="Roundabout" instance=ExtResource("base")]
+definition = ExtResource("definition")
+
+[node name="Environment" parent="."]
+ground_size = Vector2(140, 140)
+ground_offset = Vector3(0, 0, 0)
+
+[node name="Ring" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.011, 0)
+mesh = SubResource("Mesh_ring")
+surface_material_override/0 = ExtResource("asphalt")
+
+[node name="Island" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.075, 0)
+mesh = SubResource("Mesh_island")
+surface_material_override/0 = ExtResource("grass")
+
+[node name="SouthArm" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 36)
+mesh = SubResource("Mesh_arm_ns")
+surface_material_override/0 = ExtResource("asphalt")
+
+[node name="NorthArm" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -36)
+mesh = SubResource("Mesh_arm_ns")
+surface_material_override/0 = ExtResource("asphalt")
+
+[node name="EastArm" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36, 0.01, 0)
+mesh = SubResource("Mesh_arm_ew")
+surface_material_override/0 = ExtResource("asphalt")
+
+[node name="WestArm" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36, 0.01, 0)
+mesh = SubResource("Mesh_arm_ew")
+surface_material_override/0 = ExtResource("asphalt")
+
+[node name="SpawnPoint" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 45)
+
+[node name="SouthCentre" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_SouthCentre")
+script = ExtResource("marking")
+kind = 1
+
+[node name="NorthCentre" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_NorthCentre")
+script = ExtResource("marking")
+kind = 1
+
+[node name="EastCentre" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_EastCentre")
+script = ExtResource("marking")
+kind = 1
+
+[node name="WestCentre" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_WestCentre")
+script = ExtResource("marking")
+kind = 1
+
+[node name="SouthKerbA" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_SouthKerbA")
+script = ExtResource("marking")
+kind = 8
+
+[node name="NorthKerbA" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_NorthKerbA")
+script = ExtResource("marking")
+kind = 8
+
+[node name="EastKerbA" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_EastKerbA")
+script = ExtResource("marking")
+kind = 8
+
+[node name="WestKerbA" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_WestKerbA")
+script = ExtResource("marking")
+kind = 8
+
+[node name="SouthKerbB" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_SouthKerbB")
+script = ExtResource("marking")
+kind = 8
+
+[node name="NorthKerbB" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_NorthKerbB")
+script = ExtResource("marking")
+kind = 8
+
+[node name="EastKerbB" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_EastKerbB")
+script = ExtResource("marking")
+kind = 8
+
+[node name="WestKerbB" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_WestKerbB")
+script = ExtResource("marking")
+kind = 8
+
+[node name="SouthGiveWay" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_SouthGiveWay")
+script = ExtResource("marking")
+kind = 4
+
+[node name="NorthGiveWay" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_NorthGiveWay")
+script = ExtResource("marking")
+kind = 4
+
+[node name="EastGiveWay" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_EastGiveWay")
+script = ExtResource("marking")
+kind = 4
+
+[node name="WestGiveWay" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_WestGiveWay")
+script = ExtResource("marking")
+kind = 4
+
+[node name="Island" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_Island")
+script = ExtResource("marking")
+kind = 8
+
+[node name="StreamPath" type="Path3D" parent="."]
+curve = SubResource("Curve_Stream")
+
+[node name="CarA" type="AnimatableBody3D" parent="." node_paths=PackedStringArray("path")]
+script = ExtResource("agent")
+path = NodePath("../StreamPath")
+speed = 8.0
+start_delay = 0.0
+
+[node name="CarB" type="AnimatableBody3D" parent="." node_paths=PackedStringArray("path")]
+script = ExtResource("agent")
+path = NodePath("../StreamPath")
+speed = 8.0
+start_delay = 2.0
+
+[node name="CarC" type="AnimatableBody3D" parent="." node_paths=PackedStringArray("path")]
+script = ExtResource("agent")
+path = NodePath("../StreamPath")
+speed = 8.0
+start_delay = 4.0
+
+[node name="CarD" type="AnimatableBody3D" parent="." node_paths=PackedStringArray("path")]
+script = ExtResource("agent")
+path = NodePath("../StreamPath")
+speed = 8.0
+start_delay = 30.0
+
+[node name="ApproachZone" type="Area3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 1.5, 17)
+script = ExtResource("zone")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ApproachZone"]
+shape = SubResource("Shape_approach")
+
+[node name="YieldCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("conflict_zone", "approach_zone", "agents")]
+script = ExtResource("yield")
+conflict_zone = NodePath("ConflictZone")
+approach_zone = NodePath("../../ApproachZone")
+agents = [NodePath("../../CarA"), NodePath("../../CarB"), NodePath("../../CarC"), NodePath("../../CarD")]
+
+[node name="ConflictZone" type="Area3D" parent="Checks/YieldCheck"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 10)
+script = ExtResource("zone")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/YieldCheck/ConflictZone"]
+shape = SubResource("Shape_conflict")
+
+[node name="JunctionCheck" type="Node3D" parent="Checks"]
+script = ExtResource("junction")
+judge_on_exit = true
+
+[node name="FirstExit" type="Area3D" parent="Checks/JunctionCheck"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 1.5, 1.75)
+script = ExtResource("exit")
+side = 3
+allowed = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/JunctionCheck/FirstExit"]
+shape = SubResource("Shape_exit_ew")
+
+[node name="SecondExit" type="Area3D" parent="Checks/JunctionCheck"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 1.5, -20)
+script = ExtResource("exit")
+side = 3
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/JunctionCheck/SecondExit"]
+shape = SubResource("Shape_exit_ns")
+
+[node name="ThirdExit" type="Area3D" parent="Checks/JunctionCheck"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20, 1.5, -1.75)
+script = ExtResource("exit")
+side = 3
+allowed = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/JunctionCheck/ThirdExit"]
+shape = SubResource("Shape_exit_ew")
+
+[node name="GoalCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("zone")]
+script = ExtResource("goal")
+zone = NodePath("Zone")
+
+[node name="Zone" type="Area3D" parent="Checks/GoalCheck"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 1.5, -40)
+script = ExtResource("zone")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/GoalCheck/Zone"]
+shape = SubResource("Shape_goal")

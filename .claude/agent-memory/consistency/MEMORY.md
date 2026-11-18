@@ -1,0 +1,2 @@
+- [Settled decisions and clean checks](settled-decisions.md): engine pin, layer names, stale testing line in CLAUDE.md, source states, tooling limits, ECS review findings
+- [driving-mechanics merge](merge-driving-mechanics.md): 2026-11-18 merge review, clean; deferred car.gd deviations

@@ -1,0 +1,113 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenarios/core/scenario.gd" id="1_scenario"]
+[ext_resource type="Script" path="res://scenarios/data/scenario_definition.gd" id="2_definition"]
+[ext_resource type="Resource" path="res://scenarios/data/default_policy.tres" id="3_policy"]
+[ext_resource type="PackedScene" path="res://scenarios/scenes/debug_car.tscn" id="4_car"]
+[ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="5_marking"]
+[ext_resource type="Script" path="res://scenarios/checks/line_check.gd" id="6_lines"]
+[ext_resource type="Script" path="res://scenarios/checks/goal_check.gd" id="7_goal"]
+[ext_resource type="Script" path="res://scenarios/checks/trigger_zone.gd" id="8_zone"]
+
+[sub_resource type="Resource" id="Definition"]
+script = ExtResource("2_definition")
+title = "Lines fixture"
+briefing = "A straight two-lane road: a dashed centre line, then a solid one, between two kerbs."
+time_limit = 60.0
+policy = ExtResource("3_policy")
+car_scene = ExtResource("4_car")
+
+[sub_resource type="BoxShape3D" id="Shape_ground"]
+size = Vector3(40, 0.2, 120)
+
+[sub_resource type="BoxMesh" id="Mesh_road"]
+size = Vector3(7, 0.02, 105)
+
+[sub_resource type="StandardMaterial3D" id="Material_asphalt"]
+albedo_color = Color(0.2, 0.2, 0.22, 1)
+
+[sub_resource type="BoxShape3D" id="Shape_goal"]
+size = Vector3(12, 3, 4)
+
+[sub_resource type="Curve3D" id="Curve_CentreDashed"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, -40),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_CentreSolid"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, -40, 0, 0, 0, 0, 0, 0, 0, 0, -100),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_KerbRight"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 3.5, 0, 5, 0, 0, 0, 0, 0, 0, 3.5, 0, -100),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_KerbLeft"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -3.5, 0, 5, 0, 0, 0, 0, 0, 0, -3.5, 0, -100),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[node name="LinesFixture" type="Node3D" node_paths=PackedStringArray("spawn_point")]
+script = ExtResource("1_scenario")
+definition = SubResource("Definition")
+spawn_point = NodePath("SpawnPoint")
+
+[node name="Ground" type="StaticBody3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, -48)
+shape = SubResource("Shape_ground")
+
+[node name="Road" type="MeshInstance3D" parent="Ground"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -47.5)
+mesh = SubResource("Mesh_road")
+surface_material_override/0 = SubResource("Material_asphalt")
+
+[node name="SpawnPoint" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 0)
+
+[node name="Markings" type="Node3D" parent="."]
+
+[node name="CentreDashed" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_CentreDashed")
+script = ExtResource("5_marking")
+kind = 1
+
+[node name="CentreSolid" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_CentreSolid")
+script = ExtResource("5_marking")
+kind = 0
+
+[node name="KerbRight" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_KerbRight")
+script = ExtResource("5_marking")
+kind = 8
+
+[node name="KerbLeft" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_KerbLeft")
+script = ExtResource("5_marking")
+kind = 8
+
+[node name="LineCheck" type="Node3D" parent="."]
+script = ExtResource("6_lines")
+
+[node name="GoalCheck" type="Node3D" parent="." node_paths=PackedStringArray("zone")]
+script = ExtResource("7_goal")
+zone = NodePath("Zone")
+
+[node name="Zone" type="Area3D" parent="GoalCheck"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -98)
+script = ExtResource("8_zone")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="GoalCheck/Zone"]
+shape = SubResource("Shape_goal")
