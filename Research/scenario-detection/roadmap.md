@@ -221,7 +221,7 @@ Road users are dual: a script plays by the book until it is forced to react.
 - Detection and scoring are geometry: zones, contact, bays, and lane rules no longer use
   `Area3D`, shape queries, or node lookups, so scoring is reproducible by construction.
 - Checks became pure rules (`scenarios/rules/`) folded by `ExamLogic`; road users became entities
-  driven by `AgentLogic` and `AgentThinker`; drawing moved to views (`scenarios/shell/`).
+  driven by `AgentTable` over packed columns; drawing moved to views (`scenarios/shell/`).
 - Tests were rewritten around the world: scenario drives as before, framework cases on
   hand-stepped worlds with no scene.
 - Measurements and the open optimisation: `performance.md`, ECS; the code quality review:

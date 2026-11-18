@@ -185,8 +185,26 @@ func road_user(runner: WorldRunner, lane: LaneData, settings := {}) -> int:
 	return Simulation.add_agent(runner.world, lane, settings)
 
 
-func state_of(runner: WorldRunner, agent: int) -> AgentState:
-	return runner.world.get_value(Schema.AGENT, agent, &"state")
+## Road user [param agent] of a hand-stepped simulation, as plain values: every column, with its
+## reaction by name.
+func state_of(runner: WorldRunner, agent: int) -> Dictionary:
+	return row_of(runner.world, agent)
+
+
+## Road user [param id] of [param world] as plain values: every column, with its reaction by name.
+func row_of(world: World, id: int) -> Dictionary:
+	var store := world.store(Schema.AGENT)
+	var out := {}
+	for column: StringName in store.columns:
+		out[column] = store.get_value(id, column)
+	out.reaction = AgentTable.KIND_NAMES[out.reaction]
+	return out
+
+
+## Seconds until road user [param agent] reaches [param offset] along its path.
+func time_to(runner: WorldRunner, agent: int, offset: float) -> float:
+	var table := AgentTable.view_of(runner.world.store(Schema.AGENT))
+	return table.time_to(table.row_of(agent), offset, runner.world.resources[Schema.LANES])
 
 
 ## Appends every event of a hand-stepped simulation to [param into].
@@ -212,11 +230,12 @@ func record_reactions(runner: ExamRunner, into: Array) -> void:
 					event.data.kind]))
 
 
-## The state of the road user named [param agent_name] in [param runner]'s world.
-func agent_state(runner: ExamRunner, agent_name: StringName) -> AgentState:
+## The road user named [param agent_name] in [param runner]'s world, as plain values; empty when
+## there is none.
+func agent_state(runner: ExamRunner, agent_name: StringName) -> Dictionary:
 	var world := runner.world()
 	var id := Schema.find(world, Schema.AGENT, agent_name)
-	return world.get_value(Schema.AGENT, id, &"state") if id else null
+	return row_of(world, id) if id else {}
 
 
 ## The car as [param runner]'s world sees it now.

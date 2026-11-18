@@ -7,7 +7,7 @@ extends Check
 ## [member approach_zone] for longer than [member grace] while every priority road user is at
 ## least [member clear_gap] seconds away is undue hesitation.
 ##
-## Each road user's arrival comes from its script: [method AgentLogic.time_to_point] the
+## Each road user's arrival comes from its script: [method AgentTable.time_to_point] the
 ## conflict zone, along its path or the lane it continues onto.
 
 ## Where priority traffic crosses the car's path.

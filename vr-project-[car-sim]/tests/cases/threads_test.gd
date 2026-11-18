@@ -23,9 +23,9 @@ func _busy_log(parallel: bool) -> Array:
 		runner.world_runner.events_emitted.connect(func(events: Array[WorldEvent]) -> void:
 			for event in events:
 				if event.kind == &"reacted":
-					var state: AgentState = world.get_value(Schema.AGENT, event.entity, &"state")
-					log.append("%s %s %.2f" % [state.config.name, event.data.kind,
-						state.position().z]))
+					var position: Vector3 = world.get_value(Schema.AGENT, event.entity, &"position")
+					log.append("%s %s %.2f" % [world.get_value(Schema.AGENT, event.entity, &"name"),
+						event.data.kind, position.z]))
 	var on_end := func(runner: ExamRunner) -> void:
 		count[0] = runner.traffic.count
 	await drive([{to = at(9.0), speed = 8.0}, {to = at(-35.0), speed = 8.0}, {wait = 9.0},
@@ -58,7 +58,7 @@ func _test_added_during_attempt() -> void:
 	agent.speed = 8.0
 	var id := runner.add_road_user(agent)
 	await frames(60)
-	expect(id != 0 and agent_state(runner, &"Latecomer").state == AgentState.State.MOVING,
+	expect(id != 0 and agent_state(runner, &"Latecomer").state == AgentTable.State.MOVING,
 		"a road user added during the attempt is baked into the world and drives")
 	var van: StaticBody3D = PARKED_CAR.instantiate()
 	runner.scenario.add_child(van)
@@ -66,8 +66,8 @@ func _test_added_during_attempt() -> void:
 	runner.add_obstacle(van)
 	await frames(900)
 	var a := agent_state(runner, &"Latecomer")
-	var gap := a.position().z - van.global_position.z
-	expect(a.reaction == &"stopped" and gap > 4.2 and gap < 4.2 + a.config.min_gap + 1.0,
+	var gap: float = a.position.z - van.global_position.z
+	expect(a.reaction == &"stopped" and gap > 4.2 and gap < 4.2 + a.min_gap + 1.0,
 		"a parked car added during the attempt stops the road user behind it (%.2f m apart)" % gap)
 	runner.queue_free()
 	await process_frame

@@ -20,8 +20,8 @@ func _lane(s: WorldRunner, from: Vector3, to: Vector3, settings := {}) -> LaneDa
 
 
 ## The front of a road user driving towards -Z.
-func _front(a: AgentState) -> float:
-	return a.position().z - a.config.body_size.z * 0.5
+func _front(a: Dictionary) -> float:
+	return a.position.z - a.body_size.z * 0.5
 
 
 func _test_light_and_queue() -> void:
@@ -44,13 +44,13 @@ func _test_light_and_queue() -> void:
 	expect(a.reaction == &"waiting_light" and is_zero_approx(a.current_speed)
 		and _front(a) > line_z and _front(a) < line_z + 2.0,
 		"it stops just before the line at a red light (front at z %.2f)" % _front(a))
-	var queue_gap := _front(b) - a.position().z - a.config.body_size.z * 0.5
+	var queue_gap: float = _front(b) - a.position.z - a.body_size.z * 0.5
 	expect(b.reaction == &"stopped" and queue_gap > 1.0 and queue_gap < 3.5,
 		"the next road user queues behind it (%.2f m back)" % queue_gap)
 	s.world.store(Schema.LIGHT).set_value(light, &"state", TrafficLight.Light.GREEN)
 	s.world.store(Schema.LIGHT).set_value(light, &"time_in_state", 0.0)
 	tick(s, 600)
-	expect(state_of(s, first).position().z < line_z - 20.0 and state_of(s, second).position().z < line_z,
+	expect(state_of(s, first).position.z < line_z - 20.0 and state_of(s, second).position.z < line_z,
 		"on green both drive on")
 	end_sim(s)
 
@@ -68,7 +68,7 @@ func _test_give_way() -> void:
 		"a road user gives way at the line while a vehicle is at the junction")
 	place_car(s, Vector3(-40, 0, -30))
 	tick(s, 240)
-	expect(state_of(s, waiting).is_done(), "and pulls out once the junction is clear")
+	expect((state_of(s, waiting).state == AgentTable.State.DONE), "and pulls out once the junction is clear")
 	end_sim(s)
 
 	s = sim()
@@ -83,7 +83,7 @@ func _test_give_way() -> void:
 		tick(s)
 		w = state_of(s, waiting)
 		if is_inf(priority_x) and w.progress > 1.0 and _front(w) < 2.0:
-			priority_x = state_of(s, priority).position().x
+			priority_x = state_of(s, priority).position.x
 	expect(priority_x < 1.75 - 4.2 * 0.5,
 		"a road user waits for a car on the priority lane to clear the junction (it was at x %.2f)"
 		% priority_x)
@@ -111,7 +111,7 @@ func _test_crossing() -> void:
 	expect(yielded and is_zero_approx(c.current_speed) and _front(c) > 2.0,
 		"a road user waits before a crossing in use (front at z %.2f)" % _front(c))
 	tick(s, 900)
-	expect(state_of(s, walker).is_done() and state_of(s, car).is_done(),
+	expect((state_of(s, walker).state == AgentTable.State.DONE) and (state_of(s, car).state == AgentTable.State.DONE),
 		"and goes on once the walker is across")
 	end_sim(s)
 
@@ -127,7 +127,7 @@ func _routes(seed_value: int, take_right := false) -> String:
 		settings.route = PackedInt64Array([right.id])
 	var agent := road_user(s, stem, settings)
 	tick(s, 240)
-	var took: String = "Left" if state_of(s, agent).position().x < -1.0 else "Right"
+	var took: String = "Left" if state_of(s, agent).position.x < -1.0 else "Right"
 	end_sim(s)
 	return took
 

@@ -99,7 +99,7 @@ func _run(probe: VehicleProbe) -> void:
 	_steps = scenario.get_steps()
 	world.resources[Schema.STEPS] = _steps
 	world.resources[Schema.DEFINITION] = scenario.definition
-	world.resources[&"lanes"] = _lanes
+	world.resources[Schema.LANES] = _lanes
 	world.spawn({vehicle = probe.spawn_values()})
 	_markings(all)
 	for node in all:
@@ -247,9 +247,8 @@ func _agent(agent: ScriptedAgent) -> void:
 	if lane == null:
 		push_warning("%s has no path; it is left out" % agent.get_path())
 		return
-	var config := agent.config(self)
-	world.store(Schema.AGENT).add(_ids[agent], {state = AgentLogic.spawn(config, lane, _lanes),
-		name = config.name})
+	world.store(Schema.AGENT).add(_ids[agent], AgentTable.spawn_values(agent.config(self), lane,
+		_lanes))
 	to_free.append(agent)
 
 

@@ -58,21 +58,22 @@ static func contacts(world: World, _dt: float) -> Delta:
 
 
 ## The bodies that may stand in the car's way, as [code][id, box transform (centre), half
-## extents, pedestrian][/code]: road users and obstacles, sorted by id. With [param reach], only
+## extents, pedestrian][/code]: road users in row order, then obstacles by id. With [param reach],
+## only
 ## those whose box could come within [param reach] metres of [param at] on the ground, a cheap
 ## test before the exact one.
 static func bodies(world: World, at := Vector2.ZERO, reach := INF) -> Array:
 	var out := []
-	var agents := world.store(Schema.AGENT)
-	if agents:
-		for id in agents.sorted_ids():
-			var state: AgentState = agents.get_value(id, &"state")
-			var size := state.config.body_size
-			var origin := state.transform.origin
+	var store := world.store(Schema.AGENT)
+	if store and store.size() > 0:
+		var agents := AgentTable.view_of(store)
+		for i in agents.size():
+			var size := agents.body_size[i]
+			var origin := agents.position[i]
 			if Vector2(origin.x, origin.z).distance_to(at) > reach + Vector2(size.x, size.z).length() * 0.5:
 				continue
-			var centre := state.transform.translated_local(Vector3(0, size.y * 0.5, 0))
-			out.append([id, centre, size * 0.5, state.config.pedestrian])
+			var centre := agents.transform(i).translated_local(Vector3(0, size.y * 0.5, 0))
+			out.append([agents.ids[i], centre, size * 0.5, agents.pedestrian[i] == 1])
 	var obstacles := world.store(Schema.OBSTACLE)
 	if obstacles:
 		for id in obstacles.sorted_ids():

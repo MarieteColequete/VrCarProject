@@ -1,0 +1,591 @@
+class_name AgentTable
+extends RefCounted
+## The road users as columns: one packed array per field, one row per road user, the same columns
+## the world's agent component holds. How a road user drives is the functions below, each over a
+## row of the table: it plays its script by the book (follow its path at its speed after its start
+## delay, pause once along the way, loop) until it is forced to react.
+##
+## While reactive, a sensor looks ahead along the path; when something in the way forces it, the
+## road user slows or stops by the Intelligent Driver Model, then accelerates back to its scripted
+## speed once the way is clear. On a [TrafficLane] it also keeps the lane's rules: its speed limit,
+## its light, giving way to the lanes with priority, and waiting before a crossing in use. Stuck
+## behind something that is not traffic for longer than its patience, it moves into a clear
+## neighbour lane when no solid line or kerb lies in between.
+##
+## A tick takes a copy of the world's columns ([method copy_of]), thinks every row
+## ([method think], on worker threads: it reads the table's own arrays and the snapshot and writes
+## only its row of the decision columns), commits every row ([method commit], main thread), and
+## hands the new columns back whole ([method write_to]). The world's arrays are never changed in
+## place, so the copy is the next tick's state, built as a value.
+
+enum State { WAITING, MOVING, PAUSED, DONE }
+## What a road user reacts to; [constant NONE] while it plays its script.
+enum Kind { NONE, FOLLOWING, STOPPED, WAITING_LIGHT, YIELDING, CHANGING_LANE }
+
+## Each [enum Kind] as it appears in the [code]&"reacted"[/code] events.
+const KIND_NAMES: Array[StringName] = [&"", &"following", &"stopped", &"waiting_light",
+	&"yielding", &"changing_lane"]
+
+## The columns that change as road users drive, with their starting values.
+const DYNAMIC := {
+	state = 0, progress = 0.0, current_speed = 0.0, reaction = 0, lane = 0, length = 0.0,
+	upcoming = 0, rng_state = 0, committed = false, blocked_for = 0.0, shift = Vector3.ZERO,
+	shift_left = 0.0, armed = false, clock = 0.0, paused_for = 0.0, paused_this_lap = false,
+	braking_hard = false, position = Vector3.ZERO, facing = Vector3.FORWARD, jumped = false,
+	leader = 0,
+}
+## The columns of what a road user is and how it drives, set when it spawns and never changed.
+const CONFIG := {
+	name = &"", speed = 1.4, start_delay = 0.0, trigger = 0, loop = false, pedestrian = false,
+	pause_at = -1.0, pause_time = 0.0, body_size = Vector3(1.8, 1.4, 4.2),
+	colour = Color(0.85, 0.75, 0.2), route = [], route_seed = 0, reactive = true,
+	max_accel = 2.0, comfort_decel = 3.0, max_decel = 8.0, hard_brake = 4.0, min_gap = 2.0,
+	time_headway = 1.5, patience = 4.0, change_time = 2.0,
+}
+
+var ids := PackedInt64Array()
+
+# The dynamic columns.
+var state := PackedInt64Array()
+## Distance along the current path in this lap, metres.
+var progress := PackedFloat64Array()
+var current_speed := PackedFloat64Array()
+var reaction := PackedInt64Array()
+## The lane entity it is on, its length, and the lane it continues onto (0 for none).
+var lane := PackedInt64Array()
+var length := PackedFloat64Array()
+var upcoming := PackedInt64Array()
+## The generator of its route choices, as its state.
+var rng_state := PackedInt64Array()
+var committed := PackedByteArray()
+var blocked_for := PackedFloat64Array()
+## The offset from the lane during a lane change, and the seconds left until it fades out.
+var shift := PackedVector3Array()
+var shift_left := PackedFloat64Array()
+var armed := PackedByteArray()
+var clock := PackedFloat64Array()
+var paused_for := PackedFloat64Array()
+var paused_this_lap := PackedByteArray()
+var braking_hard := PackedByteArray()
+## Where it stands, and its facing on the ground.
+var position := PackedVector3Array()
+var facing := PackedVector3Array()
+## It jumped this tick (spawned, or wrapped round a loop), so a view draws it there at once.
+var jumped := PackedByteArray()
+## What its sensor saw ahead, the entity, or 0.
+var leader := PackedInt64Array()
+
+# The configuration columns.
+var name: Array = []
+## Metres per second.
+var speed := PackedFloat64Array()
+var start_delay := PackedFloat64Array()
+## The zone whose entry arms the start delay; 0 to start at once.
+var trigger := PackedInt64Array()
+var loop := PackedByteArray()
+var pedestrian := PackedByteArray()
+var pause_at := PackedFloat64Array()
+var pause_time := PackedFloat64Array()
+var body_size := PackedVector3Array()
+var colour := PackedColorArray()
+## The lanes to take where a lane offers a choice, in order, per road user.
+var route: Array = []
+var route_seed := PackedInt64Array()
+var reactive := PackedByteArray()
+var max_accel := PackedFloat64Array()
+var comfort_decel := PackedFloat64Array()
+var max_decel := PackedFloat64Array()
+var hard_brake := PackedFloat64Array()
+var min_gap := PackedFloat64Array()
+var time_headway := PackedFloat64Array()
+var patience := PackedFloat64Array()
+var change_time := PackedFloat64Array()
+
+# The decision columns: what thinking decided, row by row, for commit.
+var d_decided := PackedByteArray()
+var d_speed := PackedFloat64Array()
+var d_kind := PackedInt64Array()
+var d_leader := PackedInt64Array()
+var d_braking_hard := PackedByteArray()
+var d_committed := PackedByteArray()
+var d_blocked_for := PackedFloat64Array()
+## Per row, the neighbour lanes found clear; commit checks the markings.
+var d_sides: Array = []
+## Per row, each [code][kind, data][/code].
+var d_events: Array = []
+
+var _rows := {}
+
+
+## Every column of the agent component, with its default: the schema's declaration.
+static func columns() -> Dictionary:
+	var all := DYNAMIC.duplicate()
+	all.merge(CONFIG)
+	return all
+
+
+## A table of its own copies of the store's columns, to build the next tick from.
+static func copy_of(store: ComponentStore) -> AgentTable:
+	var t := AgentTable.new()
+	t.ids = store.ids.duplicate()
+	for column: StringName in columns():
+		t.set(column, store.columns[column].duplicate())
+	return t
+
+
+## A table reading the store's columns as they are, for queries on the main thread. Its arrays
+## are the world's: it must not be changed.
+static func view_of(store: ComponentStore) -> AgentTable:
+	var t := AgentTable.new()
+	t.ids = store.ids
+	for column: StringName in columns():
+		t.set(column, store.columns[column])
+	return t
+
+
+## The columns of a new road user on [param lane], from [param config] (configuration column to
+## value; missing ones take their defaults), standing at the lane's start.
+static func spawn_values(config: Dictionary, lane: LaneData, lanes: Dictionary) -> Dictionary:
+	var values := CONFIG.duplicate()
+	values.merge(config, true)
+	values.merge(DYNAMIC)
+	values.lane = lane.id
+	values.length = lane.length
+	var rng := RandomNumberGenerator.new()
+	rng.seed = values.route_seed
+	values.rng_state = rng.state
+	values.armed = values.trigger == 0
+	values.jumped = true
+	var one := AgentTable.new()
+	for column: StringName in values:
+		var array: Variant = one.get(column)
+		array.append(values[column] if not values[column] is bool else (1 if values[column] else 0))
+	values.upcoming = one._choose_next(0, lane)
+	one.upcoming[0] = values.upcoming
+	values.rng_state = one.rng_state[0]
+	one._place(0, lane)
+	values.position = one.position[0]
+	values.facing = one.facing[0]
+	return values
+
+
+func size() -> int:
+	return ids.size()
+
+
+## The row of road user [param id], or -1.
+func row_of(id: int) -> int:
+	if _rows.is_empty() and not ids.is_empty():
+		for i in ids.size():
+			_rows[ids[i]] = i
+	return _rows.get(id, -1)
+
+
+## Hands the dynamic columns, now the next tick's, to [param d] for the world.
+func write_to(d: Delta) -> void:
+	for column: StringName in DYNAMIC:
+		d.write_column(Schema.AGENT, ids, column, get(column))
+
+
+func transform(i: int) -> Transform3D:
+	var f := facing[i]
+	return Transform3D(Basis.looking_at(f, Vector3.UP) if f.length() > 0.001 else Basis(),
+		position[i])
+
+
+func is_done(i: int) -> bool:
+	return state[i] == State.DONE
+
+
+## The speed the script asks for here: the road user's speed, capped by its lane's limit.
+func script_speed(i: int, lanes: Dictionary) -> float:
+	var l: LaneData = lanes.get(lane[i])
+	return minf(speed[i], l.speed_limit if l else INF)
+
+
+## Seconds until the road user reaches [param offset] along its path at its speed, counting the
+## remaining start delay and pause; INF when it will not get there.
+func time_to(i: int, offset: float, lanes: Dictionary) -> float:
+	if state[i] == State.DONE or (state[i] == State.WAITING and not armed[i]):
+		return INF
+	var remaining := offset - progress[i]
+	if remaining < 0.0:
+		if not loop[i]:
+			return INF
+		remaining += length[i]
+	var wait := 0.0
+	if state[i] == State.WAITING:
+		wait = maxf(start_delay[i] - clock[i], 0.0)
+	elif state[i] == State.PAUSED:
+		wait = maxf(pause_time[i] - paused_for[i], 0.0)
+	if pause_at[i] >= 0.0 and not paused_this_lap[i] and pause_at[i] <= offset \
+			and state[i] != State.PAUSED:
+		wait += pause_time[i]
+	return wait + remaining / maxf(script_speed(i, lanes), 0.001)
+
+
+## Seconds until the road user reaches the point of its route nearest [param point]: on its
+## current path, or on the lane it continues onto; INF when its route does not pass within a few
+## metres of it.
+func time_to_point(i: int, point: Vector3, lanes: Dictionary) -> float:
+	var l: LaneData = lanes.get(lane[i])
+	if l == null:
+		return INF
+	var where := l.project(point)
+	if where.y <= 3.0 and where.x >= progress[i] - 0.5:
+		return time_to(i, where.x, lanes)
+	var next: LaneData = lanes.get(upcoming[i])
+	if next:
+		var there := next.project(point)
+		if there.y <= 3.0:
+			return time_to(i, length[i], lanes) \
+				+ there.x / maxf(minf(speed[i], next.speed_limit), 0.001)
+	return INF
+
+
+## The lanes row [param i] may read while thinking: its own, the next, and its neighbours.
+func lanes_in_use(i: int, lanes: Dictionary) -> PackedInt64Array:
+	var out := PackedInt64Array([lane[i]])
+	if upcoming[i]:
+		out.append(upcoming[i])
+	var l: LaneData = lanes.get(lane[i])
+	if l:
+		if l.left:
+			out.append(l.left)
+		if l.right:
+			out.append(l.right)
+	return out
+
+
+## Makes room for this tick's decisions. Main thread, before thinking.
+func prepare_decisions() -> void:
+	var n := ids.size()
+	for array: Variant in [d_decided, d_speed, d_kind, d_leader, d_braking_hard, d_committed,
+			d_blocked_for]:
+		array.resize(n)
+	d_decided.fill(0)
+	d_sides.resize(n)
+	d_events.resize(n)
+
+
+## Decides row [param i]'s speed and reactions from [param snapshot]. Any thread: it reads the
+## table's own arrays and the snapshot, writes only row [param i] of the decision columns, and
+## creates no object of a script class.
+func think(i: int, snapshot: TrafficSnapshot, dt: float) -> void:
+	if state[i] != State.MOVING or not reactive[i]:
+		return
+	var route_now := snapshot.route(lane[i])
+	if route_now == null:
+		return
+	d_decided[i] = 1
+	var sides := PackedInt64Array()
+	var events := []
+	var target := minf(speed[i], route_now.speed_limit)
+	var size_i := body_size[i]
+	# The sensor's hit: found, entity, gap, speed, road user.
+	var hit := PackedFloat64Array([0.0, 0.0, INF, 0.0, 0.0])
+	var found := TrafficSensor.sense(snapshot, _ahead_points(i, snapshot, route_now, target),
+		size_i.x * 0.45, ids[i], hit)
+	var gap := hit[2] if found else INF
+	var ahead_speed := hit[3] if found else 0.0
+	var ahead_body := int(hit[1]) if found else 0
+	var ahead_road_user := found and hit[4] > 0.5
+	d_committed[i] = committed[i]
+	var rule_gap := PackedFloat64Array([INF])
+	var rule := _rule_kind(i, route_now, rule_gap)
+	if rule != Kind.NONE:
+		if not found or rule_gap[0] < gap:
+			found = true
+			gap = rule_gap[0]
+			ahead_speed = 0.0
+			ahead_body = 0
+			ahead_road_user = false
+		else:
+			rule = Kind.NONE
+	var v := current_speed[i]
+	var accel := max_accel[i] if v < target else 0.0
+	var kind := Kind.NONE
+	var reacting := reaction[i] != Kind.NONE
+	# Once reacting, the model keeps control until the road user is back at its scripted speed
+	# with nothing holding it back, so it neither creeps up on a leader nor lets go too early.
+	if found and (reacting or _forced(i, gap, ahead_speed, v)):
+		var model := _idm(i, v, gap, ahead_speed, target)
+		if reacting and v >= target - 0.01 and model >= 0.0:
+			model = 0.0
+		else:
+			accel = model
+			kind = Kind.STOPPED if v + accel * dt < 0.3 else Kind.FOLLOWING
+			if rule != Kind.NONE:
+				kind = rule
+	var needed := _needed_decel(i, v, gap, ahead_speed) if ahead_body else 0.0
+	var hard := braking_hard[i] == 1
+	if needed > hard_brake[i] and not hard:
+		hard = true
+		events.append([&"forced_to_brake", {cause = ahead_body, deceleration = needed}])
+	elif needed <= hard_brake[i]:
+		hard = false
+	d_braking_hard[i] = 1 if hard else 0
+	var next := clampf(v + accel * dt, 0.0, target)
+	if found and (gap <= 0.05 or (v + accel * dt < 0.3 and kind != Kind.NONE
+			and kind != Kind.FOLLOWING and absf(ahead_speed) < 0.1)):
+		# Behind something standing still the road user stands still too, rather than creeping
+		# up at the model's crawl, and it never moves into what it already touches.
+		next = 0.0
+		if kind == Kind.NONE or kind == Kind.FOLLOWING:
+			kind = Kind.STOPPED
+	if kind != reaction[i]:
+		events.append([&"reacted", {kind = &"resumed" if kind == Kind.NONE else KIND_NAMES[kind],
+			cause = ahead_body}])
+	d_speed[i] = next
+	d_kind[i] = kind
+	d_leader[i] = ahead_body
+	var blocked := kind == Kind.STOPPED and ahead_body != 0 and not ahead_road_user
+	var blocked_now := blocked_for[i] + dt if blocked else 0.0
+	d_blocked_for[i] = blocked_now
+	if blocked_now >= patience[i] and maxf(shift_left[i] - dt, 0.0) <= 0.0 and route_now.is_lane:
+		for side in [route_now.left, route_now.right]:
+			var other := snapshot.route(side) if side else null
+			if other and _neighbour_clear(i, snapshot, other, target):
+				sides.append(side)
+	d_sides[i] = sides
+	d_events[i] = events
+
+
+## Moves row [param i] on by [param dt] seconds, applying its decision when it thought: the
+## script's timers, its progress along the path, lane changes. [param armed_now] is whether its
+## trigger zone holds the car; [param markings] the scenario's [MarkingIndex], or null. Returns the
+## tick's events as [code][kind, data][/code] pairs. Main thread.
+func commit(i: int, lanes: Dictionary, markings: MarkingIndex, armed_now: bool,
+		dt: float) -> Array:
+	var events := []
+	jumped[i] = 0
+	match state[i]:
+		State.WAITING:
+			if armed_now:
+				armed[i] = 1
+			if armed[i]:
+				clock[i] += dt
+				if clock[i] >= start_delay[i]:
+					state[i] = State.MOVING
+					current_speed[i] = script_speed(i, lanes)
+					events.append([&"agent_started", {}])
+		State.PAUSED:
+			paused_for[i] += dt
+			if paused_for[i] >= pause_time[i]:
+				state[i] = State.MOVING
+		State.MOVING:
+			if not reactive[i] or not d_decided[i]:
+				current_speed[i] = script_speed(i, lanes)
+			else:
+				current_speed[i] = d_speed[i]
+				leader[i] = d_leader[i]
+				braking_hard[i] = d_braking_hard[i]
+				committed[i] = d_committed[i]
+				blocked_for[i] = d_blocked_for[i]
+				reaction[i] = d_kind[i]
+				events.append_array(d_events[i])
+				shift_left[i] = maxf(shift_left[i] - dt, 0.0)
+				for side: int in d_sides[i]:
+					var target: LaneData = lanes.get(side)
+					if target and _markings_allow(i, target, markings):
+						_move_to(i, target, d_leader[i], events)
+						break
+			_advance(i, current_speed[i] * dt, lanes, events)
+	return events
+
+
+func _advance(i: int, step: float, lanes: Dictionary, events: Array) -> void:
+	progress[i] += step
+	if pause_at[i] >= 0.0 and not paused_this_lap[i] and progress[i] >= pause_at[i]:
+		progress[i] = pause_at[i]
+		paused_this_lap[i] = 1
+		paused_for[i] = 0.0
+		state[i] = State.PAUSED
+	elif progress[i] >= length[i] and upcoming[i]:
+		progress[i] -= length[i]
+		_enter(i, lanes.get(upcoming[i]))
+	elif progress[i] >= length[i]:
+		if loop[i]:
+			progress[i] = fmod(progress[i], length[i])
+			paused_this_lap[i] = 0
+			# Jumped back to the path's start: drawn there, not sliding back across the world.
+			jumped[i] = 1
+		else:
+			progress[i] = length[i]
+			state[i] = State.DONE
+			events.append([&"agent_finished", {}])
+	_place(i, lanes.get(lane[i]))
+
+
+## Places row [param i] on [param l]: on the curve at its progress, facing along it, eased across
+## during a lane change.
+func _place(i: int, l: LaneData) -> void:
+	if l == null or l.curve == null:
+		return
+	var curve := l.curve
+	var total := length[i] if length[i] > 0.0 else l.length
+	var offset := progress[i]
+	var here := l.transform * curve.sample_baked(offset)
+	var ahead := l.transform * curve.sample_baked(minf(offset + 0.5, total))
+	var behind := l.transform * curve.sample_baked(maxf(offset - 0.5, 0.0))
+	var tangent := ahead - behind
+	tangent.y = 0.0
+	if shift_left[i] > 0.0 and change_time[i] > 0.0:
+		# Mid lane change: it eases from where it was onto the lane, heading across.
+		var weight := smoothstep(0.0, 1.0, shift_left[i] / change_time[i])
+		here += shift[i] * weight
+		if tangent.length() > 0.001:
+			tangent = tangent.normalized() - shift[i].normalized() * 0.25 * weight
+	if tangent.length() > 0.001:
+		facing[i] = tangent.normalized()
+	position[i] = here
+
+
+func _enter(i: int, l: LaneData) -> void:
+	lane[i] = l.id
+	length[i] = l.length
+	committed[i] = 0
+	upcoming[i] = _choose_next(i, l)
+
+
+func _choose_next(i: int, l: LaneData) -> int:
+	if l == null or not l.is_lane or l.next.is_empty():
+		return 0
+	for wanted: int in route[i]:
+		if l.next.has(wanted):
+			return wanted
+	var rng := RandomNumberGenerator.new()
+	rng.state = rng_state[i]
+	var pick := l.next[rng.randi_range(0, l.next.size() - 1)]
+	rng_state[i] = rng.state
+	return pick
+
+
+func _move_to(i: int, target: LaneData, blocker: int, events: Array) -> void:
+	var from := position[i]
+	var at := target.project(from).x
+	_enter(i, target)
+	progress[i] = at
+	var offset := from - target.point_at(at)
+	offset.y = 0.0
+	shift[i] = offset
+	shift_left[i] = change_time[i]
+	blocked_for[i] = 0.0
+	reaction[i] = Kind.CHANGING_LANE
+	events.append([&"reacted", {kind = &"changing_lane", cause = blocker}])
+
+
+## Whether the markings let row [param i] move across into [param target]: no solid line or kerb
+## lies on the way.
+func _markings_allow(i: int, target: LaneData, markings: MarkingIndex) -> bool:
+	if markings == null:
+		return true
+	var from := position[i]
+	var at := target.project(from).x
+	var across := target.point_at(at + body_size[i].z)
+	for hit in markings.crossings(from, across):
+		if hit.kind == RoadMarking.Kind.SOLID or hit.kind == RoadMarking.Kind.DOUBLE_SOLID \
+				or hit.kind == RoadMarking.Kind.KERB:
+			return false
+	return true
+
+
+## Whether something [param gap] metres ahead, moving at [param ahead_speed], forces a reaction at
+## speed [param v]: it is within the gap kept at a reaction's headway, or closing so fast that
+## keeping the script would need braking.
+func _forced(i: int, gap: float, ahead_speed: float, v: float) -> bool:
+	if gap <= min_gap[i] + v * 0.5:
+		return true
+	var closing := v - ahead_speed
+	if closing <= 0.0:
+		return false
+	return closing * closing / (2.0 * maxf(gap - min_gap[i], 0.01)) > 0.5
+
+
+## The deceleration that stopping short of what is ahead, keeping the minimum gap, needs at speed
+## [param v]; 0 when it is not closing in.
+func _needed_decel(i: int, v: float, gap: float, ahead_speed: float) -> float:
+	var closing := v - ahead_speed
+	if closing <= 0.0:
+		return 0.0
+	return closing * closing / (2.0 * maxf(gap - min_gap[i], 0.1))
+
+
+## The Intelligent Driver Model's acceleration behind what is ahead, towards the scripted speed.
+func _idm(i: int, v: float, gap: float, ahead_speed: float, target: float) -> float:
+	var closing := v - ahead_speed
+	var accel := max_accel[i]
+	var wanted := min_gap[i] + maxf(0.0, v * time_headway[i]
+		+ v * closing / (2.0 * sqrt(accel * comfort_decel[i])))
+	var g := maxf(gap, 0.05)
+	var free := 1.0 - pow(v / maxf(target, 0.1), 4.0)
+	return maxf(accel * (free - (wanted / g) * (wanted / g)), -max_decel[i])
+
+
+## The path ahead of row [param i]'s front, as the sensor sweeps it.
+func _ahead_points(i: int, snapshot: TrafficSnapshot, route_now: TrafficSnapshot.Route,
+		target: float) -> PackedVector3Array:
+	var points := PackedVector3Array()
+	var front := progress[i] + body_size[i].z * 0.5
+	var look := target * 3.0 + 5.0
+	var next := snapshot.route(upcoming[i]) if upcoming[i] else null
+	var total := route_now.length
+	for k in TrafficSensor.SEGMENTS + 1:
+		var offset := front + look * k / TrafficSensor.SEGMENTS
+		if offset > total and next:
+			points.append(next.point_at(offset - total))
+		else:
+			if loop[i] and total > 0.0:
+				offset = fposmod(offset, total)
+			points.append(route_now.point_at(offset))
+	return points
+
+
+## The lane rule holding row [param i] back now, with its stop line's gap in
+## [code]rule_gap[0][/code]; [constant Kind.NONE] when no rule applies. May commit the row to the
+## stop line.
+func _rule_kind(i: int, route_now: TrafficSnapshot.Route, rule_gap: PackedFloat64Array) -> Kind:
+	if not route_now.is_lane:
+		return Kind.NONE
+	var front := progress[i] + body_size[i].z * 0.5
+	# The model keeps the minimum gap to a leader; a stop line is kept at about a metre instead.
+	var slack := min_gap[i] - 1.0
+	var stops := route_now.crossing_stops
+	var busy := route_now.crossing_busy
+	for k in stops.size():
+		var crossing_gap := stops[k] - front
+		if crossing_gap > -0.5 and busy[k]:
+			rule_gap[0] = crossing_gap + slack
+			return Kind.YIELDING
+	var gap := route_now.stop_at - front
+	if gap < -0.5 or d_committed[i]:
+		return Kind.NONE
+	var v := current_speed[i]
+	if route_now.has_light and (route_now.light_red or route_now.light_amber):
+		# Stop only where stopping is still possible; past that point, go through.
+		if gap >= v * v / (2.0 * max_decel[i]) or v < 0.5:
+			rule_gap[0] = gap + slack
+			return Kind.WAITING_LIGHT
+		d_committed[i] = 1
+		return Kind.NONE
+	if route_now.has_give_way:
+		if not route_now.way_clear:
+			rule_gap[0] = gap + slack
+			return Kind.YIELDING
+		if gap < 1.5:
+			d_committed[i] = 1
+	return Kind.NONE
+
+
+## Whether [param route_now], a neighbour lane, is clear from a little behind row [param i] to its
+## look-ahead.
+func _neighbour_clear(i: int, snapshot: TrafficSnapshot, route_now: TrafficSnapshot.Route,
+		target: float) -> bool:
+	var at := route_now.project(position[i]).x
+	var behind := 15.0
+	var reach := behind + target * 3.0 + 5.0 + body_size[i].z
+	var points := PackedVector3Array()
+	for k in TrafficSensor.SEGMENTS + 1:
+		points.append(route_now.point_at(at - behind + reach * k / TrafficSensor.SEGMENTS))
+	var hit := PackedFloat64Array([0.0, 0.0, INF, 0.0, 0.0])
+	return not TrafficSensor.sense(snapshot, points, body_size[i].x * 0.45, ids[i], hit)

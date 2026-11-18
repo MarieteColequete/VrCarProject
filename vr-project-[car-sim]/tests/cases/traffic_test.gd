@@ -19,20 +19,19 @@ func _test_scripted_agent() -> void:
 	var agent := road_user(s, line, {speed = 5.0, start_delay = 1.0})
 	tick(s, 30)
 	var a := state_of(s, agent)
-	expect(a.state == AgentState.State.WAITING and a.position().is_zero_approx(),
+	expect(a.state == AgentTable.State.WAITING and a.position.is_zero_approx(),
 		"a road user waits out its start delay at the start of its path")
-	var lanes: Dictionary = s.world.resources.lanes
-	var due := AgentLogic.time_to(a, 20.0, lanes)
+	var due: float = time_to(s, agent, 20.0)
 	expect(absf(due - (0.5 + 4.0)) < 0.05,
 		"time_to counts the remaining delay and the distance at speed (%.3f)" % due)
 	tick(s, 90)
 	a = state_of(s, agent)
-	expect(a.state == AgentState.State.MOVING and absf(a.progress - 5.0) < 0.25,
+	expect(a.state == AgentTable.State.MOVING and absf(a.progress - 5.0) < 0.25,
 		"one second after starting, it is 5 m along at 5 m/s (%.2f)" % a.progress)
-	expect(a.forward().is_equal_approx(Vector3(0, 0, -1)), "it faces along its path")
+	expect(a.facing.is_equal_approx(Vector3(0, 0, -1)), "it faces along its path")
 	tick(s, 240)
 	a = state_of(s, agent)
-	expect(a.state == AgentState.State.DONE and a.position().is_equal_approx(Vector3(0, 0, -20))
+	expect(a.state == AgentTable.State.DONE and a.position.is_equal_approx(Vector3(0, 0, -20))
 		and events.any(func(e: WorldEvent) -> bool: return e.kind == &"agent_finished"),
 		"at the end of its path it stops and reports finished")
 	end_sim(s)
@@ -40,14 +39,14 @@ func _test_scripted_agent() -> void:
 	s = sim()
 	line = path(s, Vector3.ZERO, Vector3(0, 0, -20))
 	var pauser := road_user(s, line, {speed = 5.0, pause_at = 10.0, pause_time = 2.0})
-	expect(is_equal_approx(AgentLogic.time_to(state_of(s, pauser), 20.0, s.world.resources.lanes),
-		4.0 + 2.0), "time_to includes a pause still ahead")
+	expect(is_equal_approx(time_to(s, pauser, 20.0), 4.0 + 2.0),
+		"time_to includes a pause still ahead")
 	tick(s, 180)
 	a = state_of(s, pauser)
-	expect(a.state == AgentState.State.PAUSED and is_equal_approx(a.progress, 10.0),
+	expect(a.state == AgentTable.State.PAUSED and is_equal_approx(a.progress, 10.0),
 		"it pauses at its pause point")
 	tick(s, 70)
-	expect(state_of(s, pauser).state == AgentState.State.MOVING, "and moves on after the pause")
+	expect(state_of(s, pauser).state == AgentTable.State.MOVING, "and moves on after the pause")
 	end_sim(s)
 
 	s = sim()
@@ -55,7 +54,7 @@ func _test_scripted_agent() -> void:
 	var looper := road_user(s, line, {speed = 10.0, loop = true})
 	tick(s, 150)
 	a = state_of(s, looper)
-	expect(a.state == AgentState.State.MOVING and absf(a.progress - 5.0) < 0.5,
+	expect(a.state == AgentTable.State.MOVING and absf(a.progress - 5.0) < 0.5,
 		"a looping road user starts its next lap (%.2f)" % a.progress)
 	end_sim(s)
 

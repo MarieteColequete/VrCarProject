@@ -67,11 +67,23 @@ func get_value(component: StringName, id: int, column: StringName) -> Variant:
 	return _stores[component].get_value(id, column)
 
 
-## Applies [param delta]: writes first, then removals, despawns, and spawns, in the order the
-## delta holds them; its events are appended to [member events], stamped with the world's time.
+## Applies [param delta]: whole columns, then single writes, then removals, despawns, and spawns,
+## in the order the delta holds them; its events are appended to [member events], stamped with the
+## world's time.
 func apply(delta: Delta) -> void:
 	if delta == null:
 		return
+	for written: Array in delta.columns:
+		var target: ComponentStore = _stores.get(written[0])
+		if target == null:
+			continue
+		var ids: PackedInt64Array = written[1]
+		if target.ids == ids:
+			target.replace_column(written[2], written[3])
+		else:
+			var values: Variant = written[3]
+			for k in ids.size():
+				target.set_value(ids[k], written[2], values[k])
 	for i in delta.write_count():
 		var w := delta.write_at(i)
 		var s: ComponentStore = _stores.get(w[0])

@@ -34,11 +34,11 @@ static func finish(_p: Dictionary, s: Dictionary, _f: RuleFrame, _live: bool) ->
 static func next_arrival(p: Dictionary, f: RuleFrame) -> float:
 	var soonest := INF
 	var centre: Vector3 = (f.zone_value(p.conflict, &"transform") as Transform3D).origin
-	for id in p.agents:
-		var a := f.agent(id)
-		if a == null or a.is_done():
+	for id: int in p.agents:
+		var i := f.agent(id)
+		if i < 0 or f.agents.is_done(i):
 			continue
-		if f.zone_has_point(p.conflict, a.position(), p.zone_margin):
+		if f.zone_has_point(p.conflict, f.agents.position[i], p.zone_margin):
 			return 0.0
-		soonest = minf(soonest, AgentLogic.time_to_point(a, centre, f.lanes))
+		soonest = minf(soonest, f.agents.time_to_point(i, centre, f.lanes))
 	return soonest

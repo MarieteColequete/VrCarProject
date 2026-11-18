@@ -25,8 +25,9 @@ const RULE := &"rule"
 ## The attempt: its state, clock, faults, and result.
 const SESSION := &"session"
 
-## World resources: the marking index, steps, and lookup by name.
+## World resources: the marking index, the lanes (entity to [LaneData]), steps, and lookup by name.
 const MARKINGS := &"marking_index"
+const LANES := &"lanes"
 const STEPS := &"steps"
 const DEFINITION := &"definition"
 const NAMES := &"names"
@@ -77,7 +78,7 @@ static func define(world: World) -> void:
 		triggered_at = -1.0, clock = 0.0,
 	})
 	world.define(LANE, {data = null, name = &""})
-	world.define(AGENT, {state = null, name = &""})
+	world.define(AGENT, AgentTable.columns())
 	world.define(SOURCE, {
 		name = &"", lane = 0, count = 5, start_delay = 0.0, min_headway = 3.0, max_headway = 6.0,
 		speed = 10.0, route = [], entry_gap = 6.0, colours = [],

@@ -32,15 +32,15 @@ static func time_gap(p: Dictionary, f: RuleFrame) -> float:
 	var fwd := car.forward
 	var right := fwd.cross(Vector3.UP)
 	var nearest := INF
-	for id in p.agents:
-		var a := f.agent(id)
-		if a == null:
+	for id: int in p.agents:
+		var i := f.agent(id)
+		if i < 0:
 			continue
-		var offset := a.position() - car.position
+		var offset := f.agents.position[i] - car.position
 		offset.y = 0.0
 		var ahead := offset.dot(fwd)
 		if ahead <= 0.0 or absf(offset.dot(right)) > p.lane_half_width:
 			continue
-		var clear := ahead - car.body_length * 0.5 - a.config.body_size.z * 0.5
+		var clear := ahead - car.body_length * 0.5 - f.agents.body_size[i].z * 0.5
 		nearest = minf(nearest, maxf(clear, 0.0) / car.speed)
 	return nearest

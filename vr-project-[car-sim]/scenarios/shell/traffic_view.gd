@@ -47,29 +47,30 @@ func _init(parent: Node3D, capacity: int) -> void:
 ## the multimesh as one buffer, with the last tick's as the one to interpolate from; a body moves
 ## only when its road user did.
 func draw(world: World) -> void:
-	var s := world.store(Schema.AGENT)
-	if s == null:
+	var store := world.store(Schema.AGENT)
+	if store == null or store.size() == 0:
 		return
-	var ids := s.sorted_ids()
-	for id in ids:
+	var agents := AgentTable.view_of(store)
+	for i in agents.size():
+		var id := agents.ids[i]
 		if not _slots.has(id):
 			_slots[id] = _slots.size()
-			_body(id, s.get_value(id, &"state"))
+			_body(id, agents.body_size[i], agents.pedestrian[i] == 1)
 	_grow(_slots.size())
-	for id in ids:
-		var state: AgentState = s.get_value(id, &"state")
+	for i in agents.size():
+		var id := agents.ids[i]
 		var slot: int = _slots[id]
-		var size := state.config.body_size
-		var box := state.transform * Transform3D(Basis.from_scale(size), Vector3(0, size.y * 0.5, 0))
-		_write(_current, slot, box, state.config.colour)
-		if state.jumped or not _drawn.has(id):
-			_write(_previous, slot, box, state.config.colour)
+		var size := agents.body_size[i]
+		var place := agents.transform(i)
+		var box := place * Transform3D(Basis.from_scale(size), Vector3(0, size.y * 0.5, 0))
+		_write(_current, slot, box, agents.colour[i])
+		if agents.jumped[i] or not _drawn.has(id):
+			_write(_previous, slot, box, agents.colour[i])
 			_drawn[id] = true
 		var pair: Array = _bodies[id]
-		if pair[2] != state.transform:
-			pair[2] = state.transform
-			PhysicsServer3D.body_set_state(pair[0], PhysicsServer3D.BODY_STATE_TRANSFORM,
-				state.transform)
+		if pair[2] != place:
+			pair[2] = place
+			PhysicsServer3D.body_set_state(pair[0], PhysicsServer3D.BODY_STATE_TRANSFORM, place)
 	_multimesh.set_buffer_interpolated(_current, _previous)
 	_multimesh.visible_instance_count = _slots.size()
 	_previous = _current.duplicate()
@@ -110,15 +111,14 @@ func clear() -> void:
 		_instance.queue_free()
 
 
-func _body(id: int, state: AgentState) -> void:
-	var size := state.config.body_size
+func _body(id: int, size: Vector3, is_pedestrian: bool) -> void:
 	var body := PhysicsServer3D.body_create()
 	PhysicsServer3D.body_set_mode(body, PhysicsServer3D.BODY_MODE_KINEMATIC)
 	var shape := PhysicsServer3D.box_shape_create()
 	PhysicsServer3D.shape_set_data(shape, size * 0.5)
 	PhysicsServer3D.body_add_shape(body, shape, Transform3D(Basis(), Vector3(0, size.y * 0.5, 0)))
 	PhysicsServer3D.body_set_collision_layer(body,
-		Layers.PEDESTRIAN if state.config.pedestrian else Layers.OBSTACLE)
+		Layers.PEDESTRIAN if is_pedestrian else Layers.OBSTACLE)
 	PhysicsServer3D.body_set_collision_mask(body, 0)
 	PhysicsServer3D.body_set_space(body, _space)
 	_bodies[id] = [body, shape, Transform3D()]

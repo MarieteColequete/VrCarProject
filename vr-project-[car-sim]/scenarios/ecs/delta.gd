@@ -12,6 +12,8 @@ var _values: Array = []
 ## Each spawn: a Dictionary of component name to its values.
 var spawns: Array[Dictionary] = []
 var despawns := PackedInt64Array()
+## Each whole column written: [component, ids (row order the values follow), column, values].
+var columns: Array = []
 ## Each removal of one component from an entity: [component, id].
 var removals: Array = []
 var events: Array[WorldEvent] = []
@@ -30,6 +32,15 @@ func write(component: StringName, id: int, column: StringName, value: Variant) -
 func write_all(component: StringName, id: int, values: Dictionary) -> Delta:
 	for column: StringName in values:
 		write(component, id, column, values[column])
+	return self
+
+
+## Writes a whole column of [param component]: [param values] holds one value per entity of
+## [param ids], in that order. When the store's rows are still those ids in that order, the column
+## is swapped in whole; otherwise each value is written to its entity.
+func write_column(component: StringName, ids: PackedInt64Array, column: StringName,
+		values: Variant) -> Delta:
+	columns.append([component, ids, column, values])
 	return self
 
 
@@ -63,6 +74,7 @@ func merge(other: Delta) -> Delta:
 	_ids.append_array(other._ids)
 	_columns.append_array(other._columns)
 	_values.append_array(other._values)
+	columns.append_array(other.columns)
 	spawns.append_array(other.spawns)
 	despawns.append_array(other.despawns)
 	removals.append_array(other.removals)
@@ -71,7 +83,7 @@ func merge(other: Delta) -> Delta:
 
 
 func is_empty() -> bool:
-	return _ids.is_empty() and spawns.is_empty() and despawns.is_empty() \
+	return _ids.is_empty() and columns.is_empty() and spawns.is_empty() and despawns.is_empty() \
 		and removals.is_empty() and events.is_empty()
 
 

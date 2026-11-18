@@ -27,8 +27,9 @@ static func finish(_p: Dictionary, s: Dictionary, _f: RuleFrame, _live: bool) ->
 
 ## Whether any of the crossing's pedestrians is on it or about to step onto it.
 static func in_use(p: Dictionary, f: RuleFrame) -> bool:
-	for walker in p.pedestrians:
-		var a := f.agent(walker)
-		if a and not a.is_done() and f.zone_has_point(p.zone, a.position(), p.kerb_margin):
+	for walker: int in p.pedestrians:
+		var i := f.agent(walker)
+		if i >= 0 and not f.agents.is_done(i) \
+				and f.zone_has_point(p.zone, f.agents.position[i], p.kerb_margin):
 			return true
 	return false

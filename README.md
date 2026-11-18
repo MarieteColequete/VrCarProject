@@ -61,7 +61,8 @@ headset.
 
 The simulation is data and pure functions, detached from what is drawn. Its state lives in a
 `World` (`scenarios/ecs/`): entities are ids, and each component is a table of plain columns, such
-as the car's motion, a zone's box, a road user's state, or a rule's state. Systems are static
+as the car's motion, a zone's box, a rule's state, or the road users' progress and speeds, one
+packed array per field. Systems are static
 functions that read the world and return a `Delta` (values to write, entities to add or remove,
 events) instead of writing it; nothing else changes the world. Events (`WorldEvent`) are values: a
 fault, a reaction, a light changing, the car entering a zone.
@@ -87,9 +88,9 @@ lights light their lamps; parked cars are placed once.
 The simulation is spread across cores. The physics step runs on a thread of its own
 (`project.godot`), and Jolt spreads the simulation over its own workers. Rendering stays on the main
 thread: Godot's separate render thread is experimental and crashed the game at exit under OpenXR.
-Road users think on worker threads: the `TrafficPipeline` copies the world into a `TrafficSnapshot`
-each tick, each road user's `AgentThinker` decides from it in parallel while the main thread
-renders and runs the rest of the tick, and the decisions are committed in a fixed order at the
+Road users think on worker threads: the `TrafficPipeline` copies the road users' columns into an
+`AgentTable` and the world into a `TrafficSnapshot` each tick, and runs of rows decide from them in
+parallel while the main thread renders and runs the rest of the tick, and the decisions are committed in a fixed order at the
 start of the next tick. They react one tick after they see, and their decisions do not depend on
 the threads' timing; with detection and scoring on geometry, scoring is reproducible by
 construction, and only the player's own car physics is best effort. The method and the numbers are
@@ -146,8 +147,9 @@ exam is another policy file.
 
 Other road users play a script by the book until they are forced to react. A `ScriptedAgent`
 authors a car or a pedestrian following a `Path3D` at a set speed, starting after a delay or when
-the car enters a trigger zone, with an optional pause and loop; the bake turns it into a road user
-entity, and `AgentLogic` drives it, including how long it needs to reach any point of its path.
+the car enters a trigger zone, with an optional pause and loop; the bake turns it into a row of the
+road users' columns, and `AgentTable` drives it, including how long it needs to reach any point of
+its path.
 While its way is clear it moves exactly as scripted, so an attempt plays out the same way each time.
 A `TrafficSensor` sweeps the path ahead every tick, and when something is in the way (the player's
 car, another road user, a pedestrian, an obstacle) the road user slows or stops by the Intelligent

@@ -6,10 +6,10 @@ extends Node3D
 ## after [member start_delay] counted from when it is armed (at once, or when the car enters
 ## [member trigger]); it can pause once along the way, and loop.
 ##
-## When the scenario loads, a [Bake] turns the node into a road user entity ([AgentConfig] and
-## [AgentState]) and frees it; [AgentLogic] drives it from then on, and the traffic view draws it
-## and gives it a body the player's car collides with. With [member reactive] on, it reacts to what
-## is in its way and keeps its lane's rules; see [AgentLogic].
+## When the scenario loads, a [Bake] turns the node into a row of the road users' columns and frees
+## it; [AgentTable] drives it from then on, and the traffic view draws it and gives it a body the
+## player's car collides with. With [member reactive] on, it reacts to what is in its way and keeps
+## its lane's rules; see [AgentTable].
 
 @export var path: Path3D
 ## Metres per second.
@@ -50,32 +50,16 @@ extends Node3D
 @export var change_time := 2.0
 @export_group("")
 
-## What the bake reads: the authored settings as an [AgentConfig], node references resolved
+## What the bake reads: the authored settings as configuration columns, node references resolved
 ## through [param bake].
-func config(bake: Bake) -> AgentConfig:
-	var c := AgentConfig.new()
-	c.name = name
-	c.speed = speed
-	c.start_delay = start_delay
-	c.trigger = bake.id_of(trigger)
-	c.loop = loop
-	c.pedestrian = pedestrian
-	c.pause_at = pause_at
-	c.pause_time = pause_time
-	c.body_size = body_size
-	c.colour = colour
-	c.route = bake.lanes_of(route)
-	c.route_seed = route_seed
-	c.reactive = reactive
-	c.max_accel = max_accel
-	c.comfort_decel = comfort_decel
-	c.max_decel = max_decel
-	c.hard_brake = hard_brake
-	c.min_gap = min_gap
-	c.time_headway = time_headway
-	c.patience = patience
-	c.change_time = change_time
-	return c
+func config(bake: Bake) -> Dictionary:
+	return {name = name, speed = speed, start_delay = start_delay, trigger = bake.id_of(trigger),
+		loop = loop, pedestrian = pedestrian, pause_at = pause_at, pause_time = pause_time,
+		body_size = body_size, colour = colour, route = bake.lanes_of(route),
+		route_seed = route_seed, reactive = reactive, max_accel = max_accel,
+		comfort_decel = comfort_decel, max_decel = max_decel, hard_brake = hard_brake,
+		min_gap = min_gap, time_headway = time_headway, patience = patience,
+		change_time = change_time}
 
 
 func _get_configuration_warnings() -> PackedStringArray:

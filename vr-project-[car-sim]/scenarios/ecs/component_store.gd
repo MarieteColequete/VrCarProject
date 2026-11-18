@@ -19,8 +19,8 @@ var _bools := {}
 
 
 ## [param defaults] maps each column to its default value; the value's type picks the column's
-## storage: float, int, bool, Vector2 and Vector3 get packed arrays, anything else a plain
-## [Array].
+## storage: float, int, bool, Vector2, Vector3, and Color get packed arrays, anything else a
+## plain [Array].
 func _init(p_name: StringName, defaults: Dictionary) -> void:
 	name = p_name
 	for column: StringName in defaults:
@@ -38,6 +38,8 @@ func _init(p_name: StringName, defaults: Dictionary) -> void:
 				columns[column] = PackedVector2Array()
 			TYPE_VECTOR3:
 				columns[column] = PackedVector3Array()
+			TYPE_COLOR:
+				columns[column] = PackedColorArray()
 			_:
 				columns[column] = []
 
@@ -117,6 +119,12 @@ func set_value(id: int, column: StringName, value: Variant) -> void:
 ## [Delta].
 func column(column_name: StringName) -> Variant:
 	return columns[column_name]
+
+
+## Replaces [param column_name] whole with [param values], one per row in row order: how a system
+## that computed a fresh column hands it over.
+func replace_column(column_name: StringName, values: Variant) -> void:
+	columns[column_name] = values
 
 
 ## The rows' ids in ascending order, for systems whose output must not depend on row order.

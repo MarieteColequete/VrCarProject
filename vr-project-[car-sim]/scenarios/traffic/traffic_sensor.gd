@@ -10,31 +10,14 @@ extends RefCounted
 const SEGMENTS := 3
 
 
-## Something in the way.
-class Leader:
-	## The entity ahead; 0 for a stop line.
-	var body := 0
-	## Metres from the user's front to the body.
-	var gap := INF
-	## The body's speed along the user's direction, metres per second; negative when coming
-	## towards it.
-	var speed := 0.0
-	## Whether the body is another road user.
-	var road_user := false
-
-	func clear() -> void:
-		body = 0
-		gap = INF
-		speed = 0.0
-		road_user = false
-
-
 ## The nearest box in a corridor [param half_width] either side of [param points], the path ahead
-## from the user's front, other than entity [param me]'s own, written into [param into]; returns
-## false, leaving [param into] as it was, when the way is clear. It creates no object, so threads
-## do not queue on the engine's script bookkeeping.
+## from the user's front, other than entity [param me]'s own. When there is one it returns true and
+## writes into [param hit]: [code][1, entity, gap from the user's front, its speed along the
+## user's direction (negative when coming towards it), 1 if a road user][/code]; when the way is
+## clear it returns false, leaving [param hit] as it was. It reads only the snapshot and creates no
+## object, so it is safe and cheap on any thread.
 static func sense(snapshot: TrafficSnapshot, points: PackedVector3Array, half_width: float,
-		me: int, into: Leader) -> bool:
+		me: int, hit: PackedFloat64Array) -> bool:
 	# Local copies once, so the loops below read plain values instead of shared objects.
 	var grid := snapshot.grid
 	var ids := snapshot.ids
@@ -59,7 +42,7 @@ static func sense(snapshot: TrafficSnapshot, points: PackedVector3Array, half_wi
 		var c0 := TrafficSnapshot.cell_of(a.min(b) - pad)
 		var c1 := TrafficSnapshot.cell_of(a.max(b) + pad)
 		var nearest := INF
-		var hit := -1
+		var nearest_index := -1
 		for cx in range(c0.x, c1.x + 1):
 			for cz in range(c0.y, c1.y + 1):
 				var bucket: Variant = grid.get(Vector2i(cx, cz))
@@ -96,12 +79,13 @@ static func sense(snapshot: TrafficSnapshot, points: PackedVector3Array, half_wi
 					var entry := maxf(u_min, 0.0)
 					if entry < nearest:
 						nearest = entry
-						hit = index
-		if hit >= 0:
-			into.gap = travelled + nearest
-			into.body = ids[hit]
-			into.speed = snapshot.velocity[hit].dot(dir)
-			into.road_user = snapshot.road_user[hit] == 1
+						nearest_index = index
+		if nearest_index >= 0:
+			hit[0] = 1.0
+			hit[1] = ids[nearest_index]
+			hit[2] = travelled + nearest
+			hit[3] = snapshot.velocity[nearest_index].dot(dir)
+			hit[4] = float(snapshot.road_user[nearest_index])
 			return true
 		travelled += length
 	return false

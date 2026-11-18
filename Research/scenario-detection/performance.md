@@ -185,7 +185,7 @@ Decided 2026-11-17 (`../godot-threading-vr/brief.md`):
 
 Same machine, debug build, Mobile renderer, Safe render model, physics interpolation on.
 
-### Measured
+### Measured, first version (one state object per road user)
 
 - **Headless traffic benchmark** (`TESTS_FILTER=bench`, 200 road users):
   - main thread per tick: snapshot and loading the thinkers 1.2 ms, committing 1.5 ms (2.7 ms,
@@ -214,18 +214,26 @@ Found while porting, by micro-benchmarks on 200 tasks of 20,000 iterations each:
   parallel; plain arrays do not (314 ms against 257 ms).
 - Reading another object's members validates it under ObjectDB's global lock (sources A16);
   thinking that read its state from another object did not scale, and scaled again once it read
-  its own fields (`AgentThinker`).
+  its own fields (a per-road-user thinker object, since replaced by the columns below).
 
 The rule followed since: code on worker threads reads its own fields and plain arrays, keeps calls
-few, and creates no script objects; objects it fills are made on the main thread.
+few, and creates no script objects.
 
-### Open
+### Measured, road users as columns
 
-- The main thread's cost per road user is GDScript touching one object per road user per tick
-  (committing a new `AgentState`, loading a thinker, drawing). Keeping road-user state in
-  packed-array columns instead, with the view reading the columns straight into the multimesh
-  buffer, is the remedy estimated as most promising; `../code-quality/review.md` ranks it with the
-  rest.
+The first version kept one state object per road user and built a new one every tick; GDScript
+touching those objects was the cost. Road users are now packed columns (`AgentTable`): a tick copies
+the columns, thinks and commits over rows, and hands the columns back whole.
+
+- **Headless traffic benchmark**, 200 road users: main thread 0.52 ms snapshot plus 0.43 ms
+  commit (0.95 ms, against 2.7 ms in the first version and 1.3 ms before the ECS); thinking 1.1 ms
+  waited in parallel against about 3.3 ms inline.
+- **Tick breakdown**, busy junction plus 200 stress road users: traffic finish 0.5 ms, begin
+  0.7 ms, views 0.8 ms, exam 0.2 ms, lights and sources 0.2 ms, zones and contacts 0.1 ms; about
+  2.6 ms in all, against 5.7 ms.
+- **Through Monado** at 1971x2215 per eye, 8 s warm-up and 20 s measured: the busy junction alone
+  had no late frame in two runs; with the 200 stress road users, 0.90% and 0.00% in two runs
+  (p99 15.8 and 14.5 ms). The regression of the first version is gone.
 - All figures are from a debug build; a release export runs GDScript faster and was not measured.
 
 ## Open

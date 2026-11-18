@@ -7,28 +7,21 @@ the development machine, debug build, busy junction plus 200 stress road users, 
 `WorldRunner.timings` (`../scenario-detection/performance.md`, Functional ECS); estimates are
 marked as such.
 
-## Why it matters
+## Why it mattered
 
-Under the 200 road user stress load the main thread spends about 5.7 ms per tick, and through an
-emulated headset 27% of frames ran late in one 20 s run, against none in the two 10 s runs just
-before the move (same load). The busy junction alone
-(23 road users) runs clean. The cost is GDScript touching one object per road user per tick, and
-building dictionaries where the ECS should read columns.
+In the first version, under the 200 road user stress load the main thread spent about 5.7 ms per
+tick, and through an emulated headset 27% of frames ran late in one 20 s run, against none in the
+two 10 s runs just before the move (same load). The cost was GDScript touching one object per road
+user per tick. Item 1 fixed it: the tick is about 2.6 ms and the stress runs are clean again
+(`../scenario-detection/performance.md`). The rest remains for the quality pass.
 
 ## Optimisation, most valuable first
 
-1. **Road-user state as packed columns, not one `AgentState` object per road user**
-   (`sim/agent_state.gd`, `sim/traffic_pipeline.gd`, `sim/agent_logic.gd`,
-   `shell/traffic_view.gd`, `sim/detection.gd`).
-   - **Today:** each tick commits a new state object per road user with 21 copied fields; begin,
-     draw, and contacts read the objects again.
-   - **Change:**
-     - Split the agent into a dynamic `AGENT` component of packed columns (state, progress, speed,
-       lane, upcoming, timers, flags, pose) and a static `AGENT_CONFIG`.
-     - Commit writes fresh columns, swapped in whole by a `Delta.write_column`.
-     - The view copies the pose columns straight into the multimesh buffer.
-   - **Estimate:** commit 1.5 to about 0.6 ms, begin 1.4 to about 0.8 ms, draw 1.3 to about
-     0.6 ms.
+1. **Road-user state as packed columns.** Done: the road users are an `AgentTable` of packed
+   columns; a tick copies them, thinks and commits over rows, and hands them back whole through
+   `Delta.write_column`. Commit and begin went from 2.7 ms to 0.95 ms, the whole stress tick from
+   5.7 ms to 2.6 ms. Still open from the proposal: the view copying positions straight into the
+   multimesh buffer (it builds transforms per row), and a separate static configuration component.
 2. **Lane rules scan every road user per priority lane** (`sim/lane_rules.gd`,
    `sim/traffic_pipeline.gd`).
    - **Change:**
@@ -86,25 +79,20 @@ building dictionaries where the ECS should read columns.
     - Removed: `TriggerZone.contains_point`, the `ParkingBay` geometry queries, the layer groups,
       and `Episode`'s object form.
     - Still present:
-      - `AgentState.copy`;
       - `TrafficLight.is_red_state` (duplicating `LightLogic.is_red`);
       - `LaneData.tangent_at` and `has_rules`;
       - `World.has_component`;
       - the `Schema.LANE` component, written but never read (the lanes resource is the source).
-14. **A road user's components are built in three places** (`shell/bake.gd`,
-    `sim/simulation.gd`, `sim/source_logic.gd`), and a lane in two (`Bake.lane_of`,
-    `Simulation.add_path`, which leaves `inverse` unset).
-    - **Change:** one `AgentLogic` constructor and one `LaneData` constructor.
+14. **A lane is built in two places** (`Bake.lane_of`, `Simulation.add_path`). Road users are
+    built in one (`AgentTable.spawn_values`), and `add_path` now sets the inverse transform.
+    - **Change:** one `LaneData` constructor.
 15. **Helpers in the wrong module.**
-    - `LaneRules.agents_of` belongs with the schema queries.
     - `Bake.ground_direction` belongs in `Geo`.
     - `TrafficLane._half_depth` duplicates `TriggerZone.box_data`.
-    - `&"lanes"` is a raw key without a `Schema` constant.
+    - Done: `&"lanes"` is now `Schema.LANES`.
 16. **Doc comments that did not match the code.** Done: the five found are corrected.
-17. **`AgentThinker.think` is long** (70 lines), and its configuration copy repeats
-    `AgentConfig` by hand.
-    - **Change:** split it into speed, braking, and lane change parts. With item 1, the thinker
-      becomes a batch worker over column slices.
+17. **`AgentTable.think` is long** (about 70 lines).
+    - **Change:** split it into speed, braking, and lane change parts.
 18. **`TrafficView` never releases a removed road user's slot or body.** Nothing despawns road
     users today; a despawn would leave them drawn and solid.
 19. **Rules run on dictionaries.** Each tick a rule allocates a `RuleResult` and a new state and is

@@ -52,9 +52,9 @@ func _test_passes_over_dashed() -> void:
 	expect(kinds.has(&"stopped") and kinds.has(&"changing_lane"),
 		"a road user stopped behind a van changes lanes round it: %s" % [kinds])
 	var a := state_of(road.sim, road.agent)
-	expect(a.lane == road.left.id and a.position().z < VAN_Z - 10.0
-		and absf(a.position().x - LEFT_X) < 0.05,
-		"it drives on past the van in the neighbour lane (at %s)" % a.position())
+	expect(a.lane == road.left.id and a.position.z < VAN_Z - 10.0
+		and absf(a.position.x - LEFT_X) < 0.05,
+		"it drives on past the van in the neighbour lane (at %s)" % a.position)
 	end_sim(road.sim)
 
 
@@ -62,7 +62,7 @@ func _test_waits_at_solid() -> void:
 	var road := _road(self, RoadMarking.Kind.SOLID)
 	tick(road.sim, 1800)
 	var a := state_of(road.sim, road.agent)
-	expect(a.lane == road.right.id and a.reaction == &"stopped" and a.position().z > VAN_Z,
+	expect(a.lane == road.right.id and a.reaction == &"stopped" and a.position.z > VAN_Z,
 		"behind a solid line it waits behind the van instead")
 	end_sim(road.sim)
 

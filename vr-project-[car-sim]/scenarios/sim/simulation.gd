@@ -26,7 +26,7 @@ static func add_systems(runner: WorldRunner, exam := true) -> TrafficPipeline:
 ## A world with the schema declared and no scenario: for building a simulation by hand.
 static func empty_world(world: World) -> void:
 	Schema.define(world)
-	world.resources[&"lanes"] = {}
+	world.resources[Schema.LANES] = {}
 	world.resources[Schema.MARKINGS] = MarkingIndex.new()
 
 
@@ -40,20 +40,18 @@ static func add_path(world: World, points: PackedVector3Array, settings := {}) -
 	for p in points:
 		lane.curve.add_point(p)
 	lane.length = lane.curve.get_baked_length()
+	lane.inverse = lane.transform.affine_inverse()
 	for key: StringName in settings:
 		lane.set(key, settings[key])
-	world.resources[&"lanes"][lane.id] = lane
+	world.resources[Schema.LANES][lane.id] = lane
 	world.store(Schema.LANE).add(lane.id, {data = lane, name = lane.name})
 	return lane
 
 
-## Adds a road user on [param lane] with [param settings] for its [AgentConfig] fields, and
+## Adds a road user on [param lane] with [param settings] for its configuration columns, and
 ## returns its entity.
 static func add_agent(world: World, lane: LaneData, settings := {}) -> int:
-	var config := AgentConfig.new()
-	for key: StringName in settings:
-		config.set(key, settings[key])
 	var id := world.create()
-	world.store(Schema.AGENT).add(id, {state = AgentLogic.spawn(config, lane,
-		world.resources[&"lanes"]), name = config.name})
+	world.store(Schema.AGENT).add(id, AgentTable.spawn_values(settings, lane,
+		world.resources[Schema.LANES]))
 	return id
