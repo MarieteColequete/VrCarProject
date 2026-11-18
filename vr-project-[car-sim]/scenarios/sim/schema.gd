@@ -14,8 +14,6 @@ const BAY := &"bay"
 ## Something standing in the way: a parked car or any static box on the obstacle layer.
 const OBSTACLE := &"obstacle"
 const LIGHT := &"light"
-## A lane of the road network; its data does not change during an attempt.
-const LANE := &"lane"
 ## A road user: a scripted car or pedestrian.
 const AGENT := &"agent"
 ## A steady flow of road users onto a lane.
@@ -77,7 +75,6 @@ static func define(world: World) -> void:
 		state = TrafficLight.Light.RED, time_in_state = 0.0, holding = false,
 		triggered_at = -1.0, clock = 0.0,
 	})
-	world.define(LANE, {data = null, name = &""})
 	world.define(AGENT, AgentTable.columns())
 	world.define(SOURCE, {
 		name = &"", lane = 0, count = 5, start_delay = 0.0, min_headway = 3.0, max_headway = 6.0,
@@ -87,6 +84,8 @@ static func define(world: World) -> void:
 	world.define(RULE, {
 		name = &"", script = null, params = {}, state = {}, active_steps = PackedInt64Array(),
 		order = 0,
+		# The script's step and finish, bound once.
+		step = Callable(), finish = Callable(),
 	})
 	world.define(SESSION, {
 		state = ExamSession.State.IDLE, elapsed = 0.0, steps_completed = 0, step_count = 0,

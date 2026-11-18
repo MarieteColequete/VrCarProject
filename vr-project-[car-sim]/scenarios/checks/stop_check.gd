@@ -24,4 +24,4 @@ func rule_script() -> Script:
 
 func rule_params(bake: Bake) -> Dictionary:
 	return {approach = bake.id_of(approach_zone), line = bake.id_of(line_zone), fault = stop_fault,
-		min_stop_time = min_stop_time, direction = Bake.ground_direction(-global_basis.z)}
+		min_stop_time = min_stop_time, direction = Geo.ground_direction(-global_basis.z)}

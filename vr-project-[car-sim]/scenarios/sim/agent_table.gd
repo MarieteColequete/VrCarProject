@@ -22,6 +22,12 @@ enum State { WAITING, MOVING, PAUSED, DONE }
 ## What a road user reacts to; [constant NONE] while it plays its script.
 enum Kind { NONE, FOLLOWING, STOPPED, WAITING_LIGHT, YIELDING, CHANGING_LANE }
 
+## The indices of what is ahead, as [method TrafficSensor.sense] writes it.
+const AHEAD_FOUND := 0
+const AHEAD_ENTITY := 1
+const AHEAD_GAP := 2
+const AHEAD_SPEED := 3
+const AHEAD_ROAD_USER := 4
 ## Each [enum Kind] as it appears in the [code]&"reacted"[/code] events.
 const KIND_NAMES: Array[StringName] = [&"", &"following", &"stopped", &"waiting_light",
 	&"yielding", &"changing_lane"]
@@ -114,6 +120,28 @@ var d_sides: Array = []
 ## Per row, each [code][kind, data][/code].
 var d_events: Array = []
 
+# The routes, read while thinking: the tick's [RouteTable] columns and [LaneRules] flags, by
+# lane slot, aliased here so threads read the table's own fields ([method use_routes]).
+var r_slots := {}
+var r_is_lane := PackedByteArray()
+var r_length := PackedFloat64Array()
+var r_speed_limit := PackedFloat64Array()
+var r_stop_at := PackedFloat64Array()
+var r_left := PackedInt64Array()
+var r_right := PackedInt64Array()
+var r_light := PackedInt64Array()
+var r_give_ways := PackedInt32Array()
+var r_curves: Array = []
+var r_transforms: Array = []
+var r_inverses: Array = []
+var r_crossing_first := PackedInt32Array()
+var r_crossing_count := PackedInt32Array()
+var r_crossing_stops := PackedFloat64Array()
+var r_light_red := PackedByteArray()
+var r_light_amber := PackedByteArray()
+var r_way_clear := PackedByteArray()
+var r_crossing_busy := PackedByteArray()
+
 var _rows := {}
 
 
@@ -124,12 +152,15 @@ static func columns() -> Dictionary:
 	return all
 
 
-## A table of its own copies of the store's columns, to build the next tick from.
+## A table to build the next tick from: its own copies of the store's dynamic columns, and the
+## store's configuration columns shared, since nothing changes them after spawning.
 static func copy_of(store: ComponentStore) -> AgentTable:
 	var t := AgentTable.new()
 	t.ids = store.ids.duplicate()
-	for column: StringName in columns():
+	for column: StringName in DYNAMIC:
 		t.set(column, store.columns[column].duplicate())
+	for column: StringName in CONFIG:
+		t.set(column, store.columns[column])
 	return t
 
 
@@ -141,6 +172,21 @@ static func view_of(store: ComponentStore) -> AgentTable:
 	for column: StringName in columns():
 		t.set(column, store.columns[column])
 	return t
+
+
+## The world's road users as a view ([method view_of]), shared by everything that reads them in
+## a tick: built again only once the store changed. Null when the world has no road users'
+## component.
+static func read(world: World) -> AgentTable:
+	var store := world.store(Schema.AGENT)
+	if store == null:
+		return null
+	var cached: Array = world.memo.get(&"agents", [])
+	if not cached.is_empty() and cached[0] == store.version and cached[1] == store:
+		return cached[2]
+	var view := view_of(store)
+	world.memo[&"agents"] = [store.version, store, view]
+	return view
 
 
 ## The columns of a new road user on [param lane], from [param config] (configuration column to
@@ -243,18 +289,28 @@ func time_to_point(i: int, point: Vector3, lanes: Dictionary) -> float:
 	return INF
 
 
-## The lanes row [param i] may read while thinking: its own, the next, and its neighbours.
-func lanes_in_use(i: int, lanes: Dictionary) -> PackedInt64Array:
-	var out := PackedInt64Array([lane[i]])
-	if upcoming[i]:
-		out.append(upcoming[i])
-	var l: LaneData = lanes.get(lane[i])
-	if l:
-		if l.left:
-			out.append(l.left)
-		if l.right:
-			out.append(l.right)
-	return out
+## Reads [param routes] and this tick's [param flags] (from [method LaneRules.evaluate]) while
+## thinking. Main thread, before thinking.
+func use_routes(routes: RouteTable, flags: Array[PackedByteArray]) -> void:
+	r_slots = routes.slots
+	r_is_lane = routes.is_lane
+	r_length = routes.length
+	r_speed_limit = routes.speed_limit
+	r_stop_at = routes.stop_at
+	r_left = routes.left
+	r_right = routes.right
+	r_light = routes.light
+	r_give_ways = routes.give_way_count
+	r_curves = routes.curves
+	r_transforms = routes.transforms
+	r_inverses = routes.inverses
+	r_crossing_first = routes.crossing_first
+	r_crossing_count = routes.crossing_count
+	r_crossing_stops = routes.crossing_stops
+	r_light_red = flags[LaneRules.LIGHT_RED]
+	r_light_amber = flags[LaneRules.LIGHT_AMBER]
+	r_way_clear = flags[LaneRules.WAY_CLEAR]
+	r_crossing_busy = flags[LaneRules.CROSSING_BUSY]
 
 
 ## Makes room for this tick's decisions. Main thread, before thinking.
@@ -270,38 +326,63 @@ func prepare_decisions() -> void:
 
 ## Decides row [param i]'s speed and reactions from [param snapshot]. Any thread: it reads the
 ## table's own arrays and the snapshot, writes only row [param i] of the decision columns, and
-## creates no object of a script class.
+## creates no object of a script class. In four parts: what is ahead, the speed it calls for,
+## whether that is hard braking, and, when stuck, the neighbour lanes it could move into.
 func think(i: int, snapshot: TrafficSnapshot, dt: float) -> void:
 	if state[i] != State.MOVING or not reactive[i]:
 		return
-	var route_now := snapshot.route(lane[i])
-	if route_now == null:
+	var slot: int = r_slots.get(lane[i], -1)
+	if slot < 0:
 		return
 	d_decided[i] = 1
-	var sides := PackedInt64Array()
-	var events := []
-	var target := minf(speed[i], route_now.speed_limit)
-	var size_i := body_size[i]
-	# The sensor's hit: found, entity, gap, speed, road user.
-	var hit := PackedFloat64Array([0.0, 0.0, INF, 0.0, 0.0])
-	var found := TrafficSensor.sense(snapshot, _ahead_points(i, snapshot, route_now, target),
-		size_i.x * 0.45, ids[i], hit)
-	var gap := hit[2] if found else INF
-	var ahead_speed := hit[3] if found else 0.0
-	var ahead_body := int(hit[1]) if found else 0
-	var ahead_road_user := found and hit[4] > 0.5
 	d_committed[i] = committed[i]
+	var events := []
+	var target := minf(speed[i], r_speed_limit[slot])
+	var ahead := PackedFloat64Array([0.0, 0.0, INF, 0.0, 0.0])
+	var rule := _ahead(i, slot, snapshot, target, ahead)
+	var kind := _decide_speed(i, ahead, rule, target, dt)
+	var body := int(ahead[AHEAD_ENTITY])
+	_decide_braking(i, ahead, events)
+	if kind != reaction[i]:
+		events.append([&"reacted", {kind = &"resumed" if kind == Kind.NONE else KIND_NAMES[kind],
+			cause = body}])
+	d_kind[i] = kind
+	d_leader[i] = body
+	var blocked := kind == Kind.STOPPED and body != 0 and ahead[AHEAD_ROAD_USER] < 0.5
+	d_blocked_for[i] = blocked_for[i] + dt if blocked else 0.0
+	d_sides[i] = _clear_sides(i, slot, snapshot, target, dt)
+	d_events[i] = events
+
+
+## What holds row [param i] back ahead on lane [param slot]: the sensor's nearest body, or a lane
+## rule's stop line when nearer. Writes it into [param ahead] as found, entity (0 for a stop
+## line), gap, speed along the way, and road user, at the [code]AHEAD_*[/code] indices; returns the
+## rule when a stop line is what holds it, else [constant Kind.NONE].
+func _ahead(i: int, slot: int, snapshot: TrafficSnapshot, target: float,
+		ahead: PackedFloat64Array) -> Kind:
+	TrafficSensor.sense(snapshot, _ahead_points(i, slot, target), body_size[i].x * 0.45, ids[i],
+		ahead)
 	var rule_gap := PackedFloat64Array([INF])
-	var rule := _rule_kind(i, route_now, rule_gap)
-	if rule != Kind.NONE:
-		if not found or rule_gap[0] < gap:
-			found = true
-			gap = rule_gap[0]
-			ahead_speed = 0.0
-			ahead_body = 0
-			ahead_road_user = false
-		else:
-			rule = Kind.NONE
+	var rule := _rule_kind(i, slot, rule_gap)
+	if rule == Kind.NONE:
+		return rule
+	if ahead[AHEAD_FOUND] < 0.5 or rule_gap[0] < ahead[AHEAD_GAP]:
+		ahead[AHEAD_FOUND] = 1.0
+		ahead[AHEAD_ENTITY] = 0.0
+		ahead[AHEAD_GAP] = rule_gap[0]
+		ahead[AHEAD_SPEED] = 0.0
+		ahead[AHEAD_ROAD_USER] = 0.0
+		return rule
+	return Kind.NONE
+
+
+## Row [param i]'s speed for the next tick behind [param ahead], into its decision, and the
+## reaction it amounts to.
+func _decide_speed(i: int, ahead: PackedFloat64Array, rule: Kind, target: float,
+		dt: float) -> Kind:
+	var found := ahead[AHEAD_FOUND] > 0.5
+	var gap := ahead[AHEAD_GAP]
+	var ahead_speed := ahead[AHEAD_SPEED]
 	var v := current_speed[i]
 	var accel := max_accel[i] if v < target else 0.0
 	var kind := Kind.NONE
@@ -310,21 +391,11 @@ func think(i: int, snapshot: TrafficSnapshot, dt: float) -> void:
 	# with nothing holding it back, so it neither creeps up on a leader nor lets go too early.
 	if found and (reacting or _forced(i, gap, ahead_speed, v)):
 		var model := _idm(i, v, gap, ahead_speed, target)
-		if reacting and v >= target - 0.01 and model >= 0.0:
-			model = 0.0
-		else:
+		if not (reacting and v >= target - 0.01 and model >= 0.0):
 			accel = model
 			kind = Kind.STOPPED if v + accel * dt < 0.3 else Kind.FOLLOWING
 			if rule != Kind.NONE:
 				kind = rule
-	var needed := _needed_decel(i, v, gap, ahead_speed) if ahead_body else 0.0
-	var hard := braking_hard[i] == 1
-	if needed > hard_brake[i] and not hard:
-		hard = true
-		events.append([&"forced_to_brake", {cause = ahead_body, deceleration = needed}])
-	elif needed <= hard_brake[i]:
-		hard = false
-	d_braking_hard[i] = 1 if hard else 0
 	var next := clampf(v + accel * dt, 0.0, target)
 	if found and (gap <= 0.05 or (v + accel * dt < 0.3 and kind != Kind.NONE
 			and kind != Kind.FOLLOWING and absf(ahead_speed) < 0.1)):
@@ -333,22 +404,38 @@ func think(i: int, snapshot: TrafficSnapshot, dt: float) -> void:
 		next = 0.0
 		if kind == Kind.NONE or kind == Kind.FOLLOWING:
 			kind = Kind.STOPPED
-	if kind != reaction[i]:
-		events.append([&"reacted", {kind = &"resumed" if kind == Kind.NONE else KIND_NAMES[kind],
-			cause = ahead_body}])
 	d_speed[i] = next
-	d_kind[i] = kind
-	d_leader[i] = ahead_body
-	var blocked := kind == Kind.STOPPED and ahead_body != 0 and not ahead_road_user
-	var blocked_now := blocked_for[i] + dt if blocked else 0.0
-	d_blocked_for[i] = blocked_now
-	if blocked_now >= patience[i] and maxf(shift_left[i] - dt, 0.0) <= 0.0 and route_now.is_lane:
-		for side in [route_now.left, route_now.right]:
-			var other := snapshot.route(side) if side else null
-			if other and _neighbour_clear(i, snapshot, other, target):
-				sides.append(side)
-	d_sides[i] = sides
-	d_events[i] = events
+	return kind
+
+
+## Whether stopping short of the body [param ahead] takes hard braking, into row [param i]'s
+## decision, with a [code]&"forced_to_brake"[/code] event in [param events] when it starts to.
+func _decide_braking(i: int, ahead: PackedFloat64Array, events: Array) -> void:
+	var body := int(ahead[AHEAD_ENTITY])
+	var needed := _needed_decel(i, current_speed[i], ahead[AHEAD_GAP], ahead[AHEAD_SPEED]) \
+		if body else 0.0
+	var hard := braking_hard[i] == 1
+	if needed > hard_brake[i] and not hard:
+		hard = true
+		events.append([&"forced_to_brake", {cause = body, deceleration = needed}])
+	elif needed <= hard_brake[i]:
+		hard = false
+	d_braking_hard[i] = 1 if hard else 0
+
+
+## The neighbour lanes of [param slot] row [param i] could move into: clear ones, once it has been
+## blocked by something that is not traffic for its patience and is not mid lane change.
+func _clear_sides(i: int, slot: int, snapshot: TrafficSnapshot, target: float,
+		dt: float) -> PackedInt64Array:
+	var sides := PackedInt64Array()
+	if d_blocked_for[i] < patience[i] or maxf(shift_left[i] - dt, 0.0) > 0.0 \
+			or not r_is_lane[slot]:
+		return sides
+	for side in [r_left[slot], r_right[slot]]:
+		var other: int = r_slots.get(side, -1) if side else -1
+		if other >= 0 and _neighbour_clear(i, snapshot, other, target):
+			sides.append(side)
+	return sides
 
 
 ## Moves row [param i] on by [param dt] seconds, applying its decision when it thought: the
@@ -522,54 +609,66 @@ func _idm(i: int, v: float, gap: float, ahead_speed: float, target: float) -> fl
 	return maxf(accel * (free - (wanted / g) * (wanted / g)), -max_decel[i])
 
 
-## The path ahead of row [param i]'s front, as the sensor sweeps it.
-func _ahead_points(i: int, snapshot: TrafficSnapshot, route_now: TrafficSnapshot.Route,
-		target: float) -> PackedVector3Array:
+## The point of lane [param slot] at [param offset] along it.
+func _point_at(slot: int, offset: float) -> Vector3:
+	var curve: Curve3D = r_curves[slot]
+	var t: Transform3D = r_transforms[slot]
+	return t * curve.sample_baked(clampf(offset, 0.0, r_length[slot]))
+
+
+## The distance along lane [param slot] of its point nearest [param point].
+func _offset_on(slot: int, point: Vector3) -> float:
+	var curve: Curve3D = r_curves[slot]
+	var inv: Transform3D = r_inverses[slot]
+	return curve.get_closest_offset(inv * point)
+
+
+## The path ahead of row [param i]'s front on lane [param slot], as the sensor sweeps it.
+func _ahead_points(i: int, slot: int, target: float) -> PackedVector3Array:
 	var points := PackedVector3Array()
 	var front := progress[i] + body_size[i].z * 0.5
 	var look := target * 3.0 + 5.0
-	var next := snapshot.route(upcoming[i]) if upcoming[i] else null
-	var total := route_now.length
+	var next: int = r_slots.get(upcoming[i], -1) if upcoming[i] else -1
+	var total := r_length[slot]
 	for k in TrafficSensor.SEGMENTS + 1:
 		var offset := front + look * k / TrafficSensor.SEGMENTS
-		if offset > total and next:
-			points.append(next.point_at(offset - total))
+		if offset > total and next >= 0:
+			points.append(_point_at(next, offset - total))
 		else:
 			if loop[i] and total > 0.0:
 				offset = fposmod(offset, total)
-			points.append(route_now.point_at(offset))
+			points.append(_point_at(slot, offset))
 	return points
 
 
-## The lane rule holding row [param i] back now, with its stop line's gap in
+## The lane rule holding row [param i] back now on lane [param slot], with its stop line's gap in
 ## [code]rule_gap[0][/code]; [constant Kind.NONE] when no rule applies. May commit the row to the
 ## stop line.
-func _rule_kind(i: int, route_now: TrafficSnapshot.Route, rule_gap: PackedFloat64Array) -> Kind:
-	if not route_now.is_lane:
+func _rule_kind(i: int, slot: int, rule_gap: PackedFloat64Array) -> Kind:
+	if not r_is_lane[slot]:
 		return Kind.NONE
 	var front := progress[i] + body_size[i].z * 0.5
 	# The model keeps the minimum gap to a leader; a stop line is kept at about a metre instead.
 	var slack := min_gap[i] - 1.0
-	var stops := route_now.crossing_stops
-	var busy := route_now.crossing_busy
-	for k in stops.size():
-		var crossing_gap := stops[k] - front
-		if crossing_gap > -0.5 and busy[k]:
+	var first := r_crossing_first[slot]
+	for k in range(first, first + r_crossing_count[slot]):
+		var crossing_gap := r_crossing_stops[k] - front
+		if crossing_gap > -0.5 and r_crossing_busy[k]:
 			rule_gap[0] = crossing_gap + slack
 			return Kind.YIELDING
-	var gap := route_now.stop_at - front
+	var gap := r_stop_at[slot] - front
 	if gap < -0.5 or d_committed[i]:
 		return Kind.NONE
 	var v := current_speed[i]
-	if route_now.has_light and (route_now.light_red or route_now.light_amber):
+	if r_light[slot] and (r_light_red[slot] or r_light_amber[slot]):
 		# Stop only where stopping is still possible; past that point, go through.
 		if gap >= v * v / (2.0 * max_decel[i]) or v < 0.5:
 			rule_gap[0] = gap + slack
 			return Kind.WAITING_LIGHT
 		d_committed[i] = 1
 		return Kind.NONE
-	if route_now.has_give_way:
-		if not route_now.way_clear:
+	if r_give_ways[slot] > 0:
+		if not r_way_clear[slot]:
 			rule_gap[0] = gap + slack
 			return Kind.YIELDING
 		if gap < 1.5:
@@ -577,15 +676,14 @@ func _rule_kind(i: int, route_now: TrafficSnapshot.Route, rule_gap: PackedFloat6
 	return Kind.NONE
 
 
-## Whether [param route_now], a neighbour lane, is clear from a little behind row [param i] to its
+## Whether lane [param slot], a neighbour, is clear from a little behind row [param i] to its
 ## look-ahead.
-func _neighbour_clear(i: int, snapshot: TrafficSnapshot, route_now: TrafficSnapshot.Route,
-		target: float) -> bool:
-	var at := route_now.project(position[i]).x
+func _neighbour_clear(i: int, snapshot: TrafficSnapshot, slot: int, target: float) -> bool:
+	var at := _offset_on(slot, position[i])
 	var behind := 15.0
 	var reach := behind + target * 3.0 + 5.0 + body_size[i].z
 	var points := PackedVector3Array()
 	for k in TrafficSensor.SEGMENTS + 1:
-		points.append(route_now.point_at(at - behind + reach * k / TrafficSensor.SEGMENTS))
+		points.append(_point_at(slot, at - behind + reach * k / TrafficSensor.SEGMENTS))
 	var hit := PackedFloat64Array([0.0, 0.0, INF, 0.0, 0.0])
 	return not TrafficSensor.sense(snapshot, points, body_size[i].x * 0.45, ids[i], hit)

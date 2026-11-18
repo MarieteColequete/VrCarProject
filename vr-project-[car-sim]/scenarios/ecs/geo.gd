@@ -79,6 +79,12 @@ static func overhang(rect: Transform3D, size: Vector2, points: PackedVector3Arra
 	return worst
 
 
+## [param v] on the ground plane, normalised.
+static func ground_direction(v: Vector3) -> Vector3:
+	v.y = 0.0
+	return v.normalized()
+
+
 ## Degrees between [param forward] and [param into] on the ground plane, and between it and the
 ## opposite direction, as [code]Vector2(nose_in, reversed)[/code].
 static func facing_angles(into: Vector3, forward: Vector3) -> Vector2:

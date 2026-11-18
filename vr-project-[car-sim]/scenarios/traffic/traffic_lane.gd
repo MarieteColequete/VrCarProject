@@ -76,13 +76,6 @@ func _get_configuration_warnings() -> PackedStringArray:
 	return warnings
 
 
-static func _half_depth(zone: TriggerZone) -> float:
-	for child in zone.get_children():
-		if child is CollisionShape3D and child.shape is BoxShape3D:
-			return maxf(child.shape.size.x, child.shape.size.z) * 0.5
-	return 1.0
-
-
 func _draw_preview() -> void:
 	if _preview == null or curve == null or length() <= 0.0:
 		return

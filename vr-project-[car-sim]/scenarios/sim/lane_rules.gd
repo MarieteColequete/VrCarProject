@@ -2,47 +2,80 @@ class_name LaneRules
 extends RefCounted
 ## What a lane's rules say now, as pure functions of the world: its light, whether the lanes it
 ## gives way to are clear, and whether its crossings are in use. The traffic pipeline evaluates them
-## on the main thread into each tick's snapshot, so road users read them as plain flags.
+## on the main thread once a tick, into flags by lane slot, so road users read them as plain
+## numbers.
+
+## The flags of a tick, as indices into the array [method evaluate] returns.
+enum { LIGHT_RED, LIGHT_AMBER, WAY_CLEAR, CROSSING_BUSY }
 
 
-## The route of [param lane] this tick: the lane with its rules evaluated. [param agents] holds
-## the road users; [param car] is the player's car, or null.
-static func route_of(lane: LaneData, world: World, agents: AgentTable, car: CarState,
-		lanes: Dictionary) -> TrafficSnapshot.Route:
-	var r := TrafficSnapshot.Route.of(lane)
-	if not lane.is_lane:
-		return r
-	if lane.light and world.has(Schema.LIGHT, lane.light):
-		var state: int = world.get_value(Schema.LIGHT, lane.light, &"state")
-		r.has_light = true
-		r.light_red = LightLogic.is_red(state)
-		r.light_amber = state == TrafficLight.Light.AMBER
-	r.has_give_way = not lane.give_way_to.is_empty()
-	if r.has_give_way:
-		r.way_clear = way_is_clear(lane, agents, car, lanes)
-	for crossing in lane.crossings:
-		r.crossing_busy.append(crossing_in_use(crossing, agents))
-	return r
+## The road users' rows by the lane they are on: lane entity to a [PackedInt32Array] of rows, in
+## row order.
+static func by_lane(agents: AgentTable) -> Dictionary:
+	var out := {}
+	for i in agents.size():
+		var lane := agents.lane[i]
+		if not out.has(lane):
+			out[lane] = PackedInt32Array()
+		out[lane].append(i)
+	return out
 
 
-## Whether pulling out at [param lane]'s stop line is safe: nothing on the priority lanes is due at
-## the meeting point within the lane's safe gap, counting road users on those lanes, until their
-## whole body has cleared it, and the player's car on them.
-static func way_is_clear(lane: LaneData, agents: AgentTable, car: CarState,
-		lanes: Dictionary) -> bool:
-	var meeting := lane.point_at(lane.stop_at)
-	for priority_id in lane.give_way_to:
-		var priority: LaneData = lanes.get(priority_id)
-		if priority == null:
+## The flags of every lane in [param routes] that a road user stands on: per slot, its light shows
+## red or red and amber, its light shows amber, its way is clear (1 when it gives way to nothing),
+## and per crossing (flattened as in [RouteTable]) whether it is in use. Returned as
+## [code][light_red, light_amber, way_clear, crossing_busy][/code], each a [PackedByteArray].
+## [param buckets] is [method by_lane] of [param agents]; [param car] the player's car, or null.
+static func evaluate(routes: RouteTable, world: World, agents: AgentTable, buckets: Dictionary,
+		car: CarState, lanes: Dictionary) -> Array[PackedByteArray]:
+	var n := routes.size()
+	var red := PackedByteArray()
+	var amber := PackedByteArray()
+	var clear := PackedByteArray()
+	var busy := PackedByteArray()
+	red.resize(n)
+	amber.resize(n)
+	clear.resize(n)
+	busy.resize(routes.crossing_stops.size())
+	red.fill(0)
+	amber.fill(0)
+	clear.fill(1)
+	busy.fill(0)
+	for lane_id: int in buckets:
+		var slot: int = routes.slots.get(lane_id, -1)
+		if slot < 0 or not routes.is_lane[slot]:
 			continue
-		var at := priority.project(meeting).x
-		for i in agents.size():
-			if agents.lane[i] != priority_id:
-				continue
-			var clearing := absf(priority.project(agents.position[i]).x - at) < agents.body_size[i].z
-			if clearing or agents.time_to(i, at, lanes) < lane.safe_gap:
-				return false
-		if car and vehicle_due(priority, car, at) < lane.safe_gap:
+		var light := routes.light[slot]
+		if light and world.has(Schema.LIGHT, light):
+			var state: int = world.get_value(Schema.LIGHT, light, &"state")
+			red[slot] = 1 if LightLogic.is_red(state) else 0
+			amber[slot] = 1 if state == TrafficLight.Light.AMBER else 0
+		if routes.give_way_count[slot] > 0:
+			clear[slot] = 1 if way_is_clear(routes, slot, agents, buckets, car, lanes) else 0
+		var lane: LaneData = lanes[lane_id]
+		for k in lane.crossings.size():
+			if crossing_in_use(lane.crossings[k], agents):
+				busy[routes.crossing_first[slot] + k] = 1
+	return [red, amber, clear, busy]
+
+
+## Whether pulling out at the stop line of lane [param slot] is safe: nothing on the priority lanes
+## is due at the meeting point within the lane's safe gap, counting road users on those lanes, by
+## their progress along them, until their whole body has cleared it, and the player's car on them.
+static func way_is_clear(routes: RouteTable, slot: int, agents: AgentTable, buckets: Dictionary,
+		car: CarState, lanes: Dictionary) -> bool:
+	var gap := routes.safe_gap[slot]
+	var first := routes.give_way_first[slot]
+	for k in range(first, first + routes.give_way_count[slot]):
+		var priority_id := routes.give_way_lane[k]
+		var at := routes.give_way_at[k]
+		var rows: Variant = buckets.get(priority_id)
+		if rows != null:
+			for i: int in rows:
+				if absf(agents.progress[i] - at) < agents.body_size[i].z \
+						or agents.time_to(i, at, lanes) < gap:
+					return false
+		if car and vehicle_due(lanes[priority_id], car, at) < gap:
 			return false
 	return true
 

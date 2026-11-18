@@ -89,7 +89,9 @@ The simulation is spread across cores. The physics step runs on a thread of its 
 (`project.godot`), and Jolt spreads the simulation over its own workers. Rendering stays on the main
 thread: Godot's separate render thread is experimental and crashed the game at exit under OpenXR.
 Road users think on worker threads: the `TrafficPipeline` copies the road users' columns into an
-`AgentTable` and the world into a `TrafficSnapshot` each tick, and runs of rows decide from them in
+`AgentTable`, evaluates the lanes' rules into flags over the `RouteTable` (the lanes as columns,
+baked once), and takes the bodies into a `TrafficSnapshot` each tick, and runs of rows decide from
+them in
 parallel while the main thread renders and runs the rest of the tick, and the decisions are committed in a fixed order at the
 start of the next tick. They react one tick after they see, and their decisions do not depend on
 the threads' timing; with detection and scoring on geometry, scoring is reproducible by

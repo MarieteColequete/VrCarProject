@@ -13,7 +13,7 @@ var current_step := -1
 ## The markings the car's wheels crossed this tick.
 var crossings: Array[MarkingHit] = []
 var markings: MarkingIndex
-## The road users, read as they stand.
+## The road users, read as they stand: the view the tick shares ([method AgentTable.read]).
 var agents: AgentTable
 var lanes := {}
 ## The events of this tick so far: what traffic, lights, zones, and contacts did.
@@ -30,7 +30,7 @@ static func build(world: World, dt: float, elapsed: float, current_step: int) ->
 	f.elapsed = elapsed
 	f.current_step = current_step
 	f.markings = world.resources.get(Schema.MARKINGS)
-	f.agents = AgentTable.view_of(world.store(Schema.AGENT))
+	f.agents = AgentTable.read(world)
 	f.lanes = world.resources.get(Schema.LANES, {})
 	f.events = world.events.duplicate()
 	if f.car and f.markings:

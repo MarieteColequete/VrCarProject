@@ -49,23 +49,15 @@ func lane_of(path: Path3D) -> int:
 		return 0
 	if _lane_nodes.has(path):
 		return _lane_nodes[path]
-	var lane := LaneData.new()
-	lane.id = world.create()
-	lane.name = path.name
-	lane.is_lane = path is TrafficLane
-	lane.curve = path.curve
-	lane.transform = path.global_transform
-	lane.inverse = lane.transform.affine_inverse()
-	# Baked here, on the main thread, so sampling from worker threads only reads the cache.
-	lane.length = path.curve.get_baked_length()
-	if lane.is_lane:
+	var settings := {name = path.name, is_lane = path is TrafficLane}
+	if path is TrafficLane:
 		var authored := path as TrafficLane
-		lane.speed_limit = authored.speed_limit if authored.speed_limit > 0.0 else INF
-		lane.stop_at = authored.stop_at()
-		lane.safe_gap = authored.safe_gap
+		settings.speed_limit = authored.speed_limit if authored.speed_limit > 0.0 else INF
+		settings.stop_at = authored.stop_at()
+		settings.safe_gap = authored.safe_gap
+	var lane := LaneData.of(world.create(), path.curve, path.global_transform, settings)
 	_lane_nodes[path] = lane.id
 	_lanes[lane.id] = lane
-	world.store(Schema.LANE).add(lane.id, {data = lane, name = lane.name})
 	return lane.id
 
 
@@ -81,12 +73,6 @@ func lanes_of(paths: Array) -> PackedInt64Array:
 ## The index of a step among the scenario's; -1 for none.
 func step_index(step: ScenarioStep) -> int:
 	return _steps.find(step) if step else -1
-
-
-## [param v] on the ground plane, normalised.
-static func ground_direction(v: Vector3) -> Vector3:
-	v.y = 0.0
-	return v.normalized()
 
 
 func _run(probe: VehicleProbe) -> void:
@@ -229,7 +215,7 @@ func _fill_lanes() -> void:
 				var centre := data.project(zone.global_position).x
 				data.crossings.append({zone = id_of(zone), transform = box[0], half = box[1],
 					pedestrians = ids_of(check.pedestrians), margin = check.kerb_margin,
-					stop = maxf(centre - TrafficLane._half_depth(zone) - 1.0, 0.0)})
+					stop = maxf(centre - maxf(box[1].x, box[1].z) - 1.0, 0.0)})
 
 
 ## Bakes a road user authored after the scene was baked, and returns its entity.
@@ -267,5 +253,6 @@ func _rules() -> void:
 			if step_index(step) >= 0:
 				active.append(step_index(step))
 		world.spawn({rule = {name = check.name, script = script, params = params,
-			state = script.call(&"initial", params), active_steps = active, order = order}})
+			state = script.call(&"initial", params), active_steps = active, order = order,
+			step = Callable(script, &"step"), finish = Callable(script, &"finish")}})
 		order += 1

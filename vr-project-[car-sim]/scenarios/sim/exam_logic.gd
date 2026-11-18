@@ -27,15 +27,16 @@ static func run(world: World, dt: float) -> Delta:
 		return _write(d, id, sess, rules)
 	var eliminated := false
 	var f := RuleFrame.build(world, dt, sess.elapsed, _current(sess))
-	for rule: Dictionary in rules:
+	for k in rules.ids.size():
 		if sess.state != ExamSession.State.RUNNING:
 			break
 		# A rule ending a step earlier in the tick moves the later ones on to the next step.
 		f.current_step = _current(sess)
-		var result: RuleResult = rule.script.call(&"step", rule.params, rule.state, f,
-			_live(rule, sess))
-		rule.state = result.state
-		eliminated = _fold(sess, rule, result, d) or eliminated
+		var step: Callable = rules.step[k]
+		var result: RuleResult = step.call(rules.params[k], rules.state[k], f,
+			_live(rules.active_steps[k], sess))
+		rules.state[k] = result.state
+		eliminated = _fold(sess, rules.ids[k], result, d) or eliminated
 		if result.complete and sess.state == ExamSession.State.RUNNING:
 			_finish(world, sess, ScenarioResult.COMPLETED, rules, dt, d)
 	if eliminated and sess.state == ExamSession.State.RUNNING:
@@ -92,11 +93,11 @@ static func restart(world: World) -> Delta:
 	return Delta.new().emit(WorldEvent.new(&"restart", Schema.single(world, Schema.SESSION)))
 
 
-## Whether [param rule] acts now: during its active steps, or always when it has none.
-static func _live(rule: Dictionary, sess: Dictionary) -> bool:
+## Whether a rule with [param steps] as its active steps acts now: during them, or always when it
+## has none.
+static func _live(steps: PackedInt64Array, sess: Dictionary) -> bool:
 	if sess.state != ExamSession.State.RUNNING:
 		return false
-	var steps: PackedInt64Array = rule.active_steps
 	return steps.is_empty() or steps.has(_current(sess))
 
 
@@ -106,10 +107,10 @@ static func _current(sess: Dictionary) -> int:
 
 ## Folds [param result] into the session: faults (deduplicated) and step completion; the last
 ## step's completion marks the result complete. Returns whether a fault eliminates.
-static func _fold(sess: Dictionary, rule: Dictionary, result: RuleResult, d: Delta) -> bool:
+static func _fold(sess: Dictionary, rule: int, result: RuleResult, d: Delta) -> bool:
 	var eliminated := false
 	for fault: Array in result.faults:
-		eliminated = _report(sess, rule.id, fault[0], fault[1], fault[2], d) or eliminated
+		eliminated = _report(sess, rule, fault[0], fault[1], fault[2], d) or eliminated
 	if result.complete_step >= 0 and result.complete_step == _current(sess):
 		if sess.steps_completed + 1 >= sess.step_count:
 			result.complete = true
@@ -130,6 +131,17 @@ static func _report(sess: Dictionary, source: int, def: FaultDef, at: Vector3, k
 	var last: Dictionary = sess.last_report
 	if last.has(dedupe) and sess.elapsed - float(last[dedupe]) < DEDUPE_WINDOW:
 		return false
+	# The world's faults and dedupe table are copied only now, when a fault changes them; entries
+	# past the window can no longer hold a report back, so they are left out of the copy.
+	if not sess.get("reported", false):
+		sess.reported = true
+		var kept := {}
+		for entry: String in last:
+			if sess.elapsed - float(last[entry]) < DEDUPE_WINDOW:
+				kept[entry] = last[entry]
+		last = kept
+		sess.last_report = kept
+		sess.faults = (sess.faults as Array).duplicate()
 	last[dedupe] = sess.elapsed
 	var record := FaultRecord.new(def, sess.elapsed, at)
 	sess.faults.append(record)
@@ -139,15 +151,16 @@ static func _report(sess: Dictionary, source: int, def: FaultDef, at: Vector3, k
 
 ## Ends the attempt for [param reason]: every rule closes what it has open (its last faults still
 ## count), then the attempt is scored.
-static func _finish(world: World, sess: Dictionary, reason: StringName, rules: Array, dt: float,
-		d: Delta) -> void:
+static func _finish(world: World, sess: Dictionary, reason: StringName, rules: Dictionary,
+		dt: float, d: Delta) -> void:
 	var f := RuleFrame.build(world, dt, sess.elapsed, _current(sess))
-	for rule: Dictionary in rules:
-		var result: RuleResult = rule.script.call(&"finish", rule.params, rule.state, f,
-			_live(rule, sess))
-		rule.state = result.state
+	for k in rules.ids.size():
+		var finish: Callable = rules.finish[k]
+		var result: RuleResult = finish.call(rules.params[k], rules.state[k], f,
+			_live(rules.active_steps[k], sess))
+		rules.state[k] = result.state
 		for fault: Array in result.faults:
-			_report(sess, rule.id, fault[0], fault[1], fault[2], d)
+			_report(sess, rules.ids[k], fault[0], fault[1], fault[2], d)
 	if reason == ScenarioResult.COMPLETED:
 		sess.steps_completed = sess.step_count
 	sess.state = ExamSession.State.FINISHED
@@ -170,35 +183,48 @@ static func _finish(world: World, sess: Dictionary, reason: StringName, rules: A
 	d.emit(WorldEvent.new(&"finished", 0, {result = result}))
 
 
+## The session's columns as values. Its faults and dedupe table are the world's own until a
+## fault is reported (its [code]reported[/code] key), which copies them.
 static func _session(world: World, id: int) -> Dictionary:
 	var s := world.store(Schema.SESSION)
 	var sess := {}
 	for column: StringName in s.columns:
 		sess[column] = s.get_value(id, column)
-	sess.faults = (sess.faults as Array).duplicate()
-	sess.last_report = (sess.last_report as Dictionary).duplicate()
+	sess.reported = false
 	return sess
 
 
-## The rules in scene order, each as a Dictionary with its id.
-static func _rules(world: World) -> Array:
+## The rules, read from their columns: [code]{ids, step, finish, params, state, active_steps,
+## before}[/code], each an array by row. Rules are spawned in scene order and never removed, so
+## row order is scene order. [code]state[/code] is a copy to fold this tick's states into;
+## [code]before[/code] the world's, to write only those that changed.
+static func _rules(world: World) -> Dictionary:
 	var s := world.store(Schema.RULE)
-	var out := []
 	if s == null:
-		return out
-	for row in s.size():
-		var id := s.ids[row]
-		out.append({id = id, script = s.get_value(id, &"script"), params = s.get_value(id, &"params"),
-			state = s.get_value(id, &"state"), active_steps = s.get_value(id, &"active_steps"),
-			order = s.get_value(id, &"order")})
-	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.order < b.order)
-	return out
+		return {ids = PackedInt64Array(), step = [], finish = [], params = [], state = [],
+			active_steps = [], before = []}
+	var states: Array = s.column(&"state")
+	return {ids = s.ids, step = s.column(&"step"), finish = s.column(&"finish"),
+		params = s.column(&"params"), state = states.duplicate(),
+		active_steps = s.column(&"active_steps"), before = states}
 
 
-static func _write(d: Delta, id: int, sess: Dictionary, rules: Array) -> Delta:
-	for rule: Dictionary in rules:
-		d.write(Schema.RULE, rule.id, &"state", rule.state)
-	for column: StringName in [&"state", &"elapsed", &"steps_completed", &"faults", &"last_report",
-			&"result"]:
-		d.write(Schema.SESSION, id, column, sess[column])
+static func _write(d: Delta, id: int, sess: Dictionary, rules: Dictionary) -> Delta:
+	for k in rules.ids.size():
+		if rules.state[k] != rules.before[k]:
+			d.write(Schema.RULE, rules.ids[k], &"state", rules.state[k])
+	var s := _changed_columns(sess)
+	for column: StringName in s:
+		d.write(Schema.SESSION, id, column, s[column])
 	return d
+
+
+## The session columns a tick may change, with their values: the faults and dedupe table only
+## once a fault was reported.
+static func _changed_columns(sess: Dictionary) -> Dictionary:
+	var out := {state = sess.state, elapsed = sess.elapsed, steps_completed = sess.steps_completed,
+		result = sess.result}
+	if sess.reported:
+		out.faults = sess.faults
+		out.last_report = sess.last_report
+	return out

@@ -29,6 +29,22 @@ var left := 0
 var right := 0
 
 
+## A lane [param id] along [param curve] placed at [param p_transform], with [param settings]
+## for its other fields (such as [code]is_lane[/code] or [code]speed_limit[/code]). The curve is
+## baked here, on the main thread, so sampling it from worker threads only reads the cache.
+static func of(id: int, curve: Curve3D, p_transform := Transform3D(),
+		settings := {}) -> LaneData:
+	var lane := LaneData.new()
+	lane.id = id
+	lane.curve = curve
+	lane.transform = p_transform
+	lane.inverse = p_transform.affine_inverse()
+	lane.length = curve.get_baked_length()
+	for key: StringName in settings:
+		lane.set(key, settings[key])
+	return lane
+
+
 func point_at(offset: float) -> Vector3:
 	return transform * curve.sample_baked(clampf(offset, 0.0, length))
 
@@ -41,13 +57,3 @@ func project(point: Vector3) -> Vector2:
 	off.y = 0.0
 	return Vector2(offset, off.length())
 
-
-## The lane's direction at [param offset], on the ground, normalised.
-func tangent_at(offset: float) -> Vector3:
-	var t := point_at(offset + 0.5) - point_at(offset - 0.5)
-	t.y = 0.0
-	return t.normalized() if t.length() > 0.001 else Vector3.FORWARD
-
-
-func has_rules() -> bool:
-	return is_lane and (light != 0 or not give_way_to.is_empty() or not crossings.is_empty())

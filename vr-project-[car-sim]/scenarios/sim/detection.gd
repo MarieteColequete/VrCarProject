@@ -74,7 +74,7 @@ static func bodies(world: World, at := Vector2.ZERO, reach := INF) -> Array:
 	var out := []
 	var store := world.store(Schema.AGENT)
 	if store and store.size() > 0:
-		var agents := AgentTable.view_of(store)
+		var agents := AgentTable.read(world)
 		for i in agents.size():
 			var size := agents.body_size[i]
 			var origin := agents.position[i]

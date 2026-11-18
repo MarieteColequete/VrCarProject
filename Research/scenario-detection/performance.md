@@ -236,6 +236,20 @@ the columns, thinks and commits over rows, and hands the columns back whole.
   (p99 15.8 and 14.5 ms). The regression of the first version is gone.
 - All figures are from a debug build; a release export runs GDScript faster and was not measured.
 
+### Measured, quality pass
+
+The quality pass (`../code-quality/review.md`) baked the lanes into a `RouteTable`, bucketed road
+users by lane for the lane rules, made the traffic view swap its buffers, and read the exam's rules
+as columns. Measured against the commit before, on one harness (the busy junction plus 200 stress
+road users, 15 s warm-up, then the mean of 1200 ticks of `WorldRunner.timings`, headless):
+
+- **Tick breakdown**: 2.76 ms to 1.96 ms in all; begin 0.74 to 0.53 ms, traffic finish 0.61 to
+  0.55 ms, views 0.76 to 0.31 ms, exam 0.28 to 0.21 ms.
+- **Headless traffic benchmark**, 200 road users in parallel: snapshot 0.48 to 0.39 ms; commit
+  and waiting unchanged.
+- **Through Monado** at 1971x2215 per eye, 8 s warm-up and 20 s measured, with the 200 stress
+  road users: no late frame in two runs (p99 14.1 and 13.8 ms).
+
 ## Open
 
 - **Measurements are parked** until much later: a release build, a real headset with its own

@@ -37,10 +37,6 @@ func store(component: StringName) -> ComponentStore:
 	return _stores.get(component)
 
 
-func has_component(component: StringName) -> bool:
-	return _stores.has(component)
-
-
 ## A new entity id with no components yet.
 func create() -> int:
 	var id := _next_id

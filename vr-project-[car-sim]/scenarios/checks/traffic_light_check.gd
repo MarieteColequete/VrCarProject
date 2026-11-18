@@ -29,4 +29,4 @@ func rule_script() -> Script:
 func rule_params(bake: Bake) -> Dictionary:
 	return {light = bake.id_of(light), line = bake.id_of(line_zone), red_fault = red_fault,
 		amber_fault = amber_fault, reaction_time = reaction_time, deceleration = deceleration,
-		position = global_position, direction = Bake.ground_direction(-global_basis.z)}
+		position = global_position, direction = Geo.ground_direction(-global_basis.z)}

@@ -13,7 +13,7 @@ static func run(world: World, dt: float) -> Delta:
 	if s == null:
 		return d
 	var lanes: Dictionary = world.resources.get(Schema.LANES, {})
-	var agents := AgentTable.view_of(world.store(Schema.AGENT))
+	var agents := AgentTable.read(world)
 	for row in s.size():
 		var id := s.ids[row]
 		var src := {}

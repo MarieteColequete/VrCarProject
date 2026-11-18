@@ -4,7 +4,8 @@ extends PipelinedSystem
 ## of the frame (the player's car, rendering) instead of adding to it.
 ##
 ## [method begin], once a tick is applied, copies the road users' columns into an [AgentTable],
-## takes a [TrafficSnapshot] of the world, and has every row decide its next speed and reactions
+## evaluates the lanes' rules into flags over the [RouteTable], takes a [TrafficSnapshot] of the
+## bodies, and has every row decide its next speed and reactions
 ## ([method AgentTable.think]), in parallel through the [WorkerThreadPool] when there are enough of
 ## them, each task a run of rows. [method finish], first in the next tick, waits for the decisions,
 ## commits every row in row order ([method AgentTable.commit]), and returns the table's columns
@@ -58,7 +59,11 @@ func begin(world: World, dt: float) -> void:
 		var zone := _table.trigger[i]
 		_armed[i] = 1 if zone != 0 and zones and zones.has(zone) \
 			and zones.get_value(zone, &"inside") else 0
-	_snapshot = snapshot_of(world, _table, _lanes)
+	var car := CarState.read(world)
+	var routes := RouteTable.of_world(world)
+	_table.use_routes(routes, LaneRules.evaluate(routes, world, _table, LaneRules.by_lane(_table),
+		car, _lanes))
+	_snapshot = snapshot_of(world, _table, car)
 	if parallel and count >= PARALLEL_FROM:
 		# A task per run of rows rather than one per road user: enough to use the cores without the
 		# threads queuing on each other.
@@ -90,11 +95,10 @@ func finish() -> Delta:
 	return d
 
 
-## The world as road users see it now: every road user, the player's car, every obstacle, and
-## every lane they drive with its rules evaluated. Main thread.
-static func snapshot_of(world: World, table: AgentTable, lanes: Dictionary) -> TrafficSnapshot:
+## The bodies as road users see them now: every road user, the player's car [param car] (or
+## null), and every obstacle. Main thread.
+static func snapshot_of(world: World, table: AgentTable, car: CarState) -> TrafficSnapshot:
 	var snapshot := TrafficSnapshot.new()
-	var car := CarState.read(world)
 	for i in table.size():
 		var size := table.body_size[i]
 		var f := table.facing[i]
@@ -102,10 +106,6 @@ static func snapshot_of(world: World, table: AgentTable, lanes: Dictionary) -> T
 		var at := table.position[i]
 		snapshot.add(table.ids[i], Vector2(at.x, at.z), flat, size.z * 0.5, size.x * 0.5,
 			flat * table.current_speed[i], true)
-		for lane_id in table.lanes_in_use(i, lanes):
-			if lane_id and not snapshot.routes.has(lane_id) and lanes.has(lane_id):
-				snapshot.routes[lane_id] = LaneRules.route_of(lanes[lane_id], world, table, car,
-					lanes)
 	if car:
 		snapshot.add_box(car.entity, car.transform, car.hull_size, car.velocity, false)
 	var obstacles := world.store(Schema.OBSTACLE)

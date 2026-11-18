@@ -34,17 +34,11 @@ static func empty_world(world: World) -> void:
 ## returns it; [param settings] sets [LaneData] fields, such as [code]is_lane[/code] or
 ## [code]speed_limit[/code].
 static func add_path(world: World, points: PackedVector3Array, settings := {}) -> LaneData:
-	var lane := LaneData.new()
-	lane.id = world.create()
-	lane.curve = Curve3D.new()
+	var curve := Curve3D.new()
 	for p in points:
-		lane.curve.add_point(p)
-	lane.length = lane.curve.get_baked_length()
-	lane.inverse = lane.transform.affine_inverse()
-	for key: StringName in settings:
-		lane.set(key, settings[key])
+		curve.add_point(p)
+	var lane := LaneData.of(world.create(), curve, Transform3D(), settings)
 	world.resources[Schema.LANES][lane.id] = lane
-	world.store(Schema.LANE).add(lane.id, {data = lane, name = lane.name})
 	return lane
 
 

@@ -33,11 +33,6 @@ func _ready() -> void:
 	show_state(initial)
 
 
-## Whether [param light_state] stops traffic: red, or red and amber.
-static func is_red_state(light_state: int) -> bool:
-	return light_state == Light.RED or light_state == Light.RED_AMBER
-
-
 ## Lights the lamps of [param light_state].
 func show_state(light_state: int) -> void:
 	if light_state == _shown:

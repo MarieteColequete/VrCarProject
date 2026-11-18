@@ -44,59 +44,110 @@ func _init(parent: Node3D, capacity: int) -> void:
 
 
 ## The view's step: places every road user's box and body where the world has it. The boxes go to
-## the multimesh as one buffer, with the last tick's as the one to interpolate from; a body moves
-## only when its road user did.
+## the multimesh as one buffer, with the last tick's as the one to interpolate from (the two
+## buffers swap each tick); a body moves only when its road user did. A road user that left the
+## world gives up its slot and body.
 func draw(world: World) -> void:
 	var store := world.store(Schema.AGENT)
-	if store == null or store.size() == 0:
+	if store == null:
 		return
-	var agents := AgentTable.view_of(store)
-	for i in agents.size():
-		var id := agents.ids[i]
-		if not _slots.has(id):
-			_slots[id] = _slots.size()
-			_body(id, agents.body_size[i], agents.pedestrian[i] == 1)
-	_grow(_slots.size())
-	for i in agents.size():
-		var id := agents.ids[i]
+	if _slots.size() > store.size():
+		_release(store)
+	if store.size() == 0:
+		return
+	var ids := store.ids
+	var sizes: PackedVector3Array = store.column(&"body_size")
+	var colours: PackedColorArray = store.column(&"colour")
+	var positions: PackedVector3Array = store.column(&"position")
+	var facings: PackedVector3Array = store.column(&"facing")
+	var jumps: PackedByteArray = store.column(&"jumped")
+	var walkers: PackedByteArray = store.column(&"pedestrian")
+	for i in ids.size():
+		if not _slots.has(ids[i]):
+			_slots[ids[i]] = _slots.size()
+			_body(ids[i], sizes[i], walkers[i] == 1)
+	if _grow(_slots.size()):
+		_drawn.clear()
+	var current := _current
+	var previous := _previous
+	for i in ids.size():
+		var id := ids[i]
 		var slot: int = _slots[id]
-		var size := agents.body_size[i]
-		var place := agents.transform(i)
-		var box := place * Transform3D(Basis.from_scale(size), Vector3(0, size.y * 0.5, 0))
-		_write(_current, slot, box, agents.colour[i])
-		if agents.jumped[i] or not _drawn.has(id):
-			_write(_previous, slot, box, agents.colour[i])
+		var size := sizes[i]
+		var at := positions[i]
+		var f := facings[i]
+		# Facing on the ground, as Basis.looking_at would give it: z behind, x to the right.
+		var z := Vector3(-f.x, 0.0, -f.z)
+		var x := Vector3(-f.z, 0.0, f.x)
+		if f.length_squared() < 0.000001:
+			z = Vector3.BACK
+			x = Vector3.RIGHT
+		var k := slot * STRIDE
+		var cx := x * size.x
+		var cy := size.y
+		var cz := z * size.z
+		current[k] = cx.x
+		current[k + 1] = 0.0
+		current[k + 2] = cz.x
+		current[k + 3] = at.x
+		current[k + 4] = 0.0
+		current[k + 5] = cy
+		current[k + 6] = 0.0
+		current[k + 7] = at.y + cy * 0.5
+		current[k + 8] = cx.z
+		current[k + 9] = 0.0
+		current[k + 10] = cz.z
+		current[k + 11] = at.z
+		if not _drawn.has(id):
+			_write_colour(current, slot, colours[i])
+			_write_colour(previous, slot, colours[i])
+		if jumps[i] or not _drawn.has(id):
+			for c in 12:
+				previous[k + c] = current[k + c]
 			_drawn[id] = true
+		var place := Transform3D(Basis(x, Vector3.UP, z), at)
 		var pair: Array = _bodies[id]
 		if pair[2] != place:
 			pair[2] = place
 			PhysicsServer3D.body_set_state(pair[0], PhysicsServer3D.BODY_STATE_TRANSFORM, place)
-	_multimesh.set_buffer_interpolated(_current, _previous)
+	_multimesh.set_buffer_interpolated(current, previous)
 	_multimesh.visible_instance_count = _slots.size()
-	_previous = _current.duplicate()
+	_previous = current
+	_current = previous
 
 
-## Writes a transform and colour into slot [param slot] of [param buffer], in the multimesh's
-## layout: the transform's three rows, then the colour.
-static func _write(buffer: PackedFloat32Array, slot: int, t: Transform3D, colour: Color) -> void:
-	var i := slot * STRIDE
-	var b := t.basis
-	buffer[i] = b.x.x
-	buffer[i + 1] = b.y.x
-	buffer[i + 2] = b.z.x
-	buffer[i + 3] = t.origin.x
-	buffer[i + 4] = b.x.y
-	buffer[i + 5] = b.y.y
-	buffer[i + 6] = b.z.y
-	buffer[i + 7] = t.origin.y
-	buffer[i + 8] = b.x.z
-	buffer[i + 9] = b.y.z
-	buffer[i + 10] = b.z.z
-	buffer[i + 11] = t.origin.z
-	buffer[i + 12] = colour.r
-	buffer[i + 13] = colour.g
-	buffer[i + 14] = colour.b
-	buffer[i + 15] = colour.a
+## Writes [param colour] into slot [param slot] of [param buffer].
+static func _write_colour(buffer: PackedFloat32Array, slot: int, colour: Color) -> void:
+	var i := slot * STRIDE + 12
+	buffer[i] = colour.r
+	buffer[i + 1] = colour.g
+	buffer[i + 2] = colour.b
+	buffer[i + 3] = colour.a
+
+
+## Frees the slot and body of every road user no longer in [param store]: the last slot moves into
+## each freed one and is drawn there afresh.
+func _release(store: ComponentStore) -> void:
+	var gone := []
+	for id: int in _slots:
+		if not store.has(id):
+			gone.append(id)
+	for id: int in gone:
+		var slot: int = _slots[id]
+		_slots.erase(id)
+		_drawn.erase(id)
+		var pair: Array = _bodies[id]
+		PhysicsServer3D.free_rid(pair[0])
+		PhysicsServer3D.free_rid(pair[1])
+		_bodies.erase(id)
+		var last := _slots.size()
+		if slot != last:
+			for moved: int in _slots:
+				if _slots[moved] == last:
+					_slots[moved] = slot
+					_drawn.erase(moved)
+					break
+	_multimesh.visible_instance_count = _slots.size()
 
 
 ## Frees the bodies and the multimesh's node.
@@ -124,12 +175,13 @@ func _body(id: int, size: Vector3, is_pedestrian: bool) -> void:
 	_bodies[id] = [body, shape, Transform3D()]
 
 
-func _grow(needed: int) -> void:
+## Makes room for [param needed] instances; true when it had to, which clears every slot.
+func _grow(needed: int) -> bool:
 	if needed <= _multimesh.instance_count:
-		return
+		return false
 	# Resizing clears the instances; every slot is set again in the same draw.
 	_multimesh.instance_count = maxi(needed, _multimesh.instance_count * 2)
 	_multimesh.visible_instance_count = 0
 	_current.resize(_multimesh.instance_count * STRIDE)
 	_previous.resize(_multimesh.instance_count * STRIDE)
-	_drawn.clear()
+	return true
