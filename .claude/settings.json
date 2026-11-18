@@ -1,0 +1,326 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "includeGitInstructions": false,
+  "permissions": {
+    "allow": [
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git branch)",
+      "Bash(git branch --show-current)",
+      "Bash(git branch --list *)",
+      "Bash(git branch -a)",
+      "Bash(git branch -r)",
+      "Bash(git branch -vv)",
+      "Bash(git remote -v)",
+      "Bash(cargo check *)",
+      "Bash(cargo build *)",
+      "Bash(cargo test *)",
+      "Bash(cargo clippy *)",
+      "Bash(cargo fmt *)",
+      "Bash(cargo doc *)",
+      "Bash(cargo tree *)",
+      "Bash(godot --headless *)"
+    ],
+    "ask": [
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git pull *)",
+      "Bash(git rebase *)",
+      "Bash(git reset *)",
+      "Bash(git merge *)",
+      "Bash(git cherry-pick *)",
+      "Bash(git revert *)",
+      "Bash(git am *)",
+      "Bash(git update-ref *)",
+      "Bash(git commit-tree *)",
+      "Bash(git filter-branch *)",
+      "Bash(git reflog expire *)",
+      "Bash(git gc *)",
+      "Bash(git tag *)",
+      "Bash(git branch -D *)",
+      "Bash(git branch -d *)",
+      "Bash(git branch -f *)",
+      "Bash(git branch -M *)",
+      "Bash(git branch --delete *)",
+      "Bash(git branch --force *)",
+      "Bash(git switch *)",
+      "Bash(git checkout -B *)",
+      "Bash(git restore *)",
+      "Bash(git checkout -- *)",
+      "Bash(git checkout .)",
+      "Bash(git stash *)",
+      "Bash(git clean *)",
+      "Bash(git config *)",
+      "Bash(git -c *)",
+      "Bash(git -C *)",
+      "Bash(glab mr create *)",
+      "Bash(glab mr merge *)",
+      "Bash(glab mr update *)",
+      "Bash(glab mr note *)",
+      "Bash(glab mr approve *)",
+      "Bash(glab mr revoke *)",
+      "Bash(glab mr close *)",
+      "Bash(glab mr reopen *)",
+      "Bash(glab mr rebase *)",
+      "Bash(glab mr delete *)",
+      "Bash(glab release *)",
+      "Bash(glab api *)",
+      "Bash(glab issue create *)",
+      "Bash(glab issue update *)",
+      "Bash(glab issue note *)",
+      "Bash(glab issue close *)",
+      "Bash(glab issue reopen *)",
+      "Bash(glab issue delete *)",
+      "Bash(glab repo delete *)",
+      "Bash(glab repo archive *)",
+      "Bash(glab repo transfer *)",
+      "Bash(sh *bin/preset land*)",
+      "Bash(sh *bin/preset hosting*)",
+      "PowerShell(git add *)",
+      "PowerShell(git commit *)",
+      "PowerShell(git push *)",
+      "PowerShell(git pull *)",
+      "PowerShell(git rebase *)",
+      "PowerShell(git reset *)",
+      "PowerShell(git merge *)",
+      "PowerShell(git cherry-pick *)",
+      "PowerShell(git revert *)",
+      "PowerShell(git am *)",
+      "PowerShell(git update-ref *)",
+      "PowerShell(git commit-tree *)",
+      "PowerShell(git filter-branch *)",
+      "PowerShell(git reflog expire *)",
+      "PowerShell(git gc *)",
+      "PowerShell(git tag *)",
+      "PowerShell(git branch -D *)",
+      "PowerShell(git branch -d *)",
+      "PowerShell(git branch -f *)",
+      "PowerShell(git branch -M *)",
+      "PowerShell(git branch --delete *)",
+      "PowerShell(git branch --force *)",
+      "PowerShell(git switch *)",
+      "PowerShell(git checkout -B *)",
+      "PowerShell(git restore *)",
+      "PowerShell(git checkout -- *)",
+      "PowerShell(git checkout .)",
+      "PowerShell(git stash *)",
+      "PowerShell(git clean *)",
+      "PowerShell(git config *)",
+      "PowerShell(git -c *)",
+      "PowerShell(git -C *)",
+      "PowerShell(glab mr create *)",
+      "PowerShell(glab mr merge *)",
+      "PowerShell(glab mr update *)",
+      "PowerShell(glab mr note *)",
+      "PowerShell(glab mr approve *)",
+      "PowerShell(glab mr revoke *)",
+      "PowerShell(glab mr close *)",
+      "PowerShell(glab mr reopen *)",
+      "PowerShell(glab mr rebase *)",
+      "PowerShell(glab mr delete *)",
+      "PowerShell(glab release *)",
+      "PowerShell(glab api *)",
+      "PowerShell(glab issue create *)",
+      "PowerShell(glab issue update *)",
+      "PowerShell(glab issue note *)",
+      "PowerShell(glab issue close *)",
+      "PowerShell(glab issue reopen *)",
+      "PowerShell(glab issue delete *)",
+      "PowerShell(glab repo delete *)",
+      "PowerShell(glab repo archive *)",
+      "PowerShell(glab repo transfer *)",
+      "PowerShell(sh *bin/preset land*)",
+      "PowerShell(sh *bin/preset hosting*)",
+      "Edit(/.claude/settings.json)",
+      "Edit(/.claude/settings.local.json)",
+      "Edit(/.claude/project.json)",
+      "Edit(/.claude/preset.json)",
+      "Edit(/.claude/bin/**)",
+      "Edit(/.claude/hooks/**)",
+      "Edit(/.claude/rules/preset/**)",
+      "Edit(/.claude/skills/adopt-preset/**)",
+      "Edit(/.claude/skills/doc-lint/**)",
+      "Edit(/.claude/skills/propose-release/**)",
+      "Edit(/.claude/skills/research-topic/**)",
+      "Edit(/.claude/skills/land/**)",
+      "Edit(/.claude/skills/host-setup/**)",
+      "Edit(/.claude/skills/hosting/**)",
+      "Edit(/.claude/skills/release/**)",
+      "Edit(/.claude/skills/write-proposal/**)",
+      "Edit(/.gitlab/ci/**)",
+      "Edit(/.allowed_signers)",
+      "Edit(/.gitlab-ci.yml)",
+      "Edit(/.git/config)",
+      "Edit(/.git/hooks/**)",
+      "Read(~/.ssh/id_*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(~/.aws/credentials)",
+      "Read(~/.netrc)"
+    ],
+    "deny": [
+      "Bash(git *--no-gpg-sign*)",
+      "Bash(git *commit.gpgsign=false*)",
+      "Bash(git *commit.gpgSign=false*)",
+      "Bash(git config *gpgsign false*)",
+      "Bash(git config *gpgSign false*)",
+      "Bash(git *--no-verify*)",
+      "Bash(git push * dev)",
+      "Bash(git push * main)",
+      "Bash(git push *:dev)",
+      "Bash(git push *:main)",
+      "PowerShell(git *--no-gpg-sign*)",
+      "PowerShell(git *commit.gpgsign=false*)",
+      "PowerShell(git *commit.gpgSign=false*)",
+      "PowerShell(git config *gpgsign false*)",
+      "PowerShell(git config *gpgSign false*)",
+      "PowerShell(git *--no-verify*)",
+      "PowerShell(git push * dev)",
+      "PowerShell(git push * main)",
+      "PowerShell(git push *:dev)",
+      "PowerShell(git push *:main)",
+      "Edit(*.pdf)",
+      "Edit(*.odt)",
+      "Edit(*.docx)",
+      "Edit(*.pptx)",
+      "Edit(*.xlsx)"
+    ],
+    "blockWritesOutsideWorkingDirectories": true
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PROJECT_DIR}/.claude/bin/preset\" self-check >/dev/null 2>&1 && sh \"${CLAUDE_PROJECT_DIR}/.claude/bin/preset\" hook session-start || echo '{\"systemMessage\": \"Agent configuration: the preset tool (.claude/bin/preset) does not run here or git is missing, so Bash and PowerShell commands are blocked and the writing checks and the stop gate do not run in this session.\", \"hookSpecificOutput\": {\"hookEventName\": \"SessionStart\", \"additionalContext\": \"The preset checks cannot run in this session: the preset tool (.claude/bin/preset) has no build that runs on this platform, or git is not on PATH. Without the command guard every Bash and PowerShell command is blocked until the author fixes it; the dash checks and the stop gate do not run either. Report this to the author instead of working around it.\"}}'",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/bin/preset",
+              "hook",
+              "guard"
+            ],
+            "timeout": 10,
+            "onFailure": "block"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/bin/preset",
+              "hook",
+              "dashes"
+            ],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Edit(*.md)",
+            "command": "sh",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/bin/preset",
+              "hook",
+              "dashes"
+            ],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/bin/preset",
+              "hook",
+              "stop"
+            ],
+            "timeout": 900,
+            "asyncRewake": true
+          }
+        ]
+      }
+    ],
+    "ConfigChange": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/bin/preset",
+              "hook",
+              "config-change"
+            ],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PermissionDenied": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/bin/preset",
+              "hook",
+              "permission-denied"
+            ],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "InstructionsLoaded": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/bin/preset",
+              "hook",
+              "instructions-loaded"
+            ],
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ScenarioDefinition" format=3]
+
+[ext_resource type="Script" path="res://scenarios/data/scenario_definition.gd" id="script"]
+
+[resource]
+script = ExtResource("script")
+id = &"bay_parking"
+title = "Bay parking"
+category = "Parking"
+difficulty = 2
+briefing = "Drive into the car park and reverse into a free bay. Bays with a car in them are taken, the yellow bay is reserved, and the end of the aisle is a fire lane."
+time_limit = 120.0
+scene_path = "res://scenarios/scenes/bay_parking/bay_parking.tscn"

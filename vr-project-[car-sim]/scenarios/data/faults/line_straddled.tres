@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="FaultDef" format=3]
+
+[ext_resource type="Script" path="res://scenarios/data/fault_def.gd" id="1_fault"]
+
+[resource]
+script = ExtResource("1_fault")
+id = &"line_straddled"
+title = "Drove on a line"
+description = "A wheel rode on a lane line for longer than the grace time."
+tier = &"minor"

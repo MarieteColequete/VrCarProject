@@ -1,0 +1,125 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenarios/kit/scenario_base.tscn" id="base"]
+[ext_resource type="Resource" path="res://scenarios/scenes/lane_change_overtake/definition.tres" id="definition"]
+[ext_resource type="Material" path="res://scenarios/kit/asphalt.tres" id="asphalt"]
+[ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="marking"]
+[ext_resource type="Script" path="res://scenarios/traffic/scripted_agent.gd" id="agent"]
+[ext_resource type="Script" path="res://scenarios/checks/trigger_zone.gd" id="zone"]
+[ext_resource type="Script" path="res://scenarios/checks/gaze_check.gd" id="gaze"]
+[ext_resource type="Script" path="res://scenarios/checks/following_distance_check.gd" id="following"]
+[ext_resource type="Script" path="res://scenarios/checks/goal_check.gd" id="goal"]
+
+[sub_resource type="BoxMesh" id="Mesh_road"]
+size = Vector3(7, 0.02, 300)
+
+[sub_resource type="BoxShape3D" id="Shape_goal"]
+size = Vector3(12, 3, 4)
+
+[sub_resource type="Curve3D" id="Curve_CentreDashed"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, 85, 0, 0, 0, 0, 0, 0, 0, 0, -60),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_CentreSolid"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, -60, 0, 0, 0, 0, 0, 0, 0, 0, -120),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_CentreDashedAfter"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, -120, 0, 0, 0, 0, 0, 0, 0, 0, -205),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_KerbRight"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 3.5, 0, 85, 0, 0, 0, 0, 0, 0, 3.5, 0, -205),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_KerbLeft"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -3.5, 0, 85, 0, 0, 0, 0, 0, 0, -3.5, 0, -205),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_Slow"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 1.75, 0, 40, 0, 0, 0, 0, 0, 0, 1.75, 0, -260),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[node name="LaneChangeOvertake" instance=ExtResource("base")]
+definition = ExtResource("definition")
+
+[node name="Environment" parent="."]
+ground_size = Vector2(100, 320)
+ground_offset = Vector3(0, 0, -60)
+
+[node name="Road" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -60)
+mesh = SubResource("Mesh_road")
+surface_material_override/0 = ExtResource("asphalt")
+
+[node name="SpawnPoint" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 80)
+
+[node name="CentreDashed" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_CentreDashed")
+script = ExtResource("marking")
+kind = 1
+
+[node name="CentreSolid" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_CentreSolid")
+script = ExtResource("marking")
+kind = 0
+
+[node name="CentreDashedAfter" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_CentreDashedAfter")
+script = ExtResource("marking")
+kind = 1
+
+[node name="KerbRight" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_KerbRight")
+script = ExtResource("marking")
+kind = 8
+
+[node name="KerbLeft" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_KerbLeft")
+script = ExtResource("marking")
+kind = 8
+
+[node name="SlowPath" type="Path3D" parent="."]
+curve = SubResource("Curve_Slow")
+
+[node name="SlowVehicle" type="AnimatableBody3D" parent="." node_paths=PackedStringArray("path")]
+script = ExtResource("agent")
+path = NodePath("../SlowPath")
+speed = 4.0
+
+[node name="GazeCheck" type="Node3D" parent="Checks"]
+script = ExtResource("gaze")
+
+[node name="FollowingDistanceCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("agents")]
+script = ExtResource("following")
+agents = [NodePath("../../SlowVehicle")]
+
+[node name="GoalCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("zone")]
+script = ExtResource("goal")
+zone = NodePath("Zone")
+
+[node name="Zone" type="Area3D" parent="Checks/GoalCheck"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 1.5, -190)
+script = ExtResource("zone")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/GoalCheck/Zone"]
+shape = SubResource("Shape_goal")
