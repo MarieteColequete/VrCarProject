@@ -14,10 +14,11 @@ static func run(world: World, dt: float) -> Delta:
 		return d
 	var lanes: Dictionary = world.resources.get(Schema.LANES, {})
 	var agents := AgentTable.view_of(world.store(Schema.AGENT))
-	for id in s.sorted_ids():
+	for row in s.size():
+		var id := s.ids[row]
 		var src := {}
 		for column: StringName in s.columns:
-			src[column] = s.get_value(id, column)
+			src[column] = s.columns[column][row]
 		var clock: float = src.clock + dt
 		d.write(Schema.SOURCE, id, &"clock", clock)
 		var lane: LaneData = lanes.get(src.lane)

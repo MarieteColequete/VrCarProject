@@ -12,8 +12,13 @@ var name: StringName
 var ids := PackedInt64Array()
 ## Column name to its array of values, one per row.
 var columns := {}
+## Counts every change to the store, so a value derived from it can tell whether it is still
+## current.
+var version := 0
 
 var _row := {}
+var _sorted := PackedInt64Array()
+var _sorted_valid := false
 var _defaults := {}
 var _bools := {}
 
@@ -66,6 +71,8 @@ func add(id: int, values := {}) -> void:
 		return
 	_row[id] = ids.size()
 	ids.append(id)
+	_sorted_valid = false
+	version += 1
 	for column: StringName in columns:
 		var value: Variant
 		if values.has(column):
@@ -96,6 +103,8 @@ func remove(id: int) -> void:
 	for column: StringName in columns:
 		columns[column].resize(last)
 	_row.erase(id)
+	_sorted_valid = false
+	version += 1
 
 
 func get_value(id: int, column: StringName) -> Variant:
@@ -113,6 +122,7 @@ func set_value(id: int, column: StringName, value: Variant) -> void:
 	if _bools.has(column):
 		value = 1 if value else 0
 	columns[column][row] = value
+	version += 1
 
 
 ## The column's array, shared, for systems to read in a loop. Reading only: writes go through a
@@ -125,10 +135,14 @@ func column(column_name: StringName) -> Variant:
 ## that computed a fresh column hands it over.
 func replace_column(column_name: StringName, values: Variant) -> void:
 	columns[column_name] = values
+	version += 1
 
 
-## The rows' ids in ascending order, for systems whose output must not depend on row order.
+## The rows' ids in ascending order, for systems whose output must not depend on row order. Kept
+## between calls and rebuilt only after an entity is added or removed; read it, do not change it.
 func sorted_ids() -> PackedInt64Array:
-	var out := ids.duplicate()
-	out.sort()
-	return out
+	if not _sorted_valid:
+		_sorted = ids.duplicate()
+		_sorted.sort()
+		_sorted_valid = true
+	return _sorted

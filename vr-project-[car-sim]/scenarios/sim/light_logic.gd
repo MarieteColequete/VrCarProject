@@ -13,10 +13,11 @@ static func run(world: World, dt: float) -> Delta:
 	var s := world.store(Schema.LIGHT)
 	if s == null:
 		return d
-	for id in s.sorted_ids():
+	for row in s.size():
+		var id := s.ids[row]
 		var light := {}
 		for column: StringName in s.columns:
-			light[column] = s.get_value(id, column)
+			light[column] = s.columns[column][row]
 		var trigger: int = light.trigger
 		var triggered: bool = trigger != 0 and world.has(Schema.ZONE, trigger) \
 			and world.get_value(Schema.ZONE, trigger, &"entered")

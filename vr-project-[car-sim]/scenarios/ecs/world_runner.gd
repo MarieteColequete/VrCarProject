@@ -27,8 +27,9 @@ var world := World.new()
 var timings := {}
 
 var _inputs: Array[Callable] = []
-# Stage number to the systems of that stage, in the order added.
+# Stage number to the systems of that stage, in the order added, and the stages in order.
 var _stages := {}
+var _stage_order: Array = []
 var _pipelined: Array[PipelinedSystem] = []
 var _views: Array[Callable] = []
 
@@ -49,6 +50,8 @@ func add_input(input: Callable) -> void:
 func add_system(system: Callable, stage := 0) -> void:
 	if not _stages.has(stage):
 		_stages[stage] = []
+		_stage_order.append(stage)
+		_stage_order.sort()
 	_stages[stage].append(system)
 
 
@@ -76,9 +79,7 @@ func step(dt: float) -> void:
 	for input in _inputs:
 		world.apply(input.call(world, dt))
 	t = _lap(&"inputs", t)
-	var stages := _stages.keys()
-	stages.sort()
-	for stage: int in stages:
+	for stage: int in _stage_order:
 		var deltas: Array[Delta] = []
 		for system: Callable in _stages[stage]:
 			deltas.append(system.call(world, dt))

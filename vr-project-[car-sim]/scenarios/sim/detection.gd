@@ -16,15 +16,23 @@ static func zones(world: World, _dt: float) -> Delta:
 	var s := world.store(Schema.ZONE)
 	if s == null:
 		return d
+	var inside: PackedByteArray = s.column(&"inside")
+	var entered: PackedByteArray = s.column(&"entered")
+	var exited: PackedByteArray = s.column(&"exited")
+	var boxes: Array = s.column(&"transform")
+	var halves: PackedVector3Array = s.column(&"half")
 	for row in s.size():
 		var id := s.ids[row]
-		var was: bool = s.get_value(id, &"inside")
-		var now := car != null and car_in_zone(car, s.get_value(id, &"transform"),
-			s.get_value(id, &"half"))
-		d.write_all(Schema.ZONE, id, {inside = now, entered = now and not was,
-			exited = was and not now})
+		var was := inside[row] == 1
+		var now := car != null and car_in_zone(car, boxes[row], halves[row])
+		# Only what changed: a flag raised last tick is lowered, a new one raised.
 		if now != was:
+			d.write(Schema.ZONE, id, &"inside", now)
 			d.emit(WorldEvent.new(&"zone_entered" if now else &"zone_exited", id))
+		if (entered[row] == 1) != (now and not was):
+			d.write(Schema.ZONE, id, &"entered", now and not was)
+		if (exited[row] == 1) != (was and not now):
+			d.write(Schema.ZONE, id, &"exited", was and not now)
 	return d
 
 

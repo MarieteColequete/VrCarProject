@@ -15,6 +15,9 @@ var events: Array[WorldEvent] = []
 ## Data shared by the whole simulation that no tick changes, built when a scenario is baked: the
 ## marking index, the lanes, the scenario's steps. Systems read it freely.
 var resources := {}
+## Values derived from the stores and kept while the stores they read are unchanged, each as
+## [code][version, value][/code]: a cache, never state.
+var memo := {}
 
 var _next_id := 1
 var _stores := {}
@@ -84,11 +87,20 @@ func apply(delta: Delta) -> void:
 			var values: Variant = written[3]
 			for k in ids.size():
 				target.set_value(ids[k], written[2], values[k])
-	for i in delta.write_count():
-		var w := delta.write_at(i)
-		var s: ComponentStore = _stores.get(w[0])
-		if s:
-			s.set_value(w[1], w[2], w[3])
+	# Single writes, read straight from the delta's parallel arrays; consecutive writes to one
+	# component reuse its store.
+	var write_components := delta.write_components()
+	var write_ids := delta.write_ids()
+	var write_columns := delta.write_columns()
+	var write_values := delta.write_values()
+	var last_component: StringName = &""
+	var store_now: ComponentStore = null
+	for i in write_ids.size():
+		if write_components[i] != last_component:
+			last_component = write_components[i]
+			store_now = _stores.get(last_component)
+		if store_now:
+			store_now.set_value(write_ids[i], write_columns[i], write_values[i])
 	for removal: Array in delta.removals:
 		var s: ComponentStore = _stores.get(removal[0])
 		if s:

@@ -13,7 +13,8 @@ In the first version, under the 200 road user stress load the main thread spent 
 tick, and through an emulated headset 27% of frames ran late in one 20 s run, against none in the
 two 10 s runs just before the move (same load). The cost was GDScript touching one object per road
 user per tick. Item 1 fixed it: the tick is about 2.6 ms and the stress runs are clean again
-(`../scenario-detection/performance.md`). The rest remains for the quality pass.
+(`../scenario-detection/performance.md`). The quality pass's first part, items 5, 7, 9, 10 (in
+part), and 11, took the stress tick from 2.62 ms to 2.39 ms; the rest remains.
 
 ## Optimisation, most valuable first
 
@@ -43,8 +44,8 @@ user per tick. Item 1 fixed it: the tick is about 2.6 ms and the stress runs are
      - Alias the snapshot arrays once per task.
    - **Effect:** thread scaling. Unmeasured: whether sampling a shared `Curve3D` pays the same
      validation.
-5. **`World.apply` builds an Array per write** (`ecs/delta.gd`, `ecs/world.gd`).
-   - **Change:** iterate the parallel arrays directly and cache the store across consecutive writes.
+5. **`World.apply` builds an Array per write.** Done: it reads the delta's parallel arrays
+   directly and keeps the store across consecutive writes.
 6. **`ExamLogic` rebuilds dictionaries and copies growing state** (`sim/exam_logic.gd`,
    `rules/rule_frame.gd`).
    - **Today:**
@@ -58,18 +59,17 @@ user per tick. Item 1 fixed it: the tick is about 2.6 ms and the stress runs are
      - Copy on report only, and expire dedupe entries past the window.
      - Drop the sort, since rules are spawned in order.
      - Write only changed values.
-7. **`CarState.read` runs four times per tick** (`sim/car_state.gd`).
-   - **Change:** read it once after the vehicle stage and share it.
+7. **`CarState.read` ran four times per tick.** Done: it is read once while the vehicle's columns
+   are unchanged, through a cache keyed on the store's change count (`World.memo`).
 8. **`TrafficView.draw` copies its buffer and static data every tick** (`shell/traffic_view.gd`).
    - **Change:** swap the two buffers instead of duplicating, and cache size and colour per slot.
-9. **`sorted_ids()` copies and sorts on every call** (`ecs/component_store.gd`).
-   - **Change:** cache the sorted ids per store, invalidated on add and remove, or iterate rows
-     where row order is already deterministic.
-10. **Small systems build a dictionary per row** (`sim/vehicle_logic.gd`, `sim/light_logic.gd`,
-    `sim/source_logic.gd`, `sim/detection.gd`).
-    - **Change:** alias columns and write only what changed.
-11. **Scheduling overhead** (`ecs/world_runner.gd`).
-    - **Change:** keep the sorted stage list instead of sorting it every tick.
+9. **`sorted_ids()` copied and sorted on every call.** Done: the store keeps them, rebuilt after
+   an add or remove; lights and sources iterate rows instead.
+10. **Small systems build a dictionary per row.** In part: zones alias their columns and write
+    only the flags that changed; lights and sources read rows from the columns. Still open: the
+    light and source steps take their row as a dictionary, and the vehicle step does too (one
+    row).
+11. **Scheduling overhead.** Done: the runner keeps its sorted stage list.
 
 ## Modularisation
 

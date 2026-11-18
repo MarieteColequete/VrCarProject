@@ -34,11 +34,21 @@ var _indicator_seen := VehicleProbe.Indicator.UNKNOWN
 var _indicator_since := 0.0
 
 
-## The car as the world holds it now; null when there is none.
+## The car as the world holds it now; null when there is none. Read once while the vehicle's
+## columns are unchanged and shared by everyone who asks.
 static func read(world: World) -> CarState:
 	var s := world.store(Schema.VEHICLE)
 	if s == null or s.size() == 0:
 		return null
+	var cached: Variant = world.memo.get(Schema.VEHICLE)
+	if cached != null and cached[0] == s.version:
+		return cached[1]
+	var car := _read(s)
+	world.memo[Schema.VEHICLE] = [s.version, car]
+	return car
+
+
+static func _read(s: ComponentStore) -> CarState:
 	var id := s.ids[0]
 	var car := CarState.new()
 	car.entity = id

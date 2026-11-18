@@ -87,10 +87,22 @@ func is_empty() -> bool:
 		and removals.is_empty() and events.is_empty()
 
 
-## The writes, as parallel arrays, for [method World.apply].
+## The single writes, as parallel arrays, for [method World.apply] to read without copying.
 func write_count() -> int:
 	return _ids.size()
 
 
-func write_at(index: int) -> Array:
-	return [_components[index], _ids[index], _columns[index], _values[index]]
+func write_components() -> Array[StringName]:
+	return _components
+
+
+func write_ids() -> PackedInt64Array:
+	return _ids
+
+
+func write_columns() -> Array[StringName]:
+	return _columns
+
+
+func write_values() -> Array:
+	return _values
