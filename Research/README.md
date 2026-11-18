@@ -10,6 +10,7 @@ public-facing: the public documentation stays in `README.md` and `CLAUDE.md`. Th
 |---|---|---|
 | Scenario detection | `scenario-detection/` | Phases 1 to 7 built, and the multicore run (`performance.md`) |
 | Multithreaded Godot and VR | `godot-threading-vr/` | State of the art against our measurements; five questions decided, the reference space open |
+| Code quality | `code-quality/` | Review of the functional ECS runtime, prepared for a later pass; only fixes and doc corrections acted on |
 
 ## Open flags for the author
 
@@ -30,5 +31,9 @@ public-facing: the public documentation stays in `README.md` and `CLAUDE.md`. Th
 - The `driving-mechanics` branch sets `rendering_device/driver.windows="d3d12"`; this branch uses
   Vulkan on Windows, as Godot's XR team recommends for XR (`godot-threading-vr/sources.md`, B26),
   so the merge takes this branch's line.
+- Under 200 extra road users the functional ECS spends about 5.7 ms per tick on the main thread,
+  and 27% of frames ran late through the emulated headset in one 20 s run, against none in the two
+  10 s runs just before the change; the busy junction alone runs clean. The remedies are ranked in `code-quality/review.md`, road-user state as packed
+  columns first.
 - The car control layout is still to be agreed; a wheel's full-range steering axis and pedals may
   need actions of their own.

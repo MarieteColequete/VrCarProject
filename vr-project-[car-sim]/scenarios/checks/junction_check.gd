@@ -18,9 +18,6 @@ extends Check
 @export var indicator_fault: FaultDef = preload("res://scenarios/data/faults/no_indicator_turn.tres")
 @export var wrong_turn_fault: FaultDef = preload("res://scenarios/data/faults/wrong_turn.tres")
 
-var _held := {}
-var _judged := false
-
 
 func required_exports() -> PackedStringArray:
 	return PackedStringArray() if judge_on_exit else PackedStringArray(["approach_zone"])
@@ -33,34 +30,15 @@ func _get_configuration_warnings() -> PackedStringArray:
 	return warnings
 
 
-func _on_bound() -> void:
-	if not judge_on_exit:
-		watch(approach_zone, Callable(), _on_committed)
+func rule_script() -> Script:
+	return JunctionRule
+
+
+func rule_params(bake: Bake) -> Dictionary:
+	var exits: Array[Dictionary] = []
 	for child in get_children():
 		if child is JunctionExit:
-			watch(child, _on_exit.bind(child))
-
-
-func _on_committed(p: VehicleProbe) -> void:
-	_judged = false
-	_read_indicator(p)
-
-
-func _read_indicator(p: VehicleProbe) -> void:
-	for side in [VehicleProbe.Indicator.LEFT, VehicleProbe.Indicator.RIGHT]:
-		_held[side] = p.indicator_held_for(side)
-
-
-func _on_exit(p: VehicleProbe, exit: JunctionExit) -> void:
-	if _judged:
-		return
-	if judge_on_exit:
-		_read_indicator(p)
-	elif _held.is_empty():
-		return
-	_judged = true
-	if not exit.allowed:
-		report_here(wrong_turn_fault)
-	if exit.side != VehicleProbe.Indicator.OFF and p.indicator != VehicleProbe.Indicator.UNKNOWN \
-			and float(_held.get(exit.side, 0.0)) < indicator_lead:
-		report_here(indicator_fault)
+			exits.append({zone = bake.id_of(child), side = child.side, allowed = child.allowed})
+	return {approach = bake.id_of(approach_zone), judge_on_exit = judge_on_exit,
+		indicator_lead = indicator_lead, indicator_fault = indicator_fault,
+		wrong_turn_fault = wrong_turn_fault, exits = exits}

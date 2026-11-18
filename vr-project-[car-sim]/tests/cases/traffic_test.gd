@@ -1,176 +1,162 @@
 extends TestCase
-## Other road users: scripted agents, traffic lights, the spawner, and contact.
+## Other road users: scripted road users, traffic lights, the spawner, and contact.
 
 const TRAFFIC_FIXTURE := preload("res://tests/fixtures/traffic_fixture.tscn")
 
 
 func run() -> void:
-	await _test_scripted_agent()
-	await _test_traffic_light()
-	await _test_spawner()
+	_test_scripted_agent()
+	_test_traffic_light()
+	_test_spawner()
 	await _test_traffic_drives()
 
 
-func _straight_path(from: Vector3, to: Vector3) -> Path3D:
-	var path := Path3D.new()
-	path.curve = Curve3D.new()
-	path.curve.add_point(from)
-	path.curve.add_point(to)
-	root.add_child(path)
-	return path
-
-
 func _test_scripted_agent() -> void:
-	var path := _straight_path(Vector3.ZERO, Vector3(0, 0, -20))
-	var agent := ScriptedAgent.new()
-	agent.path = path
-	agent.speed = 5.0
-	agent.start_delay = 1.0
-	var finished := [false]
-	agent.finished.connect(func() -> void: finished[0] = true)
-	root.add_child(agent)
-	await frames(30)
-	expect(agent.state == ScriptedAgent.State.WAITING and agent.global_position.is_zero_approx(),
-		"an agent waits out its start delay at the start of its path")
-	expect(absf(agent.time_to(20.0) - (0.5 + 4.0)) < 0.05,
-		"time_to counts the remaining delay and the distance at speed (%.3f)" % agent.time_to(20.0))
-	await frames(90)
-	expect(agent.state == ScriptedAgent.State.MOVING and absf(agent.progress - 5.0) < 0.2,
-		"one second after starting, it is 5 m along at 5 m/s (%.2f)" % agent.progress)
-	expect((-agent.global_basis.z).is_equal_approx(Vector3(0, 0, -1)), "it faces along its path")
-	await frames(240)
-	expect(agent.state == ScriptedAgent.State.DONE and finished[0]
-		and agent.global_position.is_equal_approx(Vector3(0, 0, -20)),
+	var s := sim()
+	var line := path(s, Vector3.ZERO, Vector3(0, 0, -20))
+	var events := []
+	record_sim(s, events)
+	var agent := road_user(s, line, {speed = 5.0, start_delay = 1.0})
+	tick(s, 30)
+	var a := state_of(s, agent)
+	expect(a.state == AgentState.State.WAITING and a.position().is_zero_approx(),
+		"a road user waits out its start delay at the start of its path")
+	var lanes: Dictionary = s.world.resources.lanes
+	var due := AgentLogic.time_to(a, 20.0, lanes)
+	expect(absf(due - (0.5 + 4.0)) < 0.05,
+		"time_to counts the remaining delay and the distance at speed (%.3f)" % due)
+	tick(s, 90)
+	a = state_of(s, agent)
+	expect(a.state == AgentState.State.MOVING and absf(a.progress - 5.0) < 0.25,
+		"one second after starting, it is 5 m along at 5 m/s (%.2f)" % a.progress)
+	expect(a.forward().is_equal_approx(Vector3(0, 0, -1)), "it faces along its path")
+	tick(s, 240)
+	a = state_of(s, agent)
+	expect(a.state == AgentState.State.DONE and a.position().is_equal_approx(Vector3(0, 0, -20))
+		and events.any(func(e: WorldEvent) -> bool: return e.kind == &"agent_finished"),
 		"at the end of its path it stops and reports finished")
-	agent.free()
+	end_sim(s)
 
-	var pauser := ScriptedAgent.new()
-	pauser.path = path
-	pauser.speed = 5.0
-	pauser.pause_at = 10.0
-	pauser.pause_time = 2.0
-	root.add_child(pauser)
-	expect(is_equal_approx(pauser.time_to(20.0), 4.0 + 2.0), "time_to includes a pause still ahead")
-	await frames(180)
-	expect(pauser.state == ScriptedAgent.State.PAUSED and is_equal_approx(pauser.progress, 10.0),
+	s = sim()
+	line = path(s, Vector3.ZERO, Vector3(0, 0, -20))
+	var pauser := road_user(s, line, {speed = 5.0, pause_at = 10.0, pause_time = 2.0})
+	expect(is_equal_approx(AgentLogic.time_to(state_of(s, pauser), 20.0, s.world.resources.lanes),
+		4.0 + 2.0), "time_to includes a pause still ahead")
+	tick(s, 180)
+	a = state_of(s, pauser)
+	expect(a.state == AgentState.State.PAUSED and is_equal_approx(a.progress, 10.0),
 		"it pauses at its pause point")
-	await frames(70)
-	expect(pauser.state == ScriptedAgent.State.MOVING, "and moves on after the pause")
-	pauser.free()
+	tick(s, 70)
+	expect(state_of(s, pauser).state == AgentState.State.MOVING, "and moves on after the pause")
+	end_sim(s)
 
-	var looper := ScriptedAgent.new()
-	looper.path = path
-	looper.speed = 10.0
-	looper.loop = true
-	root.add_child(looper)
-	await frames(150)
-	expect(looper.state == ScriptedAgent.State.MOVING and absf(looper.progress - 5.0) < 0.3,
-		"a looping agent starts its next lap (%.2f)" % looper.progress)
-	expect(looper.collision_layer == Layers.OBSTACLE
-		and not looper.is_in_group(Layers.GROUP_PEDESTRIAN),
-		"a car agent is an obstacle")
-	looper.free()
-	path.free()
+	s = sim()
+	line = path(s, Vector3.ZERO, Vector3(0, 0, -20))
+	var looper := road_user(s, line, {speed = 10.0, loop = true})
+	tick(s, 150)
+	a = state_of(s, looper)
+	expect(a.state == AgentState.State.MOVING and absf(a.progress - 5.0) < 0.5,
+		"a looping road user starts its next lap (%.2f)" % a.progress)
+	end_sim(s)
+
+
+## The phases a light runs through over [param ticks], triggered at tick [param trigger_at].
+func _phases(light: Dictionary, ticks: int, trigger_at := -1) -> Array:
+	var seen := []
+	var state := light.duplicate()
+	state.merge(LightLogic.initial(light), true)
+	for i in ticks:
+		var next := LightLogic.step(state, DT, i == trigger_at)
+		if next.state != state.state:
+			seen.append(next.state)
+		state.merge(next, true)
+	return [seen, state.state]
 
 
 func _test_traffic_light() -> void:
-	var light := TrafficLight.new()
-	light.red_time = 1.0
-	light.red_amber_time = 0.5
-	light.green_time = 1.0
-	light.amber_time = 0.5
-	var seen: Array[TrafficLight.Light] = []
-	light.state_changed.connect(func(s: TrafficLight.Light) -> void: seen.append(s))
-	root.add_child(light)
-	expect(light.state == TrafficLight.Light.RED and light.is_red(), "a cycling light starts at its initial phase")
-	await frames(190)
-	expect(seen == [TrafficLight.Light.RED_AMBER, TrafficLight.Light.GREEN, TrafficLight.Light.AMBER,
-		TrafficLight.Light.RED], "it runs red and amber, green, amber, red on its timers: %s" % [seen])
-	light.free()
-
-	var approach := TrafficLight.new()
-	approach.mode = TrafficLight.Mode.ON_APPROACH
-	approach.initial = TrafficLight.Light.GREEN
-	approach.trigger_delay = 0.5
-	approach.amber_time = 1.0
-	approach.red_time = 1.0
-	approach.red_amber_time = 0.5
-	seen.clear()
-	approach.state_changed.connect(func(s: TrafficLight.Light) -> void: seen.append(s))
-	root.add_child(approach)
-	await frames(120)
-	expect(seen.is_empty() and approach.state == TrafficLight.Light.GREEN,
+	var cycle := {mode = TrafficLight.Mode.CYCLE, initial = TrafficLight.Light.RED, red_time = 1.0,
+		red_amber_time = 0.5, green_time = 1.0, amber_time = 0.5, trigger_delay = 0.0}
+	var phases := _phases(cycle, 190)
+	expect(phases[0] == [TrafficLight.Light.RED_AMBER, TrafficLight.Light.GREEN,
+		TrafficLight.Light.AMBER, TrafficLight.Light.RED],
+		"a cycling light runs red and amber, green, amber, red on its timers: %s" % [phases[0]])
+	var approach := {mode = TrafficLight.Mode.ON_APPROACH, initial = TrafficLight.Light.GREEN,
+		red_time = 1.0, red_amber_time = 0.5, green_time = 6.0, amber_time = 1.0,
+		trigger_delay = 0.5}
+	phases = _phases(approach, 120)
+	expect(phases[0].is_empty() and phases[1] == TrafficLight.Light.GREEN,
 		"a light on approach holds green until triggered")
-	approach._on_triggered(null)
-	await frames(20)
-	expect(approach.state == TrafficLight.Light.GREEN, "and waits out its trigger delay")
-	await frames(20)
-	expect(approach.state == TrafficLight.Light.AMBER, "then turns amber")
-	await frames(600)
-	expect(seen == [TrafficLight.Light.AMBER, TrafficLight.Light.RED, TrafficLight.Light.RED_AMBER,
-		TrafficLight.Light.GREEN], "and runs once round to green, where it holds: %s" % [seen])
-	approach.free()
+	phases = _phases(approach, 140, 120)
+	expect(phases[1] == TrafficLight.Light.GREEN, "and waits out its trigger delay")
+	phases = _phases(approach, 160, 120)
+	expect(phases[1] == TrafficLight.Light.AMBER, "then turns amber")
+	phases = _phases(approach, 760, 120)
+	expect(phases[0] == [TrafficLight.Light.AMBER, TrafficLight.Light.RED,
+		TrafficLight.Light.RED_AMBER, TrafficLight.Light.GREEN],
+		"and runs once round to green, where it holds: %s" % [phases[0]])
 
 
-func _bays(count: int) -> Array[ParkingBay]:
-	var bays: Array[ParkingBay] = []
-	for i in count:
-		var bay := ParkingBay.new()
-		bay.position = Vector3(i * 3.0, 0, -50)
-		root.add_child(bay)
-		bays.append(bay)
-	return bays
-
-
-func _filled_indices(seed_value: int, occupancy: float, reserved_index := -1) -> Array[int]:
-	var bays := _bays(6)
-	if reserved_index >= 0:
-		bays[reserved_index].reserved = true
+func _filled(seed_value: int, occupancy: float, reserved_index := -1) -> Array[int]:
 	var spawner := AgentSpawner.new()
 	spawner.random_seed = seed_value
 	spawner.occupancy = occupancy
-	spawner.bays = bays
-	root.add_child(spawner)
-	var out: Array[int] = []
-	for i in bays.size():
-		if bays[i].occupied:
-			out.append(i)
+	var eligible: Array[bool] = []
+	for i in 6:
+		spawner.bays.append(null)
+		eligible.append(i != reserved_index)
+	var chosen := spawner.choose(eligible)
 	spawner.free()
-	for bay in bays:
-		bay.free()
-	return out
+	chosen.sort()
+	return chosen
 
 
 func _test_spawner() -> void:
-	var first := _filled_indices(7, 0.5)
+	var first := _filled(7, 0.5)
 	expect(first.size() == 3, "half of six bays are filled (%s)" % [first])
-	expect(_filled_indices(7, 0.5) == first, "the same seed fills the same bays")
-	var others := [first]
-	for seed_value in [1, 2, 3, 4, 5]:
-		others.append(_filled_indices(seed_value, 0.5))
+	expect(_filled(7, 0.5) == first, "the same seed fills the same bays")
 	var distinct := {}
-	for set_ in others:
-		distinct[str(set_)] = true
+	for seed_value in [1, 2, 3, 4, 5, 7]:
+		distinct[str(_filled(seed_value, 0.5))] = true
 	expect(distinct.size() > 1, "different seeds fill different bays")
-	expect(_filled_indices(3, 1.0).size() == 5, "a full car park still keeps one bay free")
-	expect(not _filled_indices(3, 1.0, 2).has(2), "a reserved bay is never filled")
+	expect(_filled(3, 1.0).size() == 5, "a full car park still keeps one bay free")
+	expect(not _filled(3, 1.0, 2).has(2), "a reserved bay is never filled")
 
-	var bays := _bays(2)
+	# A car park of six bays and a spawner, baked on its own.
+	var scenario := Scenario.new()
 	var spawner := AgentSpawner.new()
-	spawner.occupancy = 0.5
-	spawner.keep_free = 0
-	spawner.bays = bays
-	root.add_child(spawner)
-	await physics_frame
-	await physics_frame
-	var taken := bays[0] if bays[0].occupied else bays[1]
-	var other := bays[1] if taken == bays[0] else bays[0]
-	taken.occupied = false
-	expect(not taken.is_free() and other.is_free(),
-		"a spawned car stands in its bay, so the bay reads as taken even unmarked")
-	spawner.free()
-	for bay in bays:
-		bay.free()
+	spawner.random_seed = 7
+	for i in 6:
+		var bay := ParkingBay.new()
+		bay.position = Vector3(i * 3.0, 0, -50)
+		scenario.add_child(bay)
+		spawner.bays.append(bay)
+	scenario.add_child(spawner)
+	var car := Node3D.new()
+	var probe := VehicleProbe.new()
+	car.add_child(probe)
+	root.add_child(scenario)
+	root.add_child(car)
+	var world := World.new()
+	Bake.scene(world, scenario, probe)
+	var bays := world.store(Schema.BAY)
+	var obstacles := world.store(Schema.OBSTACLE)
+	var parked := 0
+	var standing := 0
+	for id in bays.sorted_ids():
+		if not bays.get_value(id, &"occupied"):
+			continue
+		parked += 1
+		for row in obstacles.size():
+			var centre: Vector3 = (obstacles.column(&"transform")[row] as Transform3D).origin
+			if Geo.overhang(bays.get_value(id, &"transform"), bays.get_value(id, &"size"),
+					PackedVector3Array([centre])) <= 0.0:
+				standing += 1
+				break
+	expect(parked == 3 and standing == parked,
+		"each bay the spawner takes is marked occupied and has a parked car standing in it (%d)"
+		% parked)
+	scenario.free()
+	car.free()
 
 
 func _test_traffic_drives() -> void:

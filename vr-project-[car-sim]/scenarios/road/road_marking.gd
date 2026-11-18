@@ -53,7 +53,13 @@ func half_width() -> float:
 ## Whether the marking separates lanes (solid, dashed, or double solid), the lines crossed in a
 ## lane change.
 func is_lane_line() -> bool:
-	return kind == Kind.SOLID or kind == Kind.DASHED or kind == Kind.DOUBLE_SOLID
+	return is_lane_kind(kind)
+
+
+## Whether a marking of [param marking_kind] separates lanes.
+static func is_lane_kind(marking_kind: int) -> bool:
+	return marking_kind == Kind.SOLID or marking_kind == Kind.DASHED \
+		or marking_kind == Kind.DOUBLE_SOLID
 
 
 ## The marking's centreline in world space, along the baked curve.

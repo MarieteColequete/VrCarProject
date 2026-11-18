@@ -10,9 +10,10 @@ func run() -> void:
 
 func _test_traffic_lights() -> void:
 	var check := TrafficLightCheck.new()
-	expect(is_equal_approx(check.stopping_distance(10.0), 10.0 * 0.75 + 100.0 / 8.0),
-		"stopping distance is reaction distance plus braking distance")
+	var params := {reaction_time = check.reaction_time, deceleration = check.deceleration}
 	check.free()
+	expect(is_equal_approx(TrafficLightRule.stopping_distance(params, 10.0),
+		10.0 * 0.75 + 100.0 / 8.0), "stopping distance is reaction distance plus braking distance")
 
 	var r := await drive([
 		{to = at(52), speed = 13.5}, {to = at(2.7), speed = 8.0},

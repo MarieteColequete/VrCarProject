@@ -138,5 +138,91 @@ func spawn_runner(scenario: PackedScene = null) -> ExamRunner:
 	return runner
 
 
+## One physics tick at the tests' rate.
+const DT := 1.0 / 60.0
+
+
+## A simulation with no scene and no exam, stepped by hand with [method tick]: lanes, road users,
+## lights, and, when [param car] is given, the player's car standing there (its pose is the
+## test's to move). Free it with [method end_sim].
+func sim(car := Transform3D(Basis(), Vector3.INF)) -> WorldRunner:
+	var runner := WorldRunner.new()
+	Simulation.empty_world(runner.world)
+	Simulation.add_systems(runner, false)
+	if car.origin != Vector3.INF:
+		runner.world.spawn({vehicle = {transform = car, name = &"Car"}})
+	return runner
+
+
+func tick(runner: WorldRunner, count := 1) -> void:
+	for i in count:
+		runner.step(DT)
+
+
+func end_sim(runner: WorldRunner) -> void:
+	runner.stop()
+	runner.free()
+
+
+## Moves the car of a hand-stepped simulation, as the shell would read it from a car node.
+func place_car(runner: WorldRunner, at: Vector3, facing := Vector3.FORWARD) -> void:
+	var world := runner.world
+	var t := Transform3D(Basis.looking_at(facing, Vector3.UP), at)
+	world.store(Schema.VEHICLE).set_value(Schema.single(world, Schema.VEHICLE), &"transform", t)
+
+
+func car_entity(runner: WorldRunner) -> int:
+	return Schema.single(runner.world, Schema.VEHICLE)
+
+
+## A straight path from [param from] to [param to]; a lane with rules when [param settings] sets
+## [code]is_lane[/code].
+func path(runner: WorldRunner, from: Vector3, to: Vector3, settings := {}) -> LaneData:
+	return Simulation.add_path(runner.world, PackedVector3Array([from, to]), settings)
+
+
+func road_user(runner: WorldRunner, lane: LaneData, settings := {}) -> int:
+	return Simulation.add_agent(runner.world, lane, settings)
+
+
+func state_of(runner: WorldRunner, agent: int) -> AgentState:
+	return runner.world.get_value(Schema.AGENT, agent, &"state")
+
+
+## Appends every event of a hand-stepped simulation to [param into].
+func record_sim(runner: WorldRunner, into: Array) -> void:
+	runner.events_emitted.connect(func(events: Array[WorldEvent]) -> void:
+		into.append_array(events))
+
+
+## Appends every world event of [param runner]'s attempt from now on to [param into].
+func record_events(runner: ExamRunner, into: Array) -> void:
+	runner.world_runner.events_emitted.connect(func(events: Array[WorldEvent]) -> void:
+		into.append_array(events))
+
+
+## Appends a line "<road user> <reaction>" to [param into] for every reaction in [param runner]'s
+## attempt from now on, named as they happen.
+func record_reactions(runner: ExamRunner, into: Array) -> void:
+	var world := runner.world()
+	runner.world_runner.events_emitted.connect(func(events: Array[WorldEvent]) -> void:
+		for event in events:
+			if event.kind == &"reacted":
+				into.append("%s %s" % [world.get_value(Schema.AGENT, event.entity, &"name"),
+					event.data.kind]))
+
+
+## The state of the road user named [param agent_name] in [param runner]'s world.
+func agent_state(runner: ExamRunner, agent_name: StringName) -> AgentState:
+	var world := runner.world()
+	var id := Schema.find(world, Schema.AGENT, agent_name)
+	return world.get_value(Schema.AGENT, id, &"state") if id else null
+
+
+## The car as [param runner]'s world sees it now.
+func car_state(runner: ExamRunner) -> CarState:
+	return CarState.read(runner.world())
+
+
 func _with(what: String, r: ScenarioResult) -> String:
 	return "%s: %s" % [what, r.summary() if r else "no result"]

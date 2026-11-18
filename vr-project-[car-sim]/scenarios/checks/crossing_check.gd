@@ -15,31 +15,16 @@ extends Check
 @export var give_way_fault: FaultDef = preload("res://scenarios/data/faults/crossing_not_given_way.tres")
 @export var stopped_on_fault: FaultDef = preload("res://scenarios/data/faults/crossing_stopped_on.tres")
 
-var _stopped_on := Episode.new()
-
 
 func required_exports() -> PackedStringArray:
 	return ["crossing_zone", "pedestrians"]
 
 
-func _on_bound() -> void:
-	watch(crossing_zone, func(_p: VehicleProbe) -> void:
-		if is_in_use():
-			report_here(give_way_fault))
+func rule_script() -> Script:
+	return CrossingRule
 
 
-## Whether any of this crossing's pedestrians is on it or about to step onto it.
-func is_in_use() -> bool:
-	for walker in pedestrians:
-		if walker and not walker.is_done() \
-				and crossing_zone.contains_point(walker.global_position, kerb_margin):
-			return true
-	return false
-
-
-func _physics_process(delta: float) -> void:
-	if not is_live():
-		return
-	var p := probe()
-	if _stopped_on.update(crossing_zone.contains(p) and p.is_stopped(), delta, grace):
-		report_here(stopped_on_fault)
+func rule_params(bake: Bake) -> Dictionary:
+	return {zone = bake.id_of(crossing_zone), pedestrians = bake.ids_of(pedestrians),
+		kerb_margin = kerb_margin, grace = grace, give_way_fault = give_way_fault,
+		stopped_on_fault = stopped_on_fault}

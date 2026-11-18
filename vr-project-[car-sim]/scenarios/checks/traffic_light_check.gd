@@ -17,49 +17,16 @@ extends Check
 ## A firm but comfortable deceleration, metres per second squared.
 @export var deceleration := 4.0
 
-var _could_stop_on_amber := false
-
 
 func required_exports() -> PackedStringArray:
 	return ["light", "line_zone"]
 
 
-func _on_bound() -> void:
-	if light:
-		light.state_changed.connect(_on_light_changed)
-	watch(line_zone, _on_line_entered)
+func rule_script() -> Script:
+	return TrafficLightRule
 
 
-## Metres from the car's front to the line along the direction of traffic; negative once past.
-func distance_to_line(p: VehicleProbe) -> float:
-	var front := p.global_position + p.forward() * p.body_length * 0.5
-	return (global_position - front).dot(_traffic_direction())
-
-
-func stopping_distance(speed: float) -> float:
-	return speed * reaction_time + speed * speed / (2.0 * deceleration)
-
-
-func _on_light_changed(state: TrafficLight.Light) -> void:
-	if state == TrafficLight.Light.AMBER and is_live():
-		var p := probe()
-		var distance := distance_to_line(p)
-		_could_stop_on_amber = p.travels_along(_traffic_direction()) and distance > 0.0 \
-			and distance >= stopping_distance(maxf(p.speed, 0.0))
-	elif state == TrafficLight.Light.GREEN:
-		_could_stop_on_amber = false
-
-
-func _on_line_entered(p: VehicleProbe) -> void:
-	if not p.travels_along(_traffic_direction()):
-		return
-	if light.is_red():
-		report_here(red_fault)
-	elif light.state == TrafficLight.Light.AMBER and _could_stop_on_amber:
-		report_here(amber_fault)
-
-
-func _traffic_direction() -> Vector3:
-	var d := -global_basis.z
-	d.y = 0.0
-	return d.normalized()
+func rule_params(bake: Bake) -> Dictionary:
+	return {light = bake.id_of(light), line = bake.id_of(line_zone), red_fault = red_fault,
+		amber_fault = amber_fault, reaction_time = reaction_time, deceleration = deceleration,
+		position = global_position, direction = Bake.ground_direction(-global_basis.z)}

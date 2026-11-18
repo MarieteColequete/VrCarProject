@@ -4,7 +4,7 @@
 
 When this roadmap was written, `feat/scenario-detection` had a working foundation: `VehicleProbe`,
 the `Check` nodes, `ExamSession` with data-driven scoring, one stop junction scenario, keyboard,
-gamepad and VR play, and 45 headless tests. The next layer was what a real exam judges:
+gamepad and VR play, and the headless tests. The next layer was what a real exam judges:
 
 - **Lines:** crossing or driving over road markings.
 - **Parking:** both whether a spot is legal and free, and how well the manoeuvre is done.
@@ -26,7 +26,7 @@ own branch). That is decided per phase, on order.
 - **Each new check gets scripted drives** in a case under `tests/cases/`: one passing and one
   failing per rule.
 
-Status: phases 1 to 7 are built, and the multicore run after them.
+Status: phases 1 to 7 are built, then the multicore run and the functional ECS.
 
 ## Phase 1: probe and engine upgrades (needed by everything below)
 
@@ -204,7 +204,8 @@ Road users are dual: a script plays by the book until it is forced to react.
 
 ## Multicore run
 
-- Road users think on worker threads: a `TrafficSystem` takes a `TrafficSnapshot` each physics
+- Road users think on worker threads: a `TrafficSystem` (`TrafficPipeline` since the functional
+  ECS) takes a `TrafficSnapshot` each physics
   tick, they decide from it in parallel through the `WorkerThreadPool`, pipelined across ticks,
   and the decisions are applied in a fixed order, so traffic stays reproducible (physics events
   underneath are best effort, `../godot-threading-vr/brief.md`).
@@ -212,6 +213,19 @@ Road users are dual: a script plays by the book until it is forced to react.
 - Physics steps and rendering run on their own threads (`project.godot`). Rendering went back to
   the main thread on 2026-11-17 (`../godot-threading-vr/brief.md`).
 - Method and numbers: `performance.md`.
+
+## Functional ECS
+
+- The runtime moved onto a `World` of component stores with pure systems returning deltas; the
+  scenes became authoring, baked into the world at load (`README.md`, Simulation).
+- Detection and scoring are geometry: zones, contact, bays, and lane rules no longer use
+  `Area3D`, shape queries, or node lookups, so scoring is reproducible by construction.
+- Checks became pure rules (`scenarios/rules/`) folded by `ExamLogic`; road users became entities
+  driven by `AgentLogic` and `AgentThinker`; drawing moved to views (`scenarios/shell/`).
+- Tests were rewritten around the world: scenario drives as before, framework cases on
+  hand-stepped worlds with no scene.
+- Measurements and the open optimisation: `performance.md`, ECS; the code quality review:
+  `../code-quality/review.md`.
 
 ## Authoring and tooling, alongside the phases
 
@@ -232,7 +246,7 @@ Road users are dual: a script plays by the book until it is forced to react.
 ## Verification
 
 - Every phase adds scripted drives to the headless runner, a passing and a failing case per rule:
-  `godot --headless --fixed-fps 60 --path 'vr-project-[car-sim]' -s res://tests/run_tests.gd`. The import gate
+  `godot --headless --xr-mode off --fixed-fps 60 --path 'vr-project-[car-sim]' -s res://tests/run_tests.gd`. The import gate
   passes too.
 - Each new scenario is also driven by hand (keyboard and gamepad, then a headset), and the printed
   `ScenarioResult` is compared with the expected faults.

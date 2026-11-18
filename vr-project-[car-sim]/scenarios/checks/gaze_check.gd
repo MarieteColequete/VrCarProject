@@ -33,77 +33,14 @@ extends Check
 ## Seconds within which the wheels crossing the same line are one manoeuvre.
 @export var crossing_merge := 3.0
 
-# The last session time each tracked look was seen, keyed by its signed angle.
-var _last_seen := {}
-var _last_crossed := {}
-var _stopped_long := false
+
+func rule_script() -> Script:
+	return GazeRule
 
 
-func _on_bound() -> void:
-	probe().started_moving.connect(_on_started_moving)
-
-
-## The driver's look as a signed angle from the car's forward direction, degrees, left positive.
-func look_angle() -> float:
-	var p := probe()
-	var look := p.look_direction()
-	look.y = 0.0
-	if look.length() < 0.001:
-		return 0.0
-	return rad_to_deg(p.forward().signed_angle_to(look.normalized(), Vector3.UP))
-
-
-## Whether the driver looked [param angle] degrees to [param side] within the window. Only the
-## mirror and shoulder angles are tracked.
-func looked(side: VehicleProbe.Indicator, angle: float) -> bool:
-	var target := _signed(side, angle)
-	return _last_seen.has(target) and session.elapsed - float(_last_seen[target]) <= window
-
-
-func _physics_process(_delta: float) -> void:
-	if not is_live():
-		return
-	_record()
-	var p := probe()
-	if p.direction == VehicleProbe.Direction.STOPPED and p.stopped_for >= move_off_after:
-		_stopped_long = true
-	for hit in session.wheel_crossings():
-		_on_crossed(hit, p)
-
-
-func _record() -> void:
-	var angle := look_angle()
-	for side in [VehicleProbe.Indicator.LEFT, VehicleProbe.Indicator.RIGHT]:
-		for target_angle in [mirror_angle, shoulder_angle]:
-			var target := _signed(side, target_angle)
-			if absf(angle - target) <= tolerance:
-				_last_seen[target] = session.elapsed
-
-
-func _on_crossed(hit: MarkingHit, p: VehicleProbe) -> void:
-	var marking := hit.marking
-	if not marking.is_lane_line():
-		return
-	var t := session.elapsed
-	var merged := _last_crossed.has(marking) and t - float(_last_crossed[marking]) < crossing_merge
-	_last_crossed[marking] = t
-	if merged:
-		return
-	_judge(p.side_of(hit.normal), hit.point)
-
-
-func _on_started_moving(_direction: VehicleProbe.Direction) -> void:
-	if check_move_off and _stopped_long and is_live():
-		_judge(move_off_side, probe().global_position)
-	_stopped_long = false
-
-
-func _judge(side: VehicleProbe.Indicator, at: Vector3) -> void:
-	if not looked(side, mirror_angle):
-		report(mirror_fault, at)
-	if require_shoulder and not looked(side, shoulder_angle):
-		report(shoulder_fault, at)
-
-
-static func _signed(side: VehicleProbe.Indicator, angle: float) -> float:
-	return angle if side == VehicleProbe.Indicator.LEFT else -angle
+func rule_params(_bake: Bake) -> Dictionary:
+	return {mirror_fault = mirror_fault, shoulder_fault = shoulder_fault,
+		require_shoulder = require_shoulder, window = window, mirror_angle = mirror_angle,
+		shoulder_angle = shoulder_angle, tolerance = tolerance, check_move_off = check_move_off,
+		move_off_side = move_off_side, move_off_after = move_off_after,
+		crossing_merge = crossing_merge}

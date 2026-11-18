@@ -7,7 +7,8 @@ Measured 2026-11-17 on an AMD Ryzen 9 7900X3D (12 cores, 24 threads), Linux, God
 - **Headless traffic benchmark** (`TESTS_FILTER=bench`, `tests/cases/bench_test.gd`):
   - 200 reactive road users on ten looping 400 m lanes, 20 per lane, with a cycling light each;
   - a 40 s warm-up, then 600 physics ticks at a fixed 60 fps;
-  - per tick it reads the `TrafficSystem` timers and `Performance.TIME_PHYSICS_PROCESS`.
+  - per tick it reads the traffic timers (`TrafficSystem` then, `TrafficPipeline` since the
+    functional ECS) and the tick's time.
 - **Rendered frame run** (a scratch script; not kept):
   - the busy junction plus 200 stress road users, 1280x720, vsync off;
   - 25 s warm-up, then 10 s of frames, giving the mean and 99th percentile frame time;
@@ -54,8 +55,9 @@ readout (main thread process time) is not.
 | Traffic on worker threads | 7.19 ms | 12.13 ms | 139 |
 | Traffic on worker threads, physics and render threads | 4.57 ms | 10.08 ms | 219 |
 
-At 90 Hz a frame has 11.1 ms. Before, the slowest frames missed it (p99 14.95 ms); now they fit
-(p99 10.08 ms).
+At 90 Hz a frame has 11.1 ms. Before the multicore run the slowest frames missed it (p99
+14.95 ms); after it they fit (p99 10.08 ms). These runs predate the functional ECS (see its
+section).
 
 ## Emulated headset, OpenXR through Monado
 
@@ -178,6 +180,53 @@ Decided 2026-11-17 (`../godot-threading-vr/brief.md`):
 - The renderer is Mobile, and the world ticks at a fixed 60 Hz with physics interpolation. The
   tables above were measured on Forward Plus without interpolation, so they describe that
   configuration only.
+
+## Functional ECS, 2026-11-18
+
+Same machine, debug build, Mobile renderer, Safe render model, physics interpolation on.
+
+### Measured
+
+- **Headless traffic benchmark** (`TESTS_FILTER=bench`, 200 road users):
+  - main thread per tick: snapshot and loading the thinkers 1.2 ms, committing 1.5 ms (2.7 ms,
+    against 1.3 ms before);
+  - thinking scales again on worker threads: about 3.7 ms of work inline against 1.6 ms waited in
+    parallel, in line with the node-based design.
+- **Tick breakdown**, busy junction plus 200 stress road users (`WorldRunner.timings`), per tick:
+  traffic finish 1.9 ms (wait included), traffic begin 1.4 ms, views 1.3 ms, exam 0.35 ms, lights
+  and sources 0.3 ms, zones and contacts 0.3 ms; about 5.7 ms in all.
+- **Through Monado** at 1971x2215 per eye, one run each, 8 s warm-up and 20 s measured:
+  - the busy junction alone (23 road users) runs at 90 Hz with 0.06% late frames;
+  - with the 200 stress road users, 27% of frames run late (p99 19.8 ms).
+- **Baseline at the same load.** The two 10 s smoke runs just before the change (Mobile, Safe,
+  interpolation, 215 road users) had no late frame. The Forward Plus matrix above had 0.8% to
+  1.6%. Run spread reaches two times, but not this far: under the stress load the main thread's
+  tick no longer fits beside rendering.
+
+### What threads may do in GDScript
+
+Found while porting, by micro-benchmarks on 200 tasks of 20,000 iterations each:
+
+- Plain arithmetic scales across threads (94 ms inline, 15 ms on 8 tasks).
+- Any GDScript function call contends: static or instance, the work stops scaling (302 ms inline,
+  346 ms parallel; instance calls on separate objects 375 ms against 1,271 ms).
+- Creating script-class objects is costly and contends: 4.4 s inline for 4 million, 7.3 s in
+  parallel; plain arrays do not (314 ms against 257 ms).
+- Reading another object's members validates it under ObjectDB's global lock (sources A16);
+  thinking that read its state from another object did not scale, and scaled again once it read
+  its own fields (`AgentThinker`).
+
+The rule followed since: code on worker threads reads its own fields and plain arrays, keeps calls
+few, and creates no script objects; objects it fills are made on the main thread.
+
+### Open
+
+- The main thread's cost per road user is GDScript touching one object per road user per tick
+  (committing a new `AgentState`, loading a thinker, drawing). Keeping road-user state in
+  packed-array columns instead, with the view reading the columns straight into the multimesh
+  buffer, is the remedy estimated as most promising; `../code-quality/review.md` ranks it with the
+  rest.
+- All figures are from a debug build; a release export runs GDScript faster and was not measured.
 
 ## Open
 

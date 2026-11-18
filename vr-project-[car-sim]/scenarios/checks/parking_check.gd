@@ -31,51 +31,15 @@ extends Check
 @export var manoeuvres_fault: FaultDef = preload("res://scenarios/data/faults/parking_too_many_manoeuvres.tres")
 @export var too_slow_fault: FaultDef = preload("res://scenarios/data/faults/parking_too_slow.tres")
 
-var _baseline := -1
-var _started := 0.0
-var _judged := false
+
+func rule_script() -> Script:
+	return ParkingRule
 
 
-func _physics_process(_delta: float) -> void:
-	if not is_live():
-		_baseline = -1
-		return
-	var p := probe()
-	if _baseline < 0:
-		_baseline = p.direction_changes
-		_started = session.elapsed
-	if p.direction != VehicleProbe.Direction.STOPPED:
-		_judged = false
-		return
-	if _judged or not p.is_settled(settle_time):
-		return
-	_judged = true
-	var bay := bay_under(p)
-	if bay:
-		_judge(bay, p)
-
-
-## The bay holding the car's centre, among those this check judges.
-func bay_under(p: VehicleProbe) -> ParkingBay:
-	if bays.is_empty():
-		return session.scenario.bay_at(p.global_position)
-	for bay in bays:
-		if bay and bay.contains(p.global_position):
-			return bay
-	return null
-
-
-func _judge(bay: ParkingBay, p: VehicleProbe) -> void:
-	var over := bay.overhang(p.corners())
-	if over > overhang_margin:
-		report_here(overhang_serious_fault)
-	elif over > 0.0:
-		report_here(overhang_minor_fault)
-	if bay.facing_error(p.forward()) > facing_tolerance:
-		report_here(misaligned_fault)
-	if p.direction_changes - _baseline > max_direction_changes:
-		report_here(manoeuvres_fault)
-	if time_limit > 0.0 and session.elapsed - _started > time_limit:
-		report_here(too_slow_fault)
-	if step and not bay.reserved and not bay.occupied:
-		session.complete_step(step)
+func rule_params(bake: Bake) -> Dictionary:
+	return {step = bake.step_index(step), bays = bake.ids_of(bays), settle_time = settle_time,
+		overhang_margin = overhang_margin, facing_tolerance = facing_tolerance,
+		max_direction_changes = max_direction_changes, time_limit = time_limit,
+		overhang_minor_fault = overhang_minor_fault,
+		overhang_serious_fault = overhang_serious_fault, misaligned_fault = misaligned_fault,
+		manoeuvres_fault = manoeuvres_fault, too_slow_fault = too_slow_fault}

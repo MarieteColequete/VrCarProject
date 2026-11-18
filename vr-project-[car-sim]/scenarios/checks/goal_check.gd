@@ -13,9 +13,9 @@ func required_exports() -> PackedStringArray:
 	return ["zone"]
 
 
-func _on_bound() -> void:
-	watch(zone, func(_p: VehicleProbe) -> void:
-		if step:
-			session.complete_step(step)
-		else:
-			session.complete())
+func rule_script() -> Script:
+	return GoalRule
+
+
+func rule_params(bake: Bake) -> Dictionary:
+	return {zone = bake.id_of(zone), step = bake.step_index(step)}

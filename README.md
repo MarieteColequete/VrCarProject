@@ -57,19 +57,43 @@ It prints `XR CHECK PASS` or `XR CHECK FAIL` and exits 1 on failure.
 `Research/scenario-detection/performance.md` describes running it against Monado's simulated
 headset.
 
+## Simulation
+
+The simulation is data and pure functions, detached from what is drawn. Its state lives in a
+`World` (`scenarios/ecs/`): entities are ids, and each component is a table of plain columns, such
+as the car's motion, a zone's box, a road user's state, or a rule's state. Systems are static
+functions that read the world and return a `Delta` (values to write, entities to add or remove,
+events) instead of writing it; nothing else changes the world. Events (`WorldEvent`) are values: a
+fault, a reaction, a light changing, the car entering a zone.
+
+A `WorldRunner` runs a tick in a fixed order: it applies the traffic decided on worker threads
+during the last tick, reads the car's pose through its `VehicleProbe`, runs the systems in stages,
+applies their deltas in order, starts the next traffic work, publishes the tick's events, and runs
+the views. The stages (`Simulation`, `scenarios/sim/`) are the car's motion; zones and contacts;
+lights and traffic sources; then the rules and the session. Within a stage every system reads the
+same world.
+
+Scenario scenes stay the authoring side: when one loads, a `Bake` (`scenarios/shell/`) reads its
+markings, zones, bays, obstacles, lights, lanes, road users, sources, steps, and checks into the
+world, every node reference becoming an entity id. Detection is geometry, not physics: the car is in
+a zone while its body box overlaps the zone's box, and touches a road user or obstacle while its
+contact hull overlaps that body, so the same drive scores the same way on every run. Views draw the
+world and touch nodes and servers only: the road users are one `MultiMesh`, interpolated between
+ticks, with a kinematic body each in the physics server so the player's car collides with them;
+lights light their lamps; parked cars are placed once.
+
 ## Threads
 
 The simulation is spread across cores. The physics step runs on a thread of its own
 (`project.godot`), and Jolt spreads the simulation over its own workers. Rendering stays on the main
 thread: Godot's separate render thread is experimental and crashed the game at exit under OpenXR.
-Road users think on worker threads: the scene's `TrafficSystem` copies the world into a
-`TrafficSnapshot` each physics tick, the road users decide from it in parallel while the main thread
-drives the player's car, runs the checks, steps physics and renders, and their decisions are applied
-in a fixed order at the start of the next tick. They react one tick after they see, and their
-decisions do not depend on the threads' timing; the physics events underneath (contacts, zone
-entries) are reproducible on a best effort basis, since with several worker threads Jolt may order
-them by thread timing. The method and the numbers are in
-`Research/scenario-detection/performance.md`.
+Road users think on worker threads: the `TrafficPipeline` copies the world into a `TrafficSnapshot`
+each tick, each road user's `AgentThinker` decides from it in parallel while the main thread
+renders and runs the rest of the tick, and the decisions are committed in a fixed order at the
+start of the next tick. They react one tick after they see, and their decisions do not depend on
+the threads' timing; with detection and scoring on geometry, scoring is reproducible by
+construction, and only the player's own car physics is best effort. The method and the numbers are
+in `Research/scenario-detection/performance.md`.
 
 ## Scenarios
 
@@ -86,7 +110,8 @@ category and difficulty, the briefing, the time limit, the scoring policy, and t
 spawn. `scenarios/catalogue.tres`, a `ScenarioCatalogue`, lists every definition in menu order;
 menus read it and start a scenario with `ExamRunner.load_definition`.
 
-Checks are nodes placed in the scene, each watching one rule:
+Checks are nodes placed in the scene, each authoring one rule; when the scenario loads, each becomes
+a rule entity judged by the rule's pure functions (`scenarios/rules/`):
 
 | Check | Rule |
 |---|---|
@@ -106,8 +131,8 @@ Checks are nodes placed in the scene, each watching one rule:
 | `TrafficConflictCheck` | Getting in another road user's way so that it has to brake hard |
 | `GoalCheck` | Reaching the goal zone completes the attempt |
 
-Zones are `TriggerZone` areas with a collision shape drawn in the editor. Road markings are
-`RoadMarking` paths (solid, dashed, double solid, stop and give way lines, zebra, bay edge,
+Zones are `TriggerZone` boxes, a box collision shape drawn in the editor and judged by geometry.
+Road markings are `RoadMarking` paths (solid, dashed, double solid, stop and give way lines, zebra, bay edge,
 no-parking line, kerb): the curve draws the paint and is also what `LineCheck` judges, on the
 car's wheels rather than its centre. A `ParkingBay` is a parking space, nose-in, reversed, or
 either, that may be reserved or occupied; a kerbside space for parallel parking is a bay along the
@@ -119,15 +144,16 @@ resource defines the tiers, which of them eliminate at once, and how many faults
 attempt may collect and still pass; `default_policy.tres` is a generic policy, and a particular
 exam is another policy file.
 
-Other road users play a script by the book until they are forced to react. A `ScriptedAgent` is a
-car or a pedestrian following a `Path3D` at a set speed, starting after a delay or when the car
-enters a trigger zone, with an optional pause and loop; it reports how long it needs to reach any
-point of its path. While its way is clear it moves exactly as scripted, so an attempt plays out the
-same way each time. A `TrafficSensor` sweeps the path ahead every tick, and when something is in
-the way (the player's car, another road user, a pedestrian, an obstacle) the agent slows or stops
-by the Intelligent Driver Model, then returns to its script; road users think on worker threads
-(see Threads). The agent reports each change through its `reacted` signal, and braking harder than its `hard_brake` through `forced_to_brake`; a pedestrian
-waits for a car standing on its way.
+Other road users play a script by the book until they are forced to react. A `ScriptedAgent`
+authors a car or a pedestrian following a `Path3D` at a set speed, starting after a delay or when
+the car enters a trigger zone, with an optional pause and loop; the bake turns it into a road user
+entity, and `AgentLogic` drives it, including how long it needs to reach any point of its path.
+While its way is clear it moves exactly as scripted, so an attempt plays out the same way each time.
+A `TrafficSensor` sweeps the path ahead every tick, and when something is in the way (the player's
+car, another road user, a pedestrian, an obstacle) the road user slows or stops by the Intelligent
+Driver Model, then returns to its script; road users think on worker threads (see Threads). Each
+change is a `reacted` event, and braking harder than its `hard_brake` a `forced_to_brake` event; a
+pedestrian waits for a car standing on its way.
 
 Roads are described for road users by `TrafficLane` paths, each along a lane's centre in the
 direction of traffic: its speed limit, the lanes it continues onto, its light and stop line, the
@@ -145,20 +171,24 @@ and a side road. A `TrafficLight` cycles on timers, or holds green until the car
 then changes, so a scenario can place the change at a chosen distance. An `AgentSpawner` fills
 parking bays with parked cars chosen from a seed: the same seed gives the same car park.
 
-The car only needs a `VehicleProbe` child, which derives speed and heading from the car's motion
-and reports contact. `ExamRunner` (`scenarios/scenes/exam_runner.tscn`) spawns a scenario and its
-car and runs an `ExamSession`. The session's signals (`briefing_started`, `started`,
-`fault_committed`, `finished`) and methods (`begin`, `abort`, `restart`) are the interface for the
-UI; `finished` carries a `ScenarioResult` with the outcome and every fault. Its `to_dict()` gives
+The car only needs a `VehicleProbe` child: the simulation reads the car's pose through it, with the
+indicator and handbrake the car reports, and derives speed, direction, and stops from the pose
+alone. `ExamRunner` (`scenarios/scenes/exam_runner.tscn`) spawns a scenario and its car, bakes them
+into a world, and runs it; `add_road_user` and `add_obstacle` bake nodes added during an attempt.
+The attempt itself is `ExamLogic`, a pure reducer over the rules' results. The `ExamSession` node
+turns its events into signals (`briefing_started`, `started`, `step_changed`, `fault_committed`,
+`finished`) and the UI's methods (`begin`, `abort`, `restart`, `report_fault`) into its commands;
+they are the interface for the UI. `finished` carries a `ScenarioResult` with the outcome and every
+fault. Its `to_dict()` gives
 the same as plain data: the scenario, the outcome, each fault with its description, and each tier's
 count against the policy's limit.
 
 `scenarios/debug/scenario_sandbox.tscn` runs any catalogued scenario with the `DebugHud`, a flat
 overlay showing the briefing, the current step, the time against the limit, faults as they are
-committed, how other road users react, the frame and physics times with the traffic system's share
-of the main thread, and the result. It runs from the editor. The HUD only
-listens to the runner, the session, and the road users' signals, so it is also a working example
-of a UI on them; it hides itself in a headset.
+committed, how other road users react, the frame and physics times with the traffic pipeline's
+share of the main thread, and the result. It runs from the editor. The HUD only listens to the
+runner, the session, and the world's events, so it is also a working example of a UI on them; it
+hides itself in a headset.
 
 ### Building a scenario
 
@@ -175,7 +205,8 @@ of a UI on them; it hides itself in a headset.
 5. Add `tests/cases/scenario_<name>_test.gd` with a clean drive and one failing drive per rule.
 
 The scenario tests run headless, one case file per framework area and per scenario under
-`tests/cases/`:
+`tests/cases/`. Scenario cases drive a car through a loaded scenario; framework cases build a world
+by hand and step it (`TestCase.sim`), with no scene at all:
 
 ```
 godot --headless --xr-mode off --fixed-fps 60 --path 'vr-project-[car-sim]' -s res://tests/run_tests.gd

@@ -1,16 +1,13 @@
 @tool
 class_name TriggerZone
 extends Area3D
-## A region of the road that checks watch. It only sees bodies on the vehicle layer that carry a
-## [VehicleProbe], and reports the probe rather than the body. Its shape is a box
-## [CollisionShape3D] child.
+## A region of the road that checks watch, authored as a box [CollisionShape3D] child. When the
+## scenario loads, a [Bake] turns it into a zone entity, and the zone system decides by geometry
+## whether the car is in it; the node itself detects nothing at runtime.
 ##
 ## In the editor it fills its box with a translucent colour by role, so a scenario reads at a
 ## glance: green for a goal, blue for a junction exit, yellow for no parking, red where the car
 ## must give way or stop, and orange for any other zone. [member editor_colour] overrides it.
-
-signal vehicle_entered(probe: VehicleProbe)
-signal vehicle_exited(probe: VehicleProbe)
 
 const GOAL := Color(0.2, 0.85, 0.3, 0.25)
 const EXIT := Color(0.25, 0.5, 1.0, 0.25)
@@ -21,7 +18,6 @@ const OTHER := Color(1.0, 0.55, 0.1, 0.2)
 ## The editor fill; fully transparent to pick it by role.
 @export var editor_colour := Color(0, 0, 0, 0)
 
-var _inside: Array[VehicleProbe] = []
 var _box: CollisionShape3D
 var _preview: MeshInstance3D
 
@@ -32,28 +28,18 @@ func _ready() -> void:
 		add_child(_preview, false, INTERNAL_MODE_BACK)
 		return
 	set_process(false)
-	collision_layer = Layers.DETECTION
-	collision_mask = Layers.VEHICLE
-	monitoring = true
+	collision_layer = 0
+	collision_mask = 0
+	monitoring = false
 	monitorable = false
-	body_entered.connect(_on_body_entered)
-	body_exited.connect(_on_body_exited)
 
 
-func contains(probe: VehicleProbe) -> bool:
-	return probe != null and _inside.has(probe)
-
-
-## Whether [param point] lies inside the zone's box, grown by [param margin] metres on the
-## ground plane; for things the zone does not detect itself, such as pedestrians.
-func contains_point(point: Vector3, margin := 0.0) -> bool:
-	var box := _box_shape()
-	if box == null:
-		return false
-	var local: Vector3 = box.global_transform.affine_inverse() * point
-	var half: Vector3 = box.shape.size * 0.5
-	return absf(local.x) <= half.x + margin and absf(local.z) <= half.z + margin \
-		and absf(local.y) <= half.y
+## The zone's box: its transform and half extents; null when it has no box shape.
+func box_data() -> Variant:
+	var shape := _box_shape()
+	if shape == null:
+		return null
+	return [shape.global_transform, shape.shape.size * 0.5]
 
 
 ## The fill this zone shows in the editor.
@@ -110,16 +96,3 @@ func _box_shape() -> CollisionShape3D:
 				break
 	return _box
 
-
-func _on_body_entered(body: Node3D) -> void:
-	var probe := VehicleProbe.of(body)
-	if probe and not _inside.has(probe):
-		_inside.append(probe)
-		vehicle_entered.emit(probe)
-
-
-func _on_body_exited(body: Node3D) -> void:
-	var probe := VehicleProbe.of(body)
-	if probe and _inside.has(probe):
-		_inside.erase(probe)
-		vehicle_exited.emit(probe)

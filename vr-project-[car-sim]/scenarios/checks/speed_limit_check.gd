@@ -16,39 +16,15 @@ extends Check
 @export var minor_fault: FaultDef = preload("res://scenarios/data/faults/speeding_minor.tres")
 @export var serious_fault: FaultDef = preload("res://scenarios/data/faults/speeding_serious.tres")
 
-var _over_for := 0.0
-var _peak_kmh := 0.0
-var _peak_at := Vector3.ZERO
-
 
 func required_exports() -> PackedStringArray:
 	return ["zone"]
 
 
-func _on_bound() -> void:
-	watch(zone, Callable(), func(_p: VehicleProbe) -> void: _end_episode())
+func rule_script() -> Script:
+	return SpeedLimitRule
 
 
-func _physics_process(delta: float) -> void:
-	if not is_live() or not zone.contains(probe()):
-		return
-	var kmh := probe().speed_kmh()
-	if kmh > limit_kmh:
-		_over_for += delta
-		if kmh > _peak_kmh:
-			_peak_kmh = kmh
-			_peak_at = probe().global_position
-	else:
-		_end_episode()
-
-
-func finalize() -> void:
-	_end_episode()
-
-
-func _end_episode() -> void:
-	if _over_for > grace and is_live():
-		var serious := _peak_kmh >= limit_kmh * (1.0 + serious_excess)
-		report(serious_fault if serious else minor_fault, _peak_at)
-	_over_for = 0.0
-	_peak_kmh = 0.0
+func rule_params(bake: Bake) -> Dictionary:
+	return {zone = bake.id_of(zone), limit_kmh = limit_kmh, grace = grace,
+		serious_excess = serious_excess, minor_fault = minor_fault, serious_fault = serious_fault}

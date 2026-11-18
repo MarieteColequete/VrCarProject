@@ -16,36 +16,12 @@ extends Check
 @export var reserved_fault: FaultDef = preload("res://scenarios/data/faults/parking_reserved.tres")
 @export var occupied_fault: FaultDef = preload("res://scenarios/data/faults/parking_occupied.tres")
 
-var _judged := false
+
+func rule_script() -> Script:
+	return ParkingChoiceRule
 
 
-func _physics_process(_delta: float) -> void:
-	if not is_live():
-		return
-	var p := probe()
-	if p.direction != VehicleProbe.Direction.STOPPED:
-		_judged = false
-		return
-	if _judged or not p.is_settled(settle_time):
-		return
-	_judged = true
-	if _in_no_parking(p):
-		report_here(illegal_fault)
-		return
-	var bay := session.scenario.bay_at(p.global_position)
-	if bay and bay.reserved:
-		report_here(reserved_fault)
-	elif bay and bay.occupied:
-		report_here(occupied_fault)
-
-
-func _in_no_parking(p: VehicleProbe) -> bool:
-	for zone in session.scenario.no_parking_zones():
-		if zone.contains(p):
-			return true
-	var index := session.scenario.marking_index()
-	for corner in p.corners():
-		for marking in index.overlapping(corner, line_distance):
-			if marking.kind == RoadMarking.Kind.NO_PARKING:
-				return true
-	return false
+func rule_params(_bake: Bake) -> Dictionary:
+	return {settle_time = settle_time, line_distance = line_distance,
+		illegal_fault = illegal_fault, reserved_fault = reserved_fault,
+		occupied_fault = occupied_fault}

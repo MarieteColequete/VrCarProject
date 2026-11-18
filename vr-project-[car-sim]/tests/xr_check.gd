@@ -8,7 +8,7 @@ extends SceneTree
 ## frame budget, which a headset shows as a repeated or reprojected frame. It prints
 ## "XR CHECK PASS" or "XR CHECK FAIL" and exits 1 on failure.
 ## XR_WARM_S and XR_SPAN_S set the warm-up and measured seconds (15 and 30); XR_SCALE multiplies
-## the eye resolution the runtime recommends.
+## the eye resolution the runtime recommends; XR_EXTRA=0 leaves out the 200 extra road users.
 
 const SCENARIO := "res://scenarios/scenes/busy_junction/busy_junction.tscn"
 const RUNNER := "res://scenarios/scenes/exam_runner.tscn"
@@ -38,7 +38,8 @@ func _run() -> void:
 	root.add_child(runner)
 	runner.car.input_enabled = false
 	await process_frame
-	var system := _add_traffic()
+	if OS.get_environment("XR_EXTRA") != "0":
+		_add_traffic(runner)
 	var view := root.find_children("*", "DriverView", true, false).front() as DriverView
 	var warm := _seconds("XR_WARM_S", 15)
 	var span := _seconds("XR_SPAN_S", 30)
@@ -63,7 +64,7 @@ func _run() -> void:
 	var sorted := frames.duplicate()
 	sorted.sort()
 	print("XR %.0f Hz, eyes %s, %d road users: %d frames, mean %.2f ms, p99 %.2f ms, late %d (%.2f%%)"
-		% [xr.display_refresh_rate, xr.get_render_target_size(), system.count(), frames.size(),
+		% [xr.display_refresh_rate, xr.get_render_target_size(), runner.traffic.count, frames.size(),
 		total / frames.size(), sorted[int(sorted.size() * 0.99)], late,
 		100.0 * late / frames.size()])
 	if not _focused:
@@ -74,30 +75,20 @@ func _run() -> void:
 		_finish(true, "")
 
 
-## Ten looping lanes of 20 road users each, with a light per lane, beside the junction.
-func _add_traffic() -> TrafficSystem:
-	var system: TrafficSystem
+## Ten looping lanes of 20 road users each, with a light per lane, beside the junction, added
+## straight to the running world.
+func _add_traffic(runner: ExamRunner) -> void:
+	var world := runner.world()
 	for l in EXTRA_LANES:
-		var light := TrafficLight.new()
-		light.red_time = 6.0 + l * 0.3
-		light.green_time = 8.0
-		root.add_child(light)
-		var lane := TrafficLane.new()
-		lane.curve = Curve3D.new()
-		lane.curve.add_point(Vector3(40 + l * 4.0, 0, 120))
-		lane.curve.add_point(Vector3(40 + l * 4.0, 0, -120))
-		lane.light = light
-		lane.stop_offset = 120.0
-		root.add_child(lane)
+		var values := {mode = TrafficLight.Mode.CYCLE, initial = TrafficLight.Light.RED,
+			red_time = 6.0 + l * 0.3, red_amber_time = 1.0, green_time = 8.0, amber_time = 3.0}
+		values.merge(LightLogic.initial(values), true)
+		var light := world.spawn({light = values})
+		var lane := Simulation.add_path(world, PackedVector3Array([Vector3(40 + l * 4.0, 0, 120),
+			Vector3(40 + l * 4.0, 0, -120)]), {is_lane = true, light = light, stop_at = 120.0})
 		for i in PER_LANE:
-			var agent := ScriptedAgent.new()
-			agent.path = lane
-			agent.speed = 10.0 + (i % 3)
-			agent.loop = true
-			agent.start_delay = i * 1.2
-			root.add_child(agent)
-			system = TrafficSystem.of(agent)
-	return system
+			Simulation.add_agent(world, lane, {speed = 10.0 + (i % 3), loop = true,
+				start_delay = i * 1.2})
 
 
 func _seconds(variable: String, fallback: int) -> int:

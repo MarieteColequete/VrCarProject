@@ -1,9 +1,12 @@
 @tool
 class_name ExamRunner
 extends Node3D
-## Loads a scenario scene, spawns its car at the spawn point, and runs an [ExamSession] on it.
-## The UI reaches the session through [member session], and picks scenarios from the
-## [ScenarioCatalogue] with [method load_definition].
+## Loads a scenario scene, spawns its car at the spawn point, bakes both into a [World], and runs
+## the simulation on a [WorldRunner]: the systems below judge the attempt, move traffic, and run
+## the lights, and the views draw it. The UI reaches the attempt through [member session], and
+## picks scenarios from the [ScenarioCatalogue] with [method load_definition].
+##
+## The schedule of a tick is the [Simulation]'s.
 
 ## Emitted each time a scenario and car are spawned, including after a restart.
 signal scenario_loaded(scenario: Scenario, car: Node3D)
@@ -20,6 +23,13 @@ signal scenario_loaded(scenario: Scenario, car: Node3D)
 
 var scenario: Scenario
 var car: Node3D
+## The simulation of the current scenario.
+var world_runner: WorldRunner
+## The road users' pipeline, for its timings.
+var traffic: TrafficPipeline
+
+var _traffic_view: TrafficView
+var _bake: Bake
 
 @onready var session: ExamSession = $Session
 
@@ -33,6 +43,11 @@ func _ready() -> void:
 			print("[%s] %s" % [scenario.definition.title, result.summary()]))
 	if scenario_scene:
 		load_scenario(scenario_scene)
+
+
+## The current scenario's world; null before one is loaded.
+func world() -> World:
+	return world_runner.world if world_runner else null
 
 
 ## Loads the scenario a catalogue entry describes.
@@ -52,23 +67,67 @@ func load_scenario(scene: PackedScene) -> void:
 	add_child(scenario)
 	var car_scene := car_scene_override if car_scene_override else scenario.definition.car_scene
 	car = car_scene.instantiate() as Node3D
-	# Placed before it enters the tree, so no zone sees it at the origin for a tick.
 	car.transform = global_transform.affine_inverse() * scenario.spawn_point.global_transform
 	add_child(car)
 	car.reset_physics_interpolation()
 	var probe := VehicleProbe.of(car)
 	assert(probe != null, "The car scene needs a VehicleProbe child")
-	probe.reset()
+	world_runner = WorldRunner.new()
+	world_runner.name = "World"
+	add_child(world_runner)
+	_bake = Bake.scene(world_runner.world, scenario, probe)
+	for node in _bake.to_free:
+		node.queue_free()
+	_wire(probe, _bake)
+	session.attach(world_runner)
 	scenario_loaded.emit(scenario, car)
 	# The session starts on the next idle step, so a listener connected right after the runner
 	# entered the tree still gets briefing_started, started, and the first step_changed.
-	_start_session.call_deferred(scenario, probe)
+	_start_session.call_deferred(world_runner)
 
 
-func _start_session(p_scenario: Scenario, probe: VehicleProbe) -> void:
-	if p_scenario != scenario or not is_instance_valid(probe):
+func _wire(probe: VehicleProbe, bake: Bake) -> void:
+	var w := world_runner.world
+	var vehicle := Schema.single(w, Schema.VEHICLE)
+	world_runner.add_input(func(_world: World, _dt: float) -> Delta:
+		var d := Delta.new()
+		if is_instance_valid(probe):
+			d.write_all(Schema.VEHICLE, vehicle, probe.reading())
+		return d)
+	traffic = Simulation.add_systems(world_runner)
+	var capacity := w.store(Schema.AGENT).size()
+	for row in w.store(Schema.SOURCE).size():
+		capacity += w.store(Schema.SOURCE).column(&"count")[row]
+	_traffic_view = TrafficView.new(scenario, capacity)
+	world_runner.add_view(_traffic_view.draw)
+	var authored := bake.nodes
+	world_runner.add_view(func(world: World) -> void: SceneViews.draw_lights(world, authored))
+	SceneViews.place_parked_cars(w, authored)
+	SceneViews.draw_lights(w, authored)
+	_traffic_view.draw(w)
+
+
+## Adds a road user authored after the scenario loaded, such as by a test or a director: bakes it
+## into the world, frees the node, and returns its entity.
+func add_road_user(agent: ScriptedAgent) -> int:
+	var id := _bake.add_agent(agent)
+	if agent.is_inside_tree():
+		agent.queue_free()
+	else:
+		agent.free()
+	return id
+
+
+## Adds the box shapes of a static body placed after the scenario loaded, such as a van parked
+## during the attempt, as obstacles road users see and the car touches.
+func add_obstacle(body: StaticBody3D) -> void:
+	_bake.add_obstacles([body])
+
+
+func _start_session(runner: WorldRunner) -> void:
+	if runner != world_runner:
 		return
-	session.setup(p_scenario, probe)
+	session.setup()
 	if autostart:
 		session.begin()
 
@@ -78,13 +137,23 @@ func _reload() -> void:
 
 
 func _clear() -> void:
-	for node: Node in [scenario, car]:
+	if _traffic_view:
+		_traffic_view.clear()
+		_traffic_view = null
+	for node: Node in [scenario, car, world_runner]:
 		if is_instance_valid(node):
 			remove_child(node)
 			node.queue_free()
 	scenario = null
 	car = null
+	world_runner = null
+	traffic = null
 
+
+func _exit_tree() -> void:
+	if not Engine.is_editor_hint() and _traffic_view:
+		_traffic_view.clear()
+		_traffic_view = null
 
 
 func _get_configuration_warnings() -> PackedStringArray:

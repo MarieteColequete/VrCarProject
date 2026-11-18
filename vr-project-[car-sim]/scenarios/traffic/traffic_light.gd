@@ -1,13 +1,12 @@
 class_name TrafficLight
 extends Node3D
-## A traffic light running red, red and amber, green, amber, red. In [constant Mode.CYCLE] it
-## loops through the phases on their timers from [member initial]. In
-## [constant Mode.ON_APPROACH] it holds [member initial] until a vehicle enters
-## [member trigger], waits [member trigger_delay], turns amber, and then runs the phases once until
-## it is green again, where it holds; scenarios use this to put a change at a chosen distance. It
-## draws a pole and three lamps; a [TrafficLightCheck] at the stop line judges the car.
-
-signal state_changed(state: Light)
+## A traffic light, as authored and as drawn: red, red and amber, green, amber, red. In
+## [constant Mode.CYCLE] it loops through the phases on their timers from [member initial]. In
+## [constant Mode.ON_APPROACH] it holds [member initial] until the car enters [member trigger],
+## waits [member trigger_delay], turns amber, and then runs the phases once until it is green
+## again, where it holds; scenarios use this to put a change at a chosen distance. The phases run
+## in [LightLogic]; the node draws a pole and three lamps, lit by the light view through
+## [method show_state]. A [TrafficLightCheck] at the stop line judges the car.
 
 enum Light { RED, RED_AMBER, GREEN, AMBER }
 enum Mode { CYCLE, ON_APPROACH }
@@ -24,87 +23,36 @@ enum Mode { CYCLE, ON_APPROACH }
 
 const LAMP_COLOURS := [Color(0.9, 0.1, 0.1), Color(0.95, 0.6, 0.05), Color(0.1, 0.85, 0.3)]
 
-var state := Light.RED
-## Seconds spent in the current phase.
-var time_in_state := 0.0
-
-var _holding := false
-var _triggered_at := -1.0
-var _clock := 0.0
 var _lamps: Array[StandardMaterial3D] = []
+var _shown := -1
 
 
 func _ready() -> void:
-	state = initial
-	_holding = mode == Mode.ON_APPROACH
-	if trigger and mode == Mode.ON_APPROACH:
-		trigger.vehicle_entered.connect(_on_triggered)
 	if draw_lamps:
 		_build()
-	_show()
+	show_state(initial)
 
 
-func is_red() -> bool:
-	return state == Light.RED or state == Light.RED_AMBER
+## Whether [param light_state] stops traffic: red, or red and amber.
+static func is_red_state(light_state: int) -> bool:
+	return light_state == Light.RED or light_state == Light.RED_AMBER
 
 
-func _on_triggered(_probe: VehicleProbe) -> void:
-	if _holding and _triggered_at < 0.0:
-		_triggered_at = _clock
-
-
-func _physics_process(delta: float) -> void:
-	_clock += delta
-	time_in_state += delta
-	if _holding:
-		if _triggered_at >= 0.0 and _clock - _triggered_at >= trigger_delay:
-			_holding = false
-			_change(Light.AMBER)
+## Lights the lamps of [param light_state].
+func show_state(light_state: int) -> void:
+	if light_state == _shown:
 		return
-	if time_in_state >= _duration(state):
-		var next := _next(state)
-		_change(next)
-		if mode == Mode.ON_APPROACH and next == Light.GREEN:
-			_holding = true
-			_triggered_at = INF
-
-
-func _change(next: Light) -> void:
-	state = next
-	time_in_state = 0.0
+	_shown = light_state
 	_show()
-	state_changed.emit(state)
-
-
-func _duration(light: Light) -> float:
-	match light:
-		Light.RED:
-			return red_time
-		Light.RED_AMBER:
-			return red_amber_time
-		Light.GREEN:
-			return green_time
-	return amber_time
-
-
-func _next(light: Light) -> Light:
-	match light:
-		Light.RED:
-			return Light.RED_AMBER
-		Light.RED_AMBER:
-			return Light.GREEN
-		Light.GREEN:
-			return Light.AMBER
-	return Light.RED
 
 
 func _show() -> void:
 	if _lamps.is_empty():
 		return
 	var lit := [
-		state == Light.RED or state == Light.RED_AMBER,
-		state == Light.AMBER or state == Light.RED_AMBER,
-		state == Light.GREEN]
+		_shown == Light.RED or _shown == Light.RED_AMBER,
+		_shown == Light.AMBER or _shown == Light.RED_AMBER,
+		_shown == Light.GREEN]
 	for i in 3:
 		_lamps[i].emission_enabled = lit[i]
 		_lamps[i].albedo_color = LAMP_COLOURS[i] if lit[i] else LAMP_COLOURS[i].darkened(0.8)

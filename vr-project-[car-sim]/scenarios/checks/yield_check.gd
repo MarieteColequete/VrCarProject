@@ -7,7 +7,7 @@ extends Check
 ## [member approach_zone] for longer than [member grace] while every priority road user is at
 ## least [member clear_gap] seconds away is undue hesitation.
 ##
-## Each road user's arrival comes from its script: [method ScriptedAgent.time_to_point] the
+## Each road user's arrival comes from its script: [method AgentLogic.time_to_point] the
 ## conflict zone, along its path or the lane it continues onto.
 
 ## Where priority traffic crosses the car's path.
@@ -27,37 +27,17 @@ extends Check
 @export var give_way_fault: FaultDef = preload("res://scenarios/data/faults/failed_to_give_way.tres")
 @export var hesitation_fault: FaultDef = preload("res://scenarios/data/faults/undue_hesitation.tres")
 
-var _hesitation := Episode.new()
-
 
 func required_exports() -> PackedStringArray:
 	return ["conflict_zone", "agents"]
 
 
-func _on_bound() -> void:
-	watch(conflict_zone, func(_p: VehicleProbe) -> void:
-		if next_arrival() < safe_gap:
-			report_here(give_way_fault))
+func rule_script() -> Script:
+	return YieldRule
 
 
-## Seconds until the first priority road user reaches the conflict zone; 0 when one is in it,
-## INF when none is coming.
-func next_arrival() -> float:
-	var soonest := INF
-	var centre := conflict_zone.global_position
-	for agent in agents:
-		if agent == null or agent.is_done():
-			continue
-		if conflict_zone.contains_point(agent.global_position, zone_margin):
-			return 0.0
-		soonest = minf(soonest, agent.time_to_point(centre))
-	return soonest
-
-
-func _physics_process(delta: float) -> void:
-	if not is_live() or approach_zone == null:
-		return
-	var p := probe()
-	var waiting := approach_zone.contains(p) and p.is_stopped() and next_arrival() >= clear_gap
-	if _hesitation.update(waiting, delta, grace):
-		report_here(hesitation_fault)
+func rule_params(bake: Bake) -> Dictionary:
+	return {conflict = bake.id_of(conflict_zone), approach = bake.id_of(approach_zone),
+		agents = bake.ids_of(agents), safe_gap = safe_gap, clear_gap = clear_gap, grace = grace,
+		zone_margin = zone_margin, give_way_fault = give_way_fault,
+		hesitation_fault = hesitation_fault}

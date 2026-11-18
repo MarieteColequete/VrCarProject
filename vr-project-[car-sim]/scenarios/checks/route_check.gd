@@ -2,7 +2,7 @@
 class_name RouteCheck
 extends Check
 ## A lane the car should follow, given by a [Path3D] along the lane's centre in the direction of
-## traffic. Each physics tick it projects the car onto the curve: the horizontal distance to it is
+## traffic. Each tick the rule projects the car onto the curve: the horizontal distance to it is
 ## the lateral offset, and the curve's direction there gives wrong-way driving. It checks only
 ## while the car is alongside the curve, not beyond either end.
 ##
@@ -24,40 +24,17 @@ extends Check
 @export var road_fault: FaultDef = preload("res://scenarios/data/faults/off_route.tres")
 @export var wrong_way_fault: FaultDef = preload("res://scenarios/data/faults/wrong_way.tres")
 
-## The car's last lateral offset and distance along the route.
-var lateral := 0.0
-var progress := 0.0
-
-var _lane := Episode.new()
-var _road := Episode.new()
-var _wrong := Episode.new()
-
 
 func required_exports() -> PackedStringArray:
 	return ["path"]
 
 
-func _physics_process(delta: float) -> void:
-	if not is_live():
-		return
-	var p := probe()
-	var curve := path.curve
-	var length := curve.get_baked_length()
-	var local := path.to_local(p.global_position)
-	progress = curve.get_closest_offset(local)
-	if progress <= 0.01 or progress >= length - 0.01:
-		return
-	var flat := local - curve.sample_baked(progress)
-	flat.y = 0.0
-	lateral = flat.length()
-	var tangent := path.global_basis * (curve.sample_baked(minf(progress + 0.5, length))
-		- curve.sample_baked(maxf(progress - 0.5, 0.0)))
-	tangent.y = 0.0
-	var against := p.forward().dot(tangent.normalized()) < -0.5 and absf(p.speed) > wrong_way_speed
+func rule_script() -> Script:
+	return RouteRule
 
-	if _road.update(lateral > road_offset, delta, lane_grace):
-		report_here(road_fault)
-	elif _lane.update(lateral > lane_offset and lateral <= road_offset, delta, lane_grace):
-		report_here(lane_fault)
-	if _wrong.update(against, delta, wrong_way_grace):
-		report_here(wrong_way_fault)
+
+func rule_params(bake: Bake) -> Dictionary:
+	return {path = bake.lane_of(path), lane_offset = lane_offset, road_offset = road_offset,
+		lane_grace = lane_grace, wrong_way_grace = wrong_way_grace,
+		wrong_way_speed = wrong_way_speed, lane_fault = lane_fault, road_fault = road_fault,
+		wrong_way_fault = wrong_way_fault}

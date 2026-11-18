@@ -1,1 +1,1 @@
-- [Settled decisions and clean checks](settled-decisions.md): engine pin, layer names, stale testing line in CLAUDE.md, source states, tooling limits
+- [Settled decisions and clean checks](settled-decisions.md): engine pin, layer names, stale testing line in CLAUDE.md, source states, tooling limits, ECS review findings

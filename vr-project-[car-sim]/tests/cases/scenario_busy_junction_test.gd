@@ -6,7 +6,7 @@ extends TestCase
 const BUSY := preload("res://scenarios/scenes/busy_junction/busy_junction.tscn")
 
 ## Every reaction of the attempt, as "<agent> <kind>".
-var _log: PackedStringArray = []
+var _log: Array = []
 
 
 func run() -> void:
@@ -17,20 +17,7 @@ func run() -> void:
 
 func _record(runner: ExamRunner) -> void:
 	_log.clear()
-	runner.get_tree().node_added.connect(_on_added)
-	for node in runner.scenario.find_children("*", "", true, false):
-		_on_added(node)
-
-
-func _forget(runner: ExamRunner) -> void:
-	runner.get_tree().node_added.disconnect(_on_added)
-
-
-func _on_added(node: Node) -> void:
-	if node is ScriptedAgent:
-		var agent := node as ScriptedAgent
-		agent.reacted.connect(func(kind: StringName, _cause: Node3D) -> void:
-			_log.append("%s %s" % [agent.name, kind]))
+	record_reactions(runner, _log)
 
 
 func _reacted(agent_prefix: String, kind: String) -> bool:
@@ -48,7 +35,7 @@ func _clean_legs() -> Array:
 
 
 func _test_clean() -> void:
-	var r := await drive(_clean_legs(), BUSY, _record, _forget)
+	var r := await drive(_clean_legs(), BUSY, _record)
 	expect_clean(r, "driving through the busy junction with the lights and the crossing is clean")
 	expect(_reacted("Westbound", "waiting_light") and _reacted("Eastbound", "waiting_light"),
 		"cross traffic waits at its red light")
@@ -66,8 +53,8 @@ func _test_red_light() -> void:
 
 
 func _test_reproducible() -> void:
-	await drive(_clean_legs(), BUSY, _record, _forget)
+	await drive(_clean_legs(), BUSY, _record)
 	var first := _log.duplicate()
-	await drive(_clean_legs(), BUSY, _record, _forget)
+	await drive(_clean_legs(), BUSY, _record)
 	expect(first == _log and first.size() > 20,
 		"the same drive meets the same traffic every time (%d reactions)" % first.size())

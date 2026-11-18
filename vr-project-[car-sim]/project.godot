@@ -135,7 +135,6 @@ toggle_debug_hud={
 3d_physics/layer_2="vehicle"
 3d_physics/layer_3="obstacles"
 3d_physics/layer_4="pedestrians"
-3d_physics/layer_5="detection"
 
 [physics]
 

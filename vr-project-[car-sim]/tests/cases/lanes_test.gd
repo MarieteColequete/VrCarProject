@@ -1,174 +1,142 @@
 extends TestCase
-## Road users on authored lanes: speed limits, stopping at a red light and going on green,
-## queuing, giving way to a vehicle and to traffic on priority lanes, waiting at a crossing in use,
-## and taking seeded routes.
-
-var _nodes: Array[Node] = []
+## Road users on lanes: speed limits, stopping at a red light and going on green, queuing, giving
+## way to a vehicle and to traffic on priority lanes, waiting at a crossing in use, and taking
+## seeded routes. Run on hand-stepped simulations.
 
 
 func run() -> void:
-	await _test_light_and_queue()
-	await _test_give_way()
-	await _test_crossing()
-	await _test_routes()
+	_test_light_and_queue()
+	_test_give_way()
+	_test_crossing()
+	_test_routes()
 
 
-func _lane(from: Vector3, to: Vector3, limit := 0.0) -> TrafficLane:
-	var lane := TrafficLane.new()
-	lane.curve = Curve3D.new()
-	lane.curve.add_point(from)
-	lane.curve.add_point(to)
-	lane.speed_limit = limit
-	root.add_child(lane)
-	_nodes.append(lane)
+func _lane(s: WorldRunner, from: Vector3, to: Vector3, settings := {}) -> LaneData:
+	settings.is_lane = true
+	var lane := path(s, from, to, settings)
+	if lane.stop_at == INF:
+		lane.stop_at = lane.length
 	return lane
 
 
-func _agent(lane: Path3D, speed: float, delay := 0.0, seed_value := 0) -> ScriptedAgent:
-	var agent := ScriptedAgent.new()
-	agent.path = lane
-	agent.speed = speed
-	agent.start_delay = delay
-	agent.route_seed = seed_value
-	root.add_child(agent)
-	_nodes.append(agent)
-	return agent
-
-
-func _clear() -> void:
-	for node in _nodes:
-		if is_instance_valid(node):
-			node.queue_free()
-	_nodes.clear()
-	await process_frame
-
-
-## The front of an agent driving towards -Z.
-func _front(agent: ScriptedAgent) -> float:
-	return agent.global_position.z - agent.body_size.z * 0.5
+## The front of a road user driving towards -Z.
+func _front(a: AgentState) -> float:
+	return a.position().z - a.config.body_size.z * 0.5
 
 
 func _test_light_and_queue() -> void:
-	var light := TrafficLight.new()
-	light.red_time = 1000.0
-	root.add_child(light)
-	_nodes.append(light)
-	var lane := _lane(Vector3(0, 0, 100), Vector3(0, 0, -50), 8.0)
-	lane.light = light
-	lane.stop_offset = 80.0
-	var first := _agent(lane, 12.0)
-	var second := _agent(lane, 12.0, 2.0)
-	await frames(60)
-	expect(is_equal_approx(first.current_speed, 8.0), "an agent keeps to its lane's speed limit")
-	await frames(900)
+	var s := sim()
+	var values := {mode = TrafficLight.Mode.CYCLE, initial = TrafficLight.Light.RED,
+		red_time = 1000.0, red_amber_time = 1.0, green_time = 6.0, amber_time = 3.0}
+	values.merge(LightLogic.initial(values), true)
+	var light := s.world.spawn({light = values})
+	var lane := _lane(s, Vector3(0, 0, 100), Vector3(0, 0, -50),
+		{speed_limit = 8.0, light = light, stop_at = 80.0})
+	var first := road_user(s, lane, {speed = 12.0})
+	var second := road_user(s, lane, {speed = 12.0, start_delay = 2.0})
+	tick(s, 60)
+	expect(is_equal_approx(state_of(s, first).current_speed, 8.0),
+		"a road user keeps to its lane's speed limit")
+	tick(s, 900)
+	var a := state_of(s, first)
+	var b := state_of(s, second)
 	var line_z := 20.0
-	expect(first.reaction == &"waiting_light" and is_zero_approx(first.current_speed)
-		and _front(first) > line_z and _front(first) < line_z + 2.0,
-		"it stops just before the line at a red light (front at z %.2f)" % _front(first))
-	var queue_gap := _front(second) - first.global_position.z - first.body_size.z * 0.5
-	expect(second.reaction == &"stopped" and queue_gap > 1.0 and queue_gap < 3.5,
-		"the next agent queues behind it (%.2f m back)" % queue_gap)
-	light._change(TrafficLight.Light.GREEN)
-	await frames(600)
-	expect(first.global_position.z < line_z - 20.0 and second.global_position.z < line_z,
+	expect(a.reaction == &"waiting_light" and is_zero_approx(a.current_speed)
+		and _front(a) > line_z and _front(a) < line_z + 2.0,
+		"it stops just before the line at a red light (front at z %.2f)" % _front(a))
+	var queue_gap := _front(b) - a.position().z - a.config.body_size.z * 0.5
+	expect(b.reaction == &"stopped" and queue_gap > 1.0 and queue_gap < 3.5,
+		"the next road user queues behind it (%.2f m back)" % queue_gap)
+	s.world.store(Schema.LIGHT).set_value(light, &"state", TrafficLight.Light.GREEN)
+	s.world.store(Schema.LIGHT).set_value(light, &"time_in_state", 0.0)
+	tick(s, 600)
+	expect(state_of(s, first).position().z < line_z - 20.0 and state_of(s, second).position().z < line_z,
 		"on green both drive on")
-	await _clear()
+	end_sim(s)
 
 
 func _test_give_way() -> void:
-	# A main lane along -X at z = 0, and a side lane coming up to it from +Z.
-	var main := _lane(Vector3(60, 0, -1.75), Vector3(-60, 0, -1.75))
-	var side := _lane(Vector3(1.75, 0, 40), Vector3(1.75, 0, 2))
-	side.give_way_to = [main]
-	var waiting := _agent(side, 8.0)
+	# A main lane along -X at z = -1.75, and a side lane coming up to it from +Z.
+	var s := sim(Transform3D(Basis.looking_at(Vector3.LEFT), Vector3(3, 0, -1.75)))
+	var main := _lane(s, Vector3(60, 0, -1.75), Vector3(-60, 0, -1.75))
+	var side := _lane(s, Vector3(1.75, 0, 40), Vector3(1.75, 0, 2),
+		{give_way_to = PackedInt64Array([main.id])})
+	var waiting := road_user(s, side, {speed = 8.0})
+	tick(s, 600)
+	var w := state_of(s, waiting)
+	expect(w.reaction == &"yielding" and is_zero_approx(w.current_speed),
+		"a road user gives way at the line while a vehicle is at the junction")
+	place_car(s, Vector3(-40, 0, -30))
+	tick(s, 240)
+	expect(state_of(s, waiting).is_done(), "and pulls out once the junction is clear")
+	end_sim(s)
 
-	var runner := spawn_runner()
-	runner.car.input_enabled = false
-	await process_frame
-	# The player's car stands on the main lane, right at the junction.
-	runner.car.global_position = Vector3(3, 0, -1.75)
-	runner.car.look_at(runner.car.global_position + Vector3(-1, 0, 0), Vector3.UP)
-	await frames(600)
-	expect(waiting.reaction == &"yielding" and is_zero_approx(waiting.current_speed),
-		"an agent gives way at the line while a vehicle is at the junction")
-	runner.car.global_position = Vector3(-40, 0, -30)
-	await frames(240)
-	expect(waiting.is_done(), "and pulls out once the junction is clear")
-	runner.queue_free()
-	await _clear()
-
-	main = _lane(Vector3(60, 0, -1.75), Vector3(-60, 0, -1.75))
-	side = _lane(Vector3(1.75, 0, 30), Vector3(1.75, 0, 2))
-	side.give_way_to = [main]
-	# The priority car reaches the junction about 2 s after the side agent reaches its line.
-	var priority := _agent(main, 10.0, 0.6)
-	waiting = _agent(side, 8.0)
-	var priority_x_on_pulling_out := [INF]
+	s = sim()
+	main = _lane(s, Vector3(60, 0, -1.75), Vector3(-60, 0, -1.75))
+	side = _lane(s, Vector3(1.75, 0, 30), Vector3(1.75, 0, 2),
+		{give_way_to = PackedInt64Array([main.id])})
+	# The priority car reaches the junction about 2 s after the side road user reaches its line.
+	var priority := road_user(s, main, {speed = 10.0, start_delay = 0.6})
+	waiting = road_user(s, side, {speed = 8.0})
+	var priority_x := INF
 	for i in 900:
-		await physics_frame
-		if is_inf(priority_x_on_pulling_out[0]) and waiting.progress > 1.0 and _front(waiting) < 2.0:
-			priority_x_on_pulling_out[0] = priority.global_position.x
-	expect(priority_x_on_pulling_out[0] < 1.75 - priority.body_size.z * 0.5,
-		"an agent waits for a car on the priority lane to clear the junction (it was at x %.2f)"
-		% priority_x_on_pulling_out[0])
-	await _clear()
+		tick(s)
+		w = state_of(s, waiting)
+		if is_inf(priority_x) and w.progress > 1.0 and _front(w) < 2.0:
+			priority_x = state_of(s, priority).position().x
+	expect(priority_x < 1.75 - 4.2 * 0.5,
+		"a road user waits for a car on the priority lane to clear the junction (it was at x %.2f)"
+		% priority_x)
+	end_sim(s)
 
 
 func _test_crossing() -> void:
-	var zone := TriggerZone.new()
-	var shape := CollisionShape3D.new()
-	shape.shape = BoxShape3D.new()
-	shape.shape.size = Vector3(8, 3, 4)
-	zone.add_child(shape)
-	zone.position = Vector3(0, 1.5, 0)
-	var walk := _lane(Vector3(-6, 0, 0), Vector3(6, 0, 0))
-	var walker := _agent(walk, 1.0, 1.0)
-	walker.pedestrian = true
-	walker.body_size = Vector3(0.5, 1.8, 0.5)
-	var check := CrossingCheck.new()
-	check.crossing_zone = zone
-	check.pedestrians = [walker]
-	check.add_child(zone)
-	root.add_child(check)
-	_nodes.append(check)
-	var lane := _lane(Vector3(1.75, 0, 40), Vector3(1.75, 0, -40))
-	lane.crossings = [check]
-	var car := _agent(lane, 8.0)
-	var stopped := [false]
-	car.reacted.connect(func(kind: StringName, _c: Node3D) -> void:
-		if kind == &"yielding":
-			stopped[0] = true)
-	await frames(600)
-	expect(stopped[0] and is_zero_approx(car.current_speed) and _front(car) > 2.0,
-		"an agent waits before a crossing in use (front at z %.2f)" % _front(car))
-	await frames(900)
-	expect(walker.is_done() and car.is_done(), "and goes on once the walker is across")
-	await _clear()
+	var s := sim()
+	var events := []
+	record_sim(s, events)
+	var zone_box := Transform3D(Basis(), Vector3(0, 1.5, 0))
+	var half := Vector3(4, 1.5, 2)
+	var zone := s.world.spawn({zone = {transform = zone_box, half = half}})
+	var walk := path(s, Vector3(-6, 0, 0), Vector3(6, 0, 0))
+	var walker := road_user(s, walk, {speed = 1.0, start_delay = 1.0, pedestrian = true,
+		body_size = Vector3(0.5, 1.8, 0.5)})
+	var lane := _lane(s, Vector3(1.75, 0, 40), Vector3(1.75, 0, -40))
+	lane.crossings.append({zone = zone, transform = zone_box, half = half,
+		pedestrians = PackedInt64Array([walker]), margin = 1.5, stop = 40.0 - 4.0 - 1.0})
+	var car := road_user(s, lane, {speed = 8.0})
+	tick(s, 600)
+	var c := state_of(s, car)
+	var yielded := events.any(func(e: WorldEvent) -> bool:
+		return e.kind == &"reacted" and e.entity == car and e.data.kind == &"yielding")
+	expect(yielded and is_zero_approx(c.current_speed) and _front(c) > 2.0,
+		"a road user waits before a crossing in use (front at z %.2f)" % _front(c))
+	tick(s, 900)
+	expect(state_of(s, walker).is_done() and state_of(s, car).is_done(),
+		"and goes on once the walker is across")
+	end_sim(s)
 
 
-func _routes(seed_value: int, wanted: Array[TrafficLane] = []) -> String:
-	var stem := _lane(Vector3(0, 0, 20), Vector3(0, 0, 0))
-	var left := _lane(Vector3(0, 0, 0), Vector3(-20, 0, -20))
-	left.name = "Left"
-	var right := _lane(Vector3(0, 0, 0), Vector3(20, 0, -20))
-	right.name = "Right"
-	stem.next = [left, right]
-	var agent := _agent(stem, 10.0, 0.0, seed_value)
-	if not wanted.is_empty():
-		agent.route = [right if wanted[0] == null else wanted[0]]
-	await frames(240)
-	var took: String = "Left" if agent.global_position.x < -1.0 else "Right"
-	await _clear()
+func _routes(seed_value: int, take_right := false) -> String:
+	var s := sim()
+	var stem := _lane(s, Vector3(0, 0, 20), Vector3(0, 0, 0))
+	var left := _lane(s, Vector3(0, 0, 0), Vector3(-20, 0, -20))
+	var right := _lane(s, Vector3(0, 0, 0), Vector3(20, 0, -20))
+	stem.next = PackedInt64Array([left.id, right.id])
+	var settings := {speed = 10.0, route_seed = seed_value}
+	if take_right:
+		settings.route = PackedInt64Array([right.id])
+	var agent := road_user(s, stem, settings)
+	tick(s, 240)
+	var took: String = "Left" if state_of(s, agent).position().x < -1.0 else "Right"
+	end_sim(s)
 	return took
 
 
 func _test_routes() -> void:
 	var choices := {}
 	for seed_value in 8:
-		choices[seed_value] = await _routes(seed_value)
-	var again := await _routes(3)
-	expect(again == choices[3], "the same seed takes the same way (%s)" % again)
+		choices[seed_value] = _routes(seed_value)
+	expect(_routes(3) == choices[3], "the same seed takes the same way (%s)" % choices[3])
 	expect(choices.values().has("Left") and choices.values().has("Right"),
 		"different seeds take different ways %s" % [choices])
-	var null_lane: TrafficLane = null
-	expect(await _routes(0, [null_lane]) == "Right", "an agent takes the way its route names")
+	expect(_routes(0, true) == "Right", "a road user takes the way its route names")

@@ -26,7 +26,7 @@ func _add_follower(delay: float) -> Callable:
 		follower.path = lane
 		follower.speed = 12.0
 		follower.start_delay = delay
-		runner.scenario.add_child(follower)
+		runner.add_road_user(follower)
 
 
 ## Moves to the kerb, waits [param wait] seconds, then pulls straight into the lane.
@@ -47,7 +47,7 @@ func _test_fair_gap() -> void:
 	var reaction := [&""]
 	var r := await drive(_join(2.6) + [{wait = 6.0}], null, _add_follower(6.0),
 		func(runner: ExamRunner) -> void:
-			reaction[0] = (runner.scenario.get_node("Follower") as ScriptedAgent).reaction)
+			reaction[0] = agent_state(runner, &"Follower").reaction)
 	expect(reaction[0] == &"stopped" and not r.has_fault(&"caused_hard_braking")
 		and not r.has_fault(&"contact_obstacle"),
 		_with("joining with a fair gap makes the car behind stop calmly, and nobody brake hard", r))

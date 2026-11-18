@@ -3,7 +3,8 @@ extends Node3D
 ## Fills parking bays with parked cars, chosen from a seed: the same seed always takes the same
 ## bays, so an attempt can be replayed, and a new seed gives a new car park. Reserved bays and
 ## bays already marked occupied are never chosen, and at least [member keep_free] bays stay free.
-## Each chosen bay is marked occupied, which the parking checks read.
+## When the scenario loads, a [Bake] marks each chosen bay occupied, which the parking rules read,
+## and adds a parked car there as an obstacle; the obstacle view draws it.
 
 ## The seed; the same seed takes the same bays.
 @export var random_seed := 1
@@ -15,46 +16,32 @@ extends Node3D
 @export var parked_car_scene: PackedScene
 @export var colour := Color(0.3, 0.35, 0.6)
 
-## The bays this spawner filled.
-var filled: Array[ParkingBay] = []
-
-
-func _ready() -> void:
-	spawn()
-
-
-func spawn() -> void:
+## The bays to fill, from [member random_seed]: [param eligible] is whether each of [member bays]
+## may be chosen (neither reserved nor occupied). Pure: the same seed gives the same bays.
+func choose(eligible: Array[bool]) -> Array[int]:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = random_seed
-	var eligible: Array[ParkingBay] = []
-	for bay in bays:
-		if not bay.reserved and not bay.occupied:
-			eligible.append(bay)
+	var order: Array[int] = []
+	for i in bays.size():
+		if eligible[i]:
+			order.append(i)
 	# Fisher-Yates with the seeded generator, so the order does not depend on the engine's.
-	for i in range(eligible.size() - 1, 0, -1):
+	for i in range(order.size() - 1, 0, -1):
 		var j := rng.randi_range(0, i)
-		var swap := eligible[i]
-		eligible[i] = eligible[j]
-		eligible[j] = swap
-	var count := clampi(roundi(occupancy * eligible.size()), 0, maxi(eligible.size() - keep_free, 0))
-	for i in count:
-		var bay := eligible[i]
-		bay.occupied = true
-		filled.append(bay)
-		_park_in(bay)
+		var swap := order[i]
+		order[i] = order[j]
+		order[j] = swap
+	var count := clampi(roundi(occupancy * order.size()), 0, maxi(order.size() - keep_free, 0))
+	return order.slice(0, count)
 
 
-func _park_in(bay: ParkingBay) -> void:
-	var car: Node3D
+## A parked car's body for a bay: the scene, or a plain box of a car's size. The obstacle view
+## places it.
+func make_car() -> Node3D:
 	if parked_car_scene:
-		car = parked_car_scene.instantiate()
-	else:
-		var body := StaticBody3D.new()
-		body.collision_layer = Layers.OBSTACLE
-		body.collision_mask = 0
-		BoxBody.build(body, Vector3(1.8, 1.4, 4.2), colour)
-		car = body
-	add_child(car)
-	car.global_transform = bay.global_transform
-	car.reset_physics_interpolation()
-
+		return parked_car_scene.instantiate()
+	var body := StaticBody3D.new()
+	body.collision_layer = Layers.OBSTACLE
+	body.collision_mask = 0
+	BoxBody.build(body, Vector3(1.8, 1.4, 4.2), colour)
+	return body

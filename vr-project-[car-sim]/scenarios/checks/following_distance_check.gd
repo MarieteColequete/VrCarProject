@@ -19,39 +19,15 @@ extends Check
 ## Speed, metres per second, below which the gap is not judged.
 @export var min_speed := 3.0
 
-## The current time gap to the nearest road user ahead, INF when there is none.
-var time_gap := INF
-
-var _close := Episode.new()
-
 
 func required_exports() -> PackedStringArray:
 	return ["agents"]
 
 
-func _physics_process(delta: float) -> void:
-	if not is_live():
-		return
-	var p := probe()
-	time_gap = _time_gap(p)
-	if _close.update(time_gap < min_gap, delta, grace):
-		report_here(following_fault)
+func rule_script() -> Script:
+	return FollowingDistanceRule
 
 
-func _time_gap(p: VehicleProbe) -> float:
-	if p.speed < min_speed:
-		return INF
-	var fwd := p.forward()
-	var right := fwd.cross(Vector3.UP)
-	var nearest := INF
-	for agent in agents:
-		if agent == null:
-			continue
-		var offset := agent.global_position - p.global_position
-		offset.y = 0.0
-		var ahead := offset.dot(fwd)
-		if ahead <= 0.0 or absf(offset.dot(right)) > lane_half_width:
-			continue
-		var clear := ahead - p.body_length * 0.5 - agent.body_size.z * 0.5
-		nearest = minf(nearest, maxf(clear, 0.0) / p.speed)
-	return nearest
+func rule_params(bake: Bake) -> Dictionary:
+	return {agents = bake.ids_of(agents), fault = following_fault, min_gap = min_gap,
+		grace = grace, lane_half_width = lane_half_width, min_speed = min_speed}

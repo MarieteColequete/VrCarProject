@@ -1,5 +1,5 @@
 extends TestCase
-## Road markings: paint, the marking index, and the line check.
+## Road markings: paint, the marking index, and the line rule.
 
 const LINES_FIXTURE := preload("res://tests/fixtures/lines_fixture.tscn")
 
@@ -35,17 +35,17 @@ func _test_markings() -> void:
 		"a dashed line draws a third of a solid one (3 m dash, 6 m gap)")
 
 	var index := MarkingIndex.new()
-	index.add(solid)
-	index.add(dashed)
+	index.add(1, solid.kind, solid.half_width(), solid.world_points())
+	index.add(2, dashed.kind, dashed.half_width(), dashed.world_points())
 	var hits := index.crossings(Vector3(-1, 0, -10), Vector3(1, 0, -10))
-	expect(hits.size() == 1 and hits[0].marking == solid
+	expect(hits.size() == 1 and hits[0].marking == 1 and hits[0].kind == RoadMarking.Kind.SOLID
 		and (hits[0].normal as Vector3).is_equal_approx(Vector3.RIGHT),
 		"a point moving right across the solid line crosses it once, onto its right")
 	expect(index.crossings(Vector3(-1, 0, -10), Vector3(-0.5, 0, -10)).is_empty(),
 		"a point short of the line does not cross it")
 	expect(index.crossings(Vector3(4, 0, -12), Vector3(6, 0, -12)).size() == 1,
 		"a dashed line is crossed in its gaps too")
-	expect(index.overlapping(Vector3(0.05, 0, -20)) == [solid]
+	expect(index.overlapping(Vector3(0.05, 0, -20)) == PackedInt64Array([1])
 		and index.overlapping(Vector3(0.3, 0, -20)).is_empty(),
 		"a point within the paint is on the line, one beside it is not")
 	solid.free()

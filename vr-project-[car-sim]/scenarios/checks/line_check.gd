@@ -22,42 +22,13 @@ extends Check
 ## Half the tyre's width, added to a line's half width when judging a wheel on it.
 @export var wheel_half_width := 0.1
 
-var _last_crossed := {}
-var _straddle := Episode.new()
+
+func rule_script() -> Script:
+	return LineRule
 
 
-func _physics_process(delta: float) -> void:
-	if not is_live():
-		return
-	var p := probe()
-	for hit in session.wheel_crossings():
-		_on_crossed(hit, p)
-	if _straddle.update(_on_lane_line(p.wheels()), delta, grace):
-		report_here(straddle_fault)
-
-
-func _on_crossed(hit: MarkingHit, p: VehicleProbe) -> void:
-	var marking := hit.marking
-	var t := session.elapsed
-	var merged := _last_crossed.has(marking) and t - float(_last_crossed[marking]) < crossing_merge
-	_last_crossed[marking] = t
-	if merged:
-		return
-	match marking.kind:
-		RoadMarking.Kind.SOLID, RoadMarking.Kind.DOUBLE_SOLID:
-			report(solid_fault, hit.point, marking)
-		RoadMarking.Kind.DASHED:
-			if p.indicator != VehicleProbe.Indicator.UNKNOWN \
-					and p.indicator_held_for(p.side_of(hit.normal)) < indicator_lead:
-				report(no_indicator_fault, hit.point, marking)
-		RoadMarking.Kind.KERB:
-			report(kerb_fault, hit.point, marking)
-
-
-func _on_lane_line(wheels: PackedVector3Array) -> bool:
-	var index := session.scenario.marking_index()
-	for wheel in wheels:
-		for marking in index.overlapping(wheel, wheel_half_width):
-			if marking.is_lane_line():
-				return true
-	return false
+func rule_params(_bake: Bake) -> Dictionary:
+	return {solid_fault = solid_fault, no_indicator_fault = no_indicator_fault,
+		straddle_fault = straddle_fault, kerb_fault = kerb_fault, grace = grace,
+		indicator_lead = indicator_lead, crossing_merge = crossing_merge,
+		wheel_half_width = wheel_half_width}

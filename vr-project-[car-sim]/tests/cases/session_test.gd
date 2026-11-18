@@ -6,6 +6,7 @@ const STEPS_FIXTURE := preload("res://tests/fixtures/steps_fixture.tscn")
 
 func run() -> void:
 	await _test_session()
+	await _test_same_drive_same_events()
 
 
 func _test_session() -> void:
@@ -34,14 +35,32 @@ func _test_session() -> void:
 	await process_frame
 	expect(runner.session.is_running(), "an autostarting runner's session is running after one frame")
 	var lane: FaultDef = load(FAULTS % "lane_drift")
-	var a := Node.new()
-	var b := Node.new()
-	runner.session.report_fault(lane, Vector3.ZERO, a)
-	runner.session.report_fault(lane, Vector3.ZERO, a)
-	runner.session.report_fault(lane, Vector3.ZERO, b)
-	expect(runner.session.faults.size() == 2,
-		"a repeat from the same check within the window is dropped, another check's is kept")
-	a.free()
-	b.free()
+	var sess := {state = ExamSession.State.RUNNING, elapsed = 0.0, last_report = {}, faults = [],
+		definition = runner.session.definition}
+	var d := Delta.new()
+	for source in [1, 1, 2]:
+		ExamLogic._report(sess, source, lane, Vector3.ZERO, null, d)
+	expect(sess.faults.size() == 2 and d.events.size() == 2,
+		"a repeat from the same rule within the window is dropped, another rule's is kept")
 	runner.queue_free()
 	await process_frame
+
+
+## Every event of a drive that crosses lines, speeds, and runs the stop line, as text.
+func _event_log() -> Array:
+	var log := []
+	var on_spawn := func(runner: ExamRunner) -> void:
+		runner.world_runner.events_emitted.connect(func(events: Array[WorldEvent]) -> void:
+			for event in events:
+				log.append("%s %d %.3f" % [event.kind, event.entity, event.time]))
+	await drive([{to = at(20.0), speed = 15.0}, {to = Vector3(-1.75, 0, 0), speed = 15.0},
+		{to = Vector3(-1.75, 0, -40), speed = 15.0}], null, on_spawn)
+	return log
+
+
+func _test_same_drive_same_events() -> void:
+	var first := await _event_log()
+	var second := await _event_log()
+	expect(first.size() > 5 and first == second,
+		"the same drive gives the same events, scoring included, every time (%d events)"
+		% first.size())

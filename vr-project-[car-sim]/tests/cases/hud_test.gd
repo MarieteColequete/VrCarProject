@@ -50,7 +50,7 @@ func _test_sandbox() -> void:
 	_press(hud, &"exam_begin")
 	expect(session.is_running() and not hud.message_panel.visible, "exam_begin starts the attempt")
 	var drift: FaultDef = load(FAULTS % "lane_drift")
-	session.report_fault(drift, Vector3.ZERO, self)
+	session.report_fault(drift, Vector3.ZERO)
 	expect(hud.feed.get_child_count() == 1
 		and (hud.feed.get_child(0) as Label).text.contains(drift.title),
 		"a committed fault appears in the feed")
@@ -67,7 +67,7 @@ func _test_sandbox() -> void:
 	follower.name = "Follower"
 	follower.path = lane
 	follower.speed = 8.0
-	runner.scenario.add_child(follower)
+	runner.add_road_user(follower)
 	await frames(600)
 	var reaction_shown := false
 	for line: Label in hud.feed.get_children():
@@ -76,7 +76,7 @@ func _test_sandbox() -> void:
 	expect(reaction_shown, "the feed shows how other road users react")
 	expect(hud.performance_label.text.contains("traffic")
 		and hud.performance_label.text.contains("road users"),
-		"the readout shows the traffic system's share of the frame: %s" % hud.performance_label.text)
+		"the readout shows the traffic pipeline's share of the frame: %s" % hud.performance_label.text)
 
 	session.abort()
 	expect(hud.message_panel.visible and hud.message_label.text.contains("FAILED")

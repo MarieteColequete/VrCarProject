@@ -3,9 +3,8 @@ extends RefCounted
 ## What a road user sees ahead: it sweeps a corridor of the user's width forward along its path,
 ## in a few straight segments that follow the curve, against the boxes of a [TrafficSnapshot], and
 ## reports the nearest one in the way, whatever it is: the player's car, another road user, a
-## pedestrian, or a parked van. It sees what the snapshot holds: road users, vehicles with a
-## [VehicleProbe], and the box shapes of static bodies on the obstacle layer. It reads only the
-## snapshot, so it is safe on any thread.
+## pedestrian, or a parked van. It sees what the snapshot holds: road users, the player's car, and
+## the scenario's obstacles. It reads only the snapshot, so it is safe on any thread.
 
 ## Straight segments the look-ahead is split into, so the sweep follows a curved path.
 const SEGMENTS := 3
@@ -13,8 +12,8 @@ const SEGMENTS := 3
 
 ## Something in the way.
 class Leader:
-	## The body ahead; null for a stop line.
-	var body: Node3D
+	## The entity ahead; 0 for a stop line.
+	var body := 0
 	## Metres from the user's front to the body.
 	var gap := INF
 	## The body's speed along the user's direction, metres per second; negative when coming
@@ -23,15 +22,22 @@ class Leader:
 	## Whether the body is another road user.
 	var road_user := false
 
+	func clear() -> void:
+		body = 0
+		gap = INF
+		speed = 0.0
+		road_user = false
+
 
 ## The nearest box in a corridor [param half_width] either side of [param points], the path ahead
-## from the user's front, other than [param me]'s own; null when the way is clear.
+## from the user's front, other than entity [param me]'s own, written into [param into]; returns
+## false, leaving [param into] as it was, when the way is clear. It creates no object, so threads
+## do not queue on the engine's script bookkeeping.
 static func sense(snapshot: TrafficSnapshot, points: PackedVector3Array, half_width: float,
-		me: Node3D) -> Leader:
+		me: int, into: Leader) -> bool:
 	# Local copies once, so the loops below read plain values instead of shared objects.
 	var grid := snapshot.grid
 	var ids := snapshot.ids
-	var me_id := me.get_instance_id()
 	var corners := snapshot.corners
 	var centres := snapshot.centre
 	var alongs := snapshot.along
@@ -60,8 +66,7 @@ static func sense(snapshot: TrafficSnapshot, points: PackedVector3Array, half_wi
 				if bucket == null:
 					continue
 				for index: int in bucket:
-					# Compared by id: reading the node itself would validate it under a lock.
-					if ids[index] == me_id:
+					if ids[index] == me:
 						continue
 					# The corridor's own axes: the box's corners must reach it.
 					var u_min := INF
@@ -93,11 +98,10 @@ static func sense(snapshot: TrafficSnapshot, points: PackedVector3Array, half_wi
 						nearest = entry
 						hit = index
 		if hit >= 0:
-			var leader := Leader.new()
-			leader.gap = travelled + nearest
-			leader.body = snapshot.nodes[hit]
-			leader.speed = snapshot.velocity[hit].dot(dir)
-			leader.road_user = snapshot.road_user[hit] == 1
-			return leader
+			into.gap = travelled + nearest
+			into.body = ids[hit]
+			into.speed = snapshot.velocity[hit].dot(dir)
+			into.road_user = snapshot.road_user[hit] == 1
+			return true
 		travelled += length
-	return null
+	return false
