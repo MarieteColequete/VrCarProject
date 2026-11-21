@@ -116,16 +116,23 @@ in `Research/scenario-detection/performance.md`.
 
 ## Models
 
-The cars, houses, trees, fences, paths, roads, and street furniture are from Kenney's [Car
-Kit](https://kenney.nl/assets/car-kit) (3.1), [City Kit
-(Suburban)](https://kenney.nl/assets/city-kit-suburban) (2.0), and [City Kit
-(Roads)](https://kenney.nl/assets/city-kit-roads) (2.2), under CC0, in
+The cars, trains, houses, shops, factories, trees, fences, paths, roads, and street furniture are from
+Kenney's [Car Kit](https://kenney.nl/assets/car-kit) (3.1), [City Kit
+(Suburban)](https://kenney.nl/assets/city-kit-suburban) (2.0), [City Kit
+(Roads)](https://kenney.nl/assets/city-kit-roads) (2.2), [City Kit
+(Commercial)](https://kenney.nl/assets/city-kit-commercial), [City Kit
+(Industrial)](https://kenney.nl/assets/city-kit-industrial), [Train
+Kit](https://kenney.nl/assets/train-kit), and [Animated Characters
+(Retro)](https://kenney.nl/assets/animated-characters-retro), under CC0, in
 `vr-project-[car-sim]/assets/kenney/` with their licences, textures, and previews. Each kit is an
 asset pack (see Maps). `KitModels` merges each model into one mesh at its pack's size in metres,
 facing -Z like the project's cars; parked cars, road users, props, and scenery draw them, and so
 does the player's car, but only in the chase view: the kit's cars have no windows or inside, so the
 driver's view leaves the body out (render layer 20). Road users are a car of the kit stretched to
-their body, or a lorry or van when longer than a car, and keep their look for their whole drive.
+their body, or a lorry or van when longer than a car, and keep their look for their whole drive. Pedestrians are the survivors of
+Animated Characters (Retro), a man and a woman picked by the road user (`PedestrianModel`), scaled
+to the body's height. They stand idle when still and run when moving, the run slowed to the walking
+pace, since the kit has no walk; only the survivors' skins are imported, not the zombies'.
 
 The Map Kit's roads take the look of City Kit (Roads) (`RoadKit`). The kit's straight road tile is a
 cross-section (asphalt, a darker band by the kerb, the kerb, and the pavement) swept along each
@@ -295,10 +302,6 @@ dock beside the inspector, in folding sections that stay as they were left:
   the obstacle layer, links the lanes whose ends meet (the selected ones, or all of the map's), or
   snaps them to the grid. **Next look** steps the selected map assets to the next model of their
   category, and props and scenery to their next look.
-- **Roads** extends the selected road from its open end nearest the centre of the 3D view, with
-  the same lanes, or puts a crossroads or T junction on that end. **Generate selected** and
-  **Generate all** generate the roads' lanes and markings and the junctions' lines and lanes, then
-  link every lane whose ends meet.
 - **Road users** turns the selected cars into road users that drive to a checkpoint: select the
   cars (map assets from the Asset Library, props, or road users already) and the checkpoint (or
   leave it out when the map has only one), and press **Drive to checkpoint**. Each becomes a
@@ -317,15 +320,34 @@ dock beside the inspector, in folding sections that stay as they were left:
 - **View** switches the overlay and the Dev HUD, and sets the grid step.
 
 The **Asset Library** pane, a bottom panel beside Output, lists every model in
-`vr-project-[car-sim]/assets/`: categories on the left (Cars, Vans and lorries, Service vehicles,
-Houses, Trees, Fences, Paths and driveways, Street lights, Roadworks, and more), thumbnails on the right, with a search box
-and a choice of thumbnail size. Pick a model and click in the 3D view to place it as a `MapAsset`,
-Shift and click to keep placing; a double click drops it where the centre of the view meets the
-ground. **Replace selection** gives the selected map assets the picked model, and **Next look** in
-the Map Kit dock steps a map asset to the next model of its category.
+`vr-project-[car-sim]/assets/`. On the left are the sources: **Favourites**, **Recent** (the last
+20 models placed), every pack, and each pack (Car Kit, Suburban, Roads, Commercial, Industrial,
+Trains) with its colour; below them are the chosen source's categories (Cars, Houses, Shops and
+offices, Shipping containers, and more). On the right are a search box, chips that show only one
+body type (obstacle, vehicle, pavement, looks only), a switch between thumbnails and a list, and
+the thumbnail size. The search matches every word as part of a model's name, category, or pack;
+`pack:`, `cat:`, and `body:` narrow a word to that field, as in `pack:trains body:vehicle tram`.
+Thumbnails are rendered by the pane itself (`AssetThumbnails`), each model alone from the same
+angle and light, and kept under `.godot/`; a pack's own preview shows until a model's render is
+ready. Each is faintly tinted with its pack's colour, and a model whose name another pack also
+uses is labelled with its pack's short name, as in "Building a · Commercial". Hovering a model
+shows its category, pack, and body type; picking it also shows its size and triangles.
+
+Pick a model and click in the 3D view to place it as a `MapAsset`, or drag it into the view; Shift
+and click keeps placing, and a double click or Enter drops it where the centre of the view meets
+the ground. While placing, a see-through ghost stands on whatever solid is under the mouse (a road
+tile, a pavement, another model), or else on the ground, snapped to the grid across; R turns it a
+quarter, Shift and R by 15 degrees, and Shift and E straightens it. Each model keeps the turn it
+was last placed with, and Space in the 3D view places the last piece again. Right click a model to
+place it at the view's centre, mark it as a favourite (or press F), replace the selected map
+assets with it, show it in the FileSystem, or copy its path. **Next look** in the Map Kit dock
+steps a map asset to the next model of its category. The pane remembers its source, category,
+search, chips, view, size, favourites, recent models, and turns per project, and looks for packs
+again when a model or pack file under `assets/` changes, or on **Refresh**.
 
 Assets come in packs: a folder of `.glb` models with a `pack.tres` (an `AssetPack`), and optionally
-`previews/<model>.png` thumbnails. The pack file sets the credit, the scale to metres, the turn
+`previews/<model>.png` thumbnails. The pack file sets the title, a short name for the pane (`tag`; by default the part
+of the title in brackets), the credit, the scale to metres, the turn
 that faces the models' fronts to -Z, and the categories (`AssetCategory`): which models belong, by
 name pattern such as `building-type-*`, their body type (obstacle, vehicle, pavement) or none for
 looks only, a size to stretch
@@ -355,9 +377,10 @@ crossed by two side roads that give way, oncoming traffic, signs, parked cars, b
 To build a map:
 
 1. Create it under **Maps**, and set the environment's ground size to cover the roads.
-2. Place a road, shape its curve, and **Extend road** or place more roads and junctions on its
-   open ends. Press **Generate all** for the lanes, markings, and lines, or draw `TrafficLane` and
-   `RoadMarking` paths by hand and link them with **Connect lanes**. Place lights, sources,
+2. Place a road, shape its curve, and place more roads and junctions on its open ends, which they
+   join when placed near one. Generate each road's lanes and markings and each junction's lines
+   and lanes with the buttons in the inspector, or draw `TrafficLane` and `RoadMarking` paths by
+   hand, and link them with **Connect lanes**. Place lights, sources,
    signs, and the trigger zones that start lights and road users, and models from the Asset
    Library. For a road user, place a car and a checkpoint and press **Drive to checkpoint**; for a
    steady flow, place a traffic source.

@@ -31,6 +31,26 @@ static func forget() -> void:
 	RoadKit.forget()
 
 
+## Forgets the meshes built from the model at [param model_path], so a reimport is read again.
+static func forget_model(model_path: String) -> void:
+	_meshes.erase(model_path)
+	_meshes.erase(model_path + "#unit")
+
+
+## The number of triangles in the model's mesh; zero when it does not load.
+static func triangles(model_path: String) -> int:
+	var built := mesh(model_path)
+	if built == null:
+		return 0
+	var count := 0
+	for surface in built.get_surface_count():
+		var arrays := built.surface_get_arrays(surface)
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		count += (indices.size() if not indices.is_empty()
+			else (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()) / 3
+	return count
+
+
 ## The path of the car kit's model [param model_name], such as [code]sedan[/code].
 static func car_kit(model_name: String) -> String:
 	return CAR_KIT + model_name + ".glb"

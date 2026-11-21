@@ -63,6 +63,7 @@ order = 36
 [resource]
 script = ExtResource("pack")
 title = "City Kit (Roads)"
+tag = "Roads"
 credit = "Kenney (kenney.nl), CC0"
 scale = 8.75
 categories = Array[ExtResource("category")]([SubResource("street_lights"), SubResource("sign_models"), SubResource("traffic_light_models"), SubResource("roadworks"), SubResource("poles"), SubResource("street_items"), SubResource("road_tiles")])

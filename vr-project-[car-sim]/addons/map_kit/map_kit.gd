@@ -20,16 +20,23 @@ var dock: MapKitDock
 ## The Asset Library pane.
 var library: AssetLibraryDock
 var placer: MapKitPlacer
+## Renders the Asset Library's thumbnails.
+var thumbnails: AssetThumbnails
 var overlay: MapKitOverlay
 ## The open map's problems, as [method MapKitTools.problems] lists them.
 var problems: Array[Dictionary] = []
 
 var _check_timer: Timer
+var _drop_targets: Array[AssetDropTarget] = []
+## The piece the drag being made armed, so a drag ending outside the 3D view disarms it.
+var _dragged: MapKitTools.Piece
 var _overlay_button: Button
 
 
 func _enter_tree() -> void:
 	placer = MapKitPlacer.new(self)
+	thumbnails = AssetThumbnails.new()
+	add_child(thumbnails)
 	overlay = MapKitOverlay.new()
 	dock = MapKitDock.new()
 	dock.plugin = self
@@ -59,6 +66,7 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	end_asset_drag()
 	placer.disarm()
 	if get_undo_redo().history_changed.is_connected(queue_check):
 		get_undo_redo().history_changed.disconnect(queue_check)
@@ -99,6 +107,37 @@ func _forward_3d_force_draw_over_viewport(viewport_control: Control) -> void:
 		return
 	overlay.draw(viewport_control, camera, road_map if setting("overlay", true) else null,
 		problems, placer.hint())
+
+
+## Arms [param piece], dragged from the Asset Library, and lays a drop target over each 3D view
+## shown, until [method end_asset_drag].
+func begin_asset_drag(piece: MapKitTools.Piece) -> void:
+	end_asset_drag()
+	if edited_map() == null:
+		return
+	placer.arm(piece)
+	_dragged = piece
+	for i in 4:
+		var viewport := EditorInterface.get_editor_viewport_3d(i)
+		var container := viewport.get_parent() as Control if viewport else null
+		if container == null or not container.is_visible_in_tree():
+			continue
+		var target := AssetDropTarget.new(self, viewport)
+		container.get_parent().add_child(target)
+		target.cover(container)
+		_drop_targets.append(target)
+
+
+## Removes the drop targets, and disarms the dragged piece if it was not dropped.
+func end_asset_drag() -> void:
+	for target in _drop_targets:
+		if is_instance_valid(target):
+			target.get_parent().remove_child(target)
+			target.queue_free()
+	_drop_targets.clear()
+	if _dragged and placer.piece == _dragged:
+		placer.disarm()
+	_dragged = null
 
 
 ## The open scene's root when it is a map; null otherwise.

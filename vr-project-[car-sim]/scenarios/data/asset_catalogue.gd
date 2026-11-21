@@ -16,7 +16,8 @@ class Entry:
 	var path: String
 	## The model's name, such as [code]sedan[/code].
 	var model_name: String
-	## The name to show, such as "Sedan".
+	## The name to show, such as "Sedan"; followed by its pack's short name, as in "Building a ·
+	## Commercial", when another pack has a model of the same name.
 	var label: String
 	var pack: AssetPack
 	## The category's title.
@@ -49,7 +50,17 @@ static func scan(root := ROOT) -> Array[Entry]:
 		if a.category != b.category:
 			return a.category < b.category
 		return a.model_name < b.model_name)
+	_tell_apart(found)
 	return found
+
+
+## The packs among [param entries], in the order their models first come, each once.
+static func packs(entries: Array[Entry]) -> Array[AssetPack]:
+	var out: Array[AssetPack] = []
+	for entry in entries:
+		if not out.has(entry.pack):
+			out.append(entry.pack)
+	return out
 
 
 ## The categories' titles among [param entries], in their order, each once.
@@ -59,6 +70,15 @@ static func categories(entries: Array[Entry]) -> PackedStringArray:
 		if not out.has(entry.category):
 			out.append(entry.category)
 	return out
+
+
+## The size, metres, a [MapAsset] made from [param entry] shows its model at, without making one.
+static func shown_size(entry: Entry) -> Vector3:
+	var natural := KitModels.size_of(entry.path)
+	var rules := entry.rules
+	if rules == null:
+		return natural
+	return natural * MapAsset.scale_for(natural, rules.fit, rules.extra_scale)
 
 
 ## A [MapAsset] showing [param entry], set up as its category says.
@@ -95,3 +115,15 @@ static func _scan_folder(folder: String, found: Array[Entry]) -> void:
 	for sub in DirAccess.get_directories_at(folder):
 		if not sub.begins_with(".") and sub != "previews":
 			_scan_folder(folder.path_join(sub), found)
+
+
+## Adds the pack's short name to the labels that more than one pack uses.
+static func _tell_apart(entries: Array[Entry]) -> void:
+	var packs_of := {}
+	for entry in entries:
+		var seen: Array = packs_of.get_or_add(entry.label, [])
+		if not seen.has(entry.pack):
+			seen.append(entry.pack)
+	for entry in entries:
+		if packs_of[entry.label].size() > 1:
+			entry.label = "%s · %s" % [entry.label, entry.pack.short_title()]

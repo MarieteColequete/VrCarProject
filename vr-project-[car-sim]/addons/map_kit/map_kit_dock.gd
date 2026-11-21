@@ -8,8 +8,6 @@ extends EditorDock
 ## [br]- Problems: the open map's problems, kept current as it is edited, each with its fix where
 ## one is known; selecting one selects its node.
 ## [br]- Selection: set meshes as road, give them a solid body, link lanes, snap to the grid.
-## [br]- Roads: extend a road from its open end, put a junction on it, and generate lanes,
-## markings, and lines for the selection or the whole map.
 ## [br]- Palette: pieces to place by clicking in the 3D view, with a search box.
 ## [br]- View: the overlay, the Dev HUD when playing, and the grid step.
 ## [br]The work is the [MapKitPlugin]'s and [MapKitTools]'.
@@ -74,7 +72,6 @@ func _init() -> void:
 	_build_maps(column)
 	_build_problems(column)
 	_build_selection(column)
-	_build_roads(column)
 	_build_road_users(column)
 	_build_palette(column)
 	_build_view(column)
@@ -294,25 +291,6 @@ func _build_selection(column: VBoxContainer) -> void:
 	flow.add_child(_button("Next look", _next_look,
 		"Shows the next car, van, or house on the selected props, the next kind of the selected "
 		+ "scenery, and the next model of the selected map assets' category."))
-	box.add_child(flow)
-
-
-func _build_roads(column: VBoxContainer) -> void:
-	var box := _section(column, "Roads")
-	var flow := HFlowContainer.new()
-	flow.add_child(_button("Extend road", _extend,
-		"Adds a road like the selected one from its open end nearest the view's centre.",
-		&"CurveCreate"))
-	flow.add_child(_button("Add crossroads", _junction_at_end.bind(RoadJunction.Shape.CROSSROADS),
-		"Puts a crossroads on the selected road's open end nearest the view's centre."))
-	flow.add_child(_button("Add T junction", _junction_at_end.bind(RoadJunction.Shape.T),
-		"Puts a T junction on the selected road's open end nearest the view's centre."))
-	flow.add_child(_button("Generate selected", _generate_selected,
-		"Generates the selected roads' lanes and markings and the junctions' lines and lanes, "
-		+ "then links the lanes."))
-	flow.add_child(_button("Generate all", _generate_all,
-		"Generates every road's and junction's lanes, markings, and lines, then links every lane "
-		+ "whose ends meet. One undo step."))
 	box.add_child(flow)
 
 
@@ -682,54 +660,6 @@ func _next_look() -> void:
 		_say("Select cars, vans, buildings, scenery, or map assets.")
 
 
-func _extend() -> void:
-	var road_map := _need_map()
-	var road := _selected_road()
-	if road_map == null or road == null:
-		_say("Select a road or junction to extend.")
-		return
-	if not plugin.apply(MapKitTools.extend_road(road_map, road, view_centre(road_map)),
-			"Extend %s" % road.name, true):
-		_say("%s has no open end." % road.name)
-
-
-func _junction_at_end(shape: RoadJunction.Shape) -> void:
-	var road_map := _need_map()
-	var road := _selected_road()
-	if road_map == null or road == null:
-		_say("Select a road to put a junction on.")
-		return
-	if not plugin.apply(MapKitTools.junction_at_end(road_map, road, shape,
-			view_centre(road_map)), "Add a junction to %s" % road.name, true):
-		_say("%s has no open end." % road.name)
-
-
-func _generate_selected() -> void:
-	var road_map := _need_map()
-	if road_map == null:
-		return
-	var edit := MapKitTools.Edit.new()
-	for node in _selected():
-		if node is RoadSegment or node is RoadJunction:
-			edit.merge(MapKitTools.regenerate(node))
-	if edit.is_empty():
-		_say("Select roads or junctions to generate.")
-		return
-	edit.merge(MapKitTools.link_lanes(road_map, edit))
-	plugin.apply(edit, "Generate the selected roads")
-
-
-func _generate_all() -> void:
-	var road_map := _need_map()
-	if road_map == null:
-		return
-	var edit := MapKitTools.generate_all(road_map)
-	if plugin.apply(edit, "Generate the whole map"):
-		_say("Generated %d lanes, markings, and lines." % edit.adds.size())
-	else:
-		_say("The map has no roads or junctions to generate.")
-
-
 func _filter_palette(text: String) -> void:
 	var query := text.strip_edges().to_lower()
 	for button in _palette_buttons:
@@ -788,13 +718,6 @@ func _need_map() -> RoadMap:
 
 func _selected() -> Array[Node]:
 	return EditorInterface.get_selection().get_top_selected_nodes()
-
-
-func _selected_road() -> Node3D:
-	for node in _selected():
-		if node is RoadSegment or node is RoadJunction:
-			return node
-	return null
 
 
 ## Where the centre of the first 3D view looks onto the ground, in [param road_map]'s space; its

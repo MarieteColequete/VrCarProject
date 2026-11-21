@@ -50,6 +50,7 @@ order = 25
 [resource]
 script = ExtResource("pack")
 title = "City Kit (Suburban)"
+tag = "Suburban"
 credit = "Kenney (kenney.nl), CC0"
 scale = 7.0
 categories = Array[ExtResource("category")]([SubResource("houses"), SubResource("trees"), SubResource("fences"), SubResource("yard_fences"), SubResource("planters"), SubResource("paths_and_driveways")])

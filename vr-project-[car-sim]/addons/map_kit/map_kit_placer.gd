@@ -1,24 +1,36 @@
 @tool
 class_name MapKitPlacer
 extends RefCounted
-## Places palette pieces by clicking in the 3D view. Arming a piece shows a ghost of it that
-## follows the mouse over the ground, snapped to the grid, or onto an open road end when a road or
-## junction comes near one. A left click places it, Shift and click places it and keeps it armed,
-## R turns it a quarter, Shift and R by 15 degrees, and Escape or a right click stops.
+## Places palette pieces and models by clicking in the 3D view. Arming a piece shows a ghost of it
+## that follows the mouse over the ground, snapped to the grid across, or onto an open road end
+## when a road or junction comes near one; a model stands on whatever solid is under the mouse
+## (a road tile, a pavement, another model's body), or else on the ground. A model's ghost is see-through and solid to nothing. A left click
+## places it, Shift and click places it and keeps it armed, R turns it a quarter, Shift and R by
+## 15 degrees, Shift and E straightens it, and Escape or a right click stops. With nothing armed,
+## Space arms the last piece placed again. A piece keeps its turn in [member MapKitTools.Piece.turn].
 
 ## Emitted when a piece is armed or disarmed.
 signal armed_changed(piece: MapKitTools.Piece)
+## Emitted when [param piece] has been placed.
+signal placed(piece: MapKitTools.Piece)
+## Emitted when the armed piece is turned, so its turn can be kept for next time.
+signal turned(piece: MapKitTools.Piece, turn: float)
 
 const TURN := PI / 2.0
 const FINE_TURN := PI / 12.0
+## How far a ray looks for a surface under the mouse, metres.
+const REACH := 2000.0
 
 var plugin: MapKitPlugin
 ## The armed piece; null when none is.
 var piece: MapKitTools.Piece
+## The piece placed last, for Space to arm again.
+var last: MapKitTools.Piece
 
 var _ghost: Node3D
-var _turn := 0.0
-## Where the ghost stands, in the map's space; null before the mouse has been over the ground.
+## The ghost's own height above where it stands, as the piece makes it.
+var _base_y := 0.0
+## Where the ghost stands, in the map's space; null before the mouse has been over the map.
 var _at: Variant = null
 
 
@@ -37,9 +49,11 @@ func arm(p_piece: MapKitTools.Piece) -> void:
 	if road_map == null:
 		return
 	piece = p_piece
-	_turn = 0.0
 	_at = null
 	_ghost = piece.make.call()
+	if _ghost is MapAsset:
+		(_ghost as MapAsset).preview = true
+	_base_y = _ghost.position.y
 	_ghost.visible = false
 	road_map.add_child(_ghost, false, Node.INTERNAL_MODE_BACK)
 	armed_changed.emit(piece)
@@ -61,20 +75,26 @@ func disarm() -> void:
 func hint() -> String:
 	if piece == null:
 		return ""
-	return "Placing %s: click to place, Shift+click to keep placing, R to turn, Esc to stop" \
-		% piece.label.to_lower()
+	return "Placing %s, turned %d°: click to place, Shift+click to keep placing, R to turn, " \
+		% [piece.label.to_lower(), roundi(rad_to_deg(piece.turn))] \
+		+ "Shift+E to straighten, Esc to stop"
 
 
 ## Handles [param event] over the 3D view seen by [param camera]; returns whether it used it.
 func input(camera: Camera3D, event: InputEvent) -> bool:
+	var key := event as InputEventKey
+	var pressed_key := key != null and key.pressed and not key.echo
 	if piece == null:
+		if pressed_key and key.keycode == KEY_SPACE and last and plugin.edited_map():
+			arm(last)
+			return true
 		return false
 	var road_map := plugin.edited_map()
 	if road_map == null or _ghost == null or not is_instance_valid(_ghost):
 		disarm()
 		return false
 	if event is InputEventMouseMotion:
-		_follow(road_map, camera, (event as InputEventMouseMotion).position)
+		follow(camera, (event as InputEventMouseMotion).position)
 		return false
 	if event is InputEventMouseButton and event.pressed:
 		var button := event as InputEventMouseButton
@@ -82,19 +102,21 @@ func input(camera: Camera3D, event: InputEvent) -> bool:
 			disarm()
 			return true
 		if button.button_index == MOUSE_BUTTON_LEFT:
-			_follow(road_map, camera, button.position)
+			follow(camera, button.position)
 			if _at != null:
 				place(road_map, _at)
 			if not button.shift_pressed:
 				disarm()
 			return true
-	if event is InputEventKey and event.pressed and not event.echo:
-		var key := event as InputEventKey
+	if pressed_key:
 		if key.keycode == KEY_ESCAPE:
 			disarm()
 			return true
-		if key.keycode == KEY_R:
-			_turn = fmod(_turn + (FINE_TURN if key.shift_pressed else TURN), TAU)
+		if key.keycode == KEY_R or (key.keycode == KEY_E and key.shift_pressed):
+			var turn := 0.0 if key.keycode == KEY_E \
+				else fmod(piece.turn + (FINE_TURN if key.shift_pressed else TURN), TAU)
+			piece.turn = turn
+			turned.emit(piece, turn)
 			if _at != null:
 				_show_ghost(road_map, _at)
 			return true
@@ -114,36 +136,88 @@ func place(road_map: RoadMap, point: Vector3) -> void:
 	node.transform = MapKitTools.to_map(parent, road_map).affine_inverse() \
 		* _placement(road_map, node, point)
 	plugin.apply(MapKitTools.Edit.new().add(parent, node), "Add %s" % piece.label.to_lower(), true)
+	last = piece
+	placed.emit(piece)
 
 
-## Where [param node] goes for the mouse at [param point]: on a road end it joins, or on the grid
-## turned as set, its own height kept.
-func _placement(road_map: RoadMap, node: Node3D, point: Vector3) -> Transform3D:
-	if piece.joins_roads:
-		var joined: Variant = MapKitTools.joining_transform(road_map, node, point)
-		if joined != null:
-			return joined
-	var step: float = plugin.setting("grid_step", 0.5)
-	var at := MapKitTools.snapped(point, step) + Vector3(0, node.position.y, 0)
-	return Transform3D(Basis(Vector3.UP, _turn), at)
+## Places the armed piece where the ghost stands; nothing before the mouse has been over the map.
+func place_here(road_map: RoadMap) -> void:
+	if _at != null:
+		place(road_map, _at)
 
 
-func _follow(road_map: RoadMap, camera: Camera3D, mouse: Vector2) -> void:
-	var hit: Variant = Plane.PLANE_XZ.intersects_ray(camera.project_ray_origin(mouse),
-		camera.project_ray_normal(mouse))
+## Moves the ghost to what is under [param mouse] in the view seen by [param camera].
+func follow(camera: Camera3D, mouse: Vector2) -> void:
+	var road_map := plugin.edited_map()
+	if road_map == null or _ghost == null or not is_instance_valid(_ghost):
+		return
+	var hit: Variant = surface_under(camera, mouse)
 	if hit == null:
 		return
 	_at = road_map.global_transform.affine_inverse() * (hit as Vector3)
 	_show_ghost(road_map, _at)
 
 
+## Where the ray through [param mouse] meets the ground, or, for a model, a solid of the edited
+## world first, the ghost's own aside; null when it meets neither.
+func surface_under(camera: Camera3D, mouse: Vector2) -> Variant:
+	var from := camera.project_ray_origin(mouse)
+	var normal := camera.project_ray_normal(mouse)
+	var space := camera.get_world_3d().direct_space_state if camera.get_world_3d() else null
+	if space and _ghost is MapAsset:
+		var query := PhysicsRayQueryParameters3D.create(from, from + normal * REACH)
+		query.exclude = _ghost_bodies()
+		var hit := space.intersect_ray(query)
+		if not hit.is_empty():
+			return hit.position
+	return Plane.PLANE_XZ.intersects_ray(from, normal)
+
+
+## The transform of a piece placed at [param point]: snapped to the grid of [param step] across,
+## standing on the point's height plus [param height], turned [param turn] about the vertical.
+static func placement(point: Vector3, step: float, turn: float, height: float) -> Transform3D:
+	var at := MapKitTools.snapped(Vector3(point.x, 0, point.z), step)
+	at.y = point.y + height
+	return Transform3D(Basis(Vector3.UP, turn), at)
+
+
+## Where [param node] goes for the mouse at [param point]: on a road end it joins, or else as
+## [method placement] puts it.
+func _placement(road_map: RoadMap, node: Node3D, point: Vector3) -> Transform3D:
+	if piece.joins_roads:
+		var joined: Variant = MapKitTools.joining_transform(road_map, node, point)
+		if joined != null:
+			return joined
+	return placement(point, plugin.setting("grid_step", 0.5), piece.turn, _base_y)
+
+
 func _show_ghost(road_map: RoadMap, point: Vector3) -> void:
-	var fresh: Node3D = piece.make.call()
-	_ghost.transform = _placement(road_map, fresh, point)
-	if _ghost is RoadSegment and fresh is RoadSegment:
-		(_ghost as RoadSegment).curve = (fresh as RoadSegment).curve
-		(_ghost as RoadSegment).lane_width = (fresh as RoadSegment).lane_width
-	elif _ghost is RoadJunction and fresh is RoadJunction:
-		(_ghost as RoadJunction).road_width = (fresh as RoadJunction).road_width
-	fresh.free()
+	# Roads and junctions are made again, since joining a road end shapes them; anything else
+	# is the same wherever it stands.
+	if _ghost is RoadSegment or _ghost is RoadJunction:
+		var fresh: Node3D = piece.make.call()
+		_ghost.transform = _placement(road_map, fresh, point)
+		if _ghost is RoadSegment:
+			(_ghost as RoadSegment).curve = (fresh as RoadSegment).curve
+			(_ghost as RoadSegment).lane_width = (fresh as RoadSegment).lane_width
+		else:
+			(_ghost as RoadJunction).road_width = (fresh as RoadJunction).road_width
+		fresh.free()
+	else:
+		_ghost.transform = _placement(road_map, _ghost, point)
 	_ghost.visible = true
+
+
+## The bodies of the ghost, so the ray for the surface passes through them.
+func _ghost_bodies() -> Array[RID]:
+	var out: Array[RID] = []
+	if _ghost and is_instance_valid(_ghost):
+		_bodies_of(_ghost, out)
+	return out
+
+
+static func _bodies_of(node: Node, out: Array[RID]) -> void:
+	if node is CollisionObject3D:
+		out.append((node as CollisionObject3D).get_rid())
+	for child in node.get_children(true):
+		_bodies_of(child, out)

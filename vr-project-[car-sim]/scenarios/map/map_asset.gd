@@ -42,6 +42,19 @@ extends Node3D
 		_queue_rebuild()
 
 const OBSTACLE := preload("res://scenarios/data/body_types/obstacle.tres")
+## The settings a model's category gives it, which replacing a model or stepping to its next look
+## sets together.
+const SETTINGS: Array[StringName] = [&"model", &"body_type", &"mesh_collider", &"fit",
+	&"extra_scale", &"solid_part"]
+## How see-through a [member preview] is drawn.
+const PREVIEW_TRANSPARENCY := 0.45
+
+## Drawn see-through with no body, as the Map Kit's placer shows a model before it is placed: it
+## stops no ray and bakes into nothing. Not saved.
+var preview := false:
+	set(value):
+		preview = value
+		_queue_rebuild()
 
 var _body: StaticBody3D
 var _part: MeshInstance3D
@@ -74,11 +87,16 @@ func size() -> Vector3:
 
 ## The scale the model is shown at.
 func model_scale() -> Vector3:
-	var natural := KitModels.size_of(model)
-	var out := Vector3.ONE * extra_scale
+	return scale_for(KitModels.size_of(model), fit, extra_scale)
+
+
+## The scale a model of [param natural] size is shown at, stretched to [param p_fit] where it is
+## not zero, and scaled by [param p_extra] elsewhere.
+static func scale_for(natural: Vector3, p_fit: Vector3, p_extra: float) -> Vector3:
+	var out := Vector3.ONE * p_extra
 	for axis in 3:
-		if fit[axis] > 0.0 and natural[axis] > 0.0:
-			out[axis] = fit[axis] / natural[axis]
+		if p_fit[axis] > 0.0 and natural[axis] > 0.0:
+			out[axis] = p_fit[axis] / natural[axis]
 	return out
 
 
@@ -98,8 +116,10 @@ func rebuild() -> void:
 	_part = MeshInstance3D.new()
 	_part.mesh = mesh
 	_part.scale = model_scale()
+	if preview:
+		_part.transparency = PREVIEW_TRANSPARENCY
 	add_child(_part, false, INTERNAL_MODE_BACK)
-	if body_type == null:
+	if body_type == null or preview:
 		return
 	_body = StaticBody3D.new()
 	_body.name = "Body"

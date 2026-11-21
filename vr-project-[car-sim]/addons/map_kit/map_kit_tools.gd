@@ -36,6 +36,8 @@ class Piece:
 	var tip: String
 	## Whether it joins an open road end when placed near one.
 	var joins_roads := false
+	## How far it is turned about the vertical when placed, radians.
+	var turn := 0.0
 
 	func _init(p_label: String, p_section: String, p_group: String, p_make: Callable,
 			p_icon := "", p_tip := "") -> void:
@@ -932,6 +934,7 @@ static func _sign(kind: RoadSign.Kind) -> Node3D:
 ## prop with several, the next kind of scenery, the next model of a map asset's category.
 static func next_look(nodes: Array) -> Edit:
 	var edit := Edit.new()
+	var entries: Array[AssetCatalogue.Entry] = []
 	for node: Node in nodes:
 		if node is Prop and (node as Prop).preset in [Prop.Preset.PARKED_CAR, Prop.Preset.VAN,
 				Prop.Preset.BUILDING]:
@@ -940,21 +943,26 @@ static func next_look(nodes: Array) -> Edit:
 			edit.set_value(node, &"kind",
 				posmod((node as Scenery).kind + 1, Scenery.Kind.size()))
 		elif node is MapAsset:
-			var next := next_asset((node as MapAsset).model)
+			if entries.is_empty():
+				entries = AssetCatalogue.scan()
+			var next := next_asset((node as MapAsset).model, entries)
 			if next:
-				var template := AssetCatalogue.make(next)
-				for property: StringName in [&"model", &"solid", &"fit", &"extra_scale",
-						&"solid_part"]:
-					edit.set_value(node, property, template.get(property))
-				template.free()
+				set_model(edit, node as MapAsset, next)
 	return edit
 
 
-## The model after [param model_path] in its category of the [AssetCatalogue] under
-## [param root], wrapping round; null when it is not listed.
+## Gives [param asset] the model of [param entry], set up as its category says, in [param edit].
+static func set_model(edit: Edit, asset: MapAsset, entry: AssetCatalogue.Entry) -> void:
+	var template := AssetCatalogue.make(entry)
+	for property in MapAsset.SETTINGS:
+		edit.set_value(asset, property, template.get(property))
+	template.free()
+
+
+## The model after [param model_path] in its category and pack of [param entries] (the
+## [AssetCatalogue]'s scan), wrapping round; null when it is not listed.
 static func next_asset(model_path: String,
-		root := AssetCatalogue.ROOT) -> AssetCatalogue.Entry:
-	var entries := AssetCatalogue.scan(root)
+		entries: Array[AssetCatalogue.Entry]) -> AssetCatalogue.Entry:
 	var at := -1
 	for i in entries.size():
 		if entries[i].path == model_path:

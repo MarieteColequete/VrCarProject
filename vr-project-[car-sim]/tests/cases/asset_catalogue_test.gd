@@ -1,7 +1,8 @@
 extends TestCase
 ## The asset packs: the catalogue finds every model with its category, a folder without a pack
 ## file is listed under Other at the models' own size, and a map asset shows its model, solid or
-## looks only, bakes into an obstacle, and steps to the next model of its category.
+## looks only, bakes into an obstacle, and steps to the next model of its category. Packs are told
+## apart by their short names.
 
 const PLAIN := "res://tests/fixtures/assets/"
 
@@ -9,6 +10,7 @@ const PLAIN := "res://tests/fixtures/assets/"
 func run() -> void:
 	_test_scan()
 	_test_plain_folder()
+	_test_packs()
 	_test_map_asset()
 	_test_next_look()
 	await _test_bake()
@@ -19,8 +21,8 @@ func _test_scan() -> void:
 	var other := entries.filter(func(e: AssetCatalogue.Entry) -> bool:
 		return e.category == AssetPack.OTHER)
 	var categories := AssetCatalogue.categories(entries)
-	expect(entries.size() == 185 and other.is_empty(),
-		"the three kits' 185 models are found, each in a category %s"
+	expect(entries.size() == 366 and other.is_empty(),
+		"the six kits' 366 models are found, each in a category %s"
 			% [other.map(func(e: AssetCatalogue.Entry) -> String: return e.model_name)])
 	expect(categories[0] == "Cars" and categories.has("Houses") and categories.has("Trees")
 		and categories.has("Paths and driveways"), "categories are listed in their order")
@@ -30,6 +32,44 @@ func _test_scan() -> void:
 		and sedan[0].preview.ends_with("previews/sedan.png") and sedan[0].label == "Sedan",
 		"a model knows its category, pack, preview, and label")
 	expect(MapAsset.label_of("building-type-a") == "Building type a", "file names read as labels")
+
+
+func _test_packs() -> void:
+	var entries := AssetCatalogue.scan()
+	var tags := AssetCatalogue.packs(entries).map(func(p: AssetPack) -> String: return p.short_title())
+	expect(tags == ["Car Kit", "Suburban", "Roads", "Commercial", "Industrial", "Trains"],
+		"the packs are listed in their categories' order, by short name: %s" % [tags])
+	var labels := {}
+	for entry in entries:
+		if entry.model_name == "building-a":
+			labels[entry.pack.short_title()] = entry.label
+	expect(labels == {Commercial = "Building a · Commercial", Industrial = "Building a · Industrial"},
+		"a model name two packs use is labelled with its pack: %s" % [labels])
+	var house := _entry("building-type-a")
+	expect(house.label == "Building type a", "a name only one pack uses keeps its plain label")
+	var shop := _entry("building-skyscraper-a")
+	var awning := _entry("detail-awning")
+	var container := _entry("shipping-container-a")
+	expect(shop.category == "Skyscrapers" and shop.body() == BodyType.of(&"obstacle")
+		and awning.body() == null and container.category == "Shipping containers",
+		"the commercial and industrial models have their categories and body types")
+	var size := KitModels.size_of(container.path)
+	expect(size.x > 2.3 and size.x < 2.8 and size.z > 5.5 and size.z < 6.2,
+		"a shipping container is about the size of a real 20 foot one: %s" % size)
+
+	var tram := _entry("train-tram-modern")
+	var rail := _entry("railroad-straight")
+	var wagon := KitModels.size_of(_entry("train-carriage-box").path)
+	expect(tram.category == "Trams" and tram.body() == BodyType.of(&"vehicle") and rail.body() == null
+		and wagon.x > 2.8 and wagon.x < 3.2,
+		"trains are vehicles about 3 m wide, and the railway track is looks only")
+
+	var bare := AssetPack.new()
+	bare.title = "City Kit (Harbour)"
+	var named := AssetPack.new()
+	named.title = "Harbour"
+	expect(bare.short_title() == "Harbour" and named.short_title() == "Harbour",
+		"a pack's short name is its title's part in brackets, or its title")
 
 
 func _test_plain_folder() -> void:

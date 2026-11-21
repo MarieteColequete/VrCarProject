@@ -12,6 +12,9 @@ const FILE := "pack.tres"
 const OTHER := "Other"
 
 @export var title := ""
+## A short name, such as "Commercial", that tells the pack's models apart from another pack's in
+## the Asset Library pane; empty for the part of [member title] in brackets, or the whole title.
+@export var tag := ""
 ## Who made it and under which licence.
 @export var credit := ""
 ## Metres per unit of the models.
@@ -21,6 +24,18 @@ const OTHER := "Other"
 @export var categories: Array[AssetCategory] = []
 
 static var _packs := {}
+
+
+## The short name: [member tag], or else the part of [member title] in brackets ("City Kit
+## (Commercial)" is "Commercial"), or else the title.
+func short_title() -> String:
+	if not tag.is_empty():
+		return tag
+	var open := title.find("(")
+	var close := title.rfind(")")
+	if open >= 0 and close > open + 1:
+		return title.substr(open + 1, close - open - 1).strip_edges()
+	return title
 
 
 ## The pack of the folder [param folder]: its [code]pack.tres[/code], or a plain pack when it has
