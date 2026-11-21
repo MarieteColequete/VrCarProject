@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.3.0-alpha - 2026-11-22
+
+### Changed
+
+- **Breaking:** Keep maps apart from scenarios: a map is a scene of its own under `maps/`, found by scanning the folder, and a scenario instances its map and adds only its checks and steps
+- Drive the Kiri '86, with rolling wheels, a turning steering wheel, and lights that follow the car's state
+- Read the speed, the indicators, and the handbrake, headlights, and reverse tell-tales on an instrument panel inside the car, since the view is VR
+- Meet pedestrians that stand idle or walk, animated from the Animated Characters (Retro) survivors
+- Mount a kerb only with a tyre: pavements and kerbs are solid, and a tyre touching or crossing a kerb line is judged from its side, front, or back
+
+### Added
+
+- Drive any map alone in free drive, and move from map to map in the sandbox with M
+- Build maps in the editor with the Map Kit dock: create, open, check, fix, and play maps, and add roads, lanes, markings, lights, signs, and zones from a palette, all with undo
+- Furnish maps from the Asset Library with Kenney's Car, City, and Train kits: favourites, recent models, filters, search, rendered thumbnails, and drag and drop into the view
+- Add asset packs by dropping a folder of models with a pack file into `assets/`
+- Send selected cars as road users that drive to a checkpoint along a route worked out from the lanes
+- Try maps with a Dev HUD: a free camera, time scale, pause and step, and spawn to spawn
+- Switch the headlights with L or the gamepad's X
+- Learn map making from a guide with screenshots, written for readers new to Godot
+
 ## v0.2.0-alpha - 2026-11-18
 
 ### Added
