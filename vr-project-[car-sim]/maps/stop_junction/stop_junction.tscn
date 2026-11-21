@@ -1,8 +1,12 @@
 [gd_scene format=3]
 
 [ext_resource type="PackedScene" path="res://scenarios/kit/map_base.tscn" id="base"]
+
 [ext_resource type="Material" path="res://scenarios/kit/asphalt.tres" id="asphalt"]
+
 [ext_resource type="PackedScene" path="res://scenarios/kit/parked_car.tscn" id="parked"]
+
+[ext_resource type="Script" path="res://scenarios/map/road_sign.gd" id="sign"]
 
 [sub_resource type="BoxMesh" id="Mesh_road_ns"]
 size = Vector3(7, 0.02, 100)
@@ -15,28 +19,6 @@ size = Vector3(3.5, 0.03, 0.4)
 
 [sub_resource type="StandardMaterial3D" id="Material_paint"]
 albedo_color = Color(0.95, 0.95, 0.95, 1)
-
-[sub_resource type="CylinderMesh" id="Mesh_pole"]
-top_radius = 0.04
-bottom_radius = 0.04
-height = 2.4
-
-[sub_resource type="StandardMaterial3D" id="Material_metal"]
-albedo_color = Color(0.6, 0.6, 0.62, 1)
-
-[sub_resource type="CylinderMesh" id="Mesh_octagon"]
-top_radius = 0.4
-bottom_radius = 0.4
-height = 0.03
-radial_segments = 8
-
-[sub_resource type="CylinderMesh" id="Mesh_disc"]
-top_radius = 0.35
-bottom_radius = 0.35
-height = 0.03
-
-[sub_resource type="StandardMaterial3D" id="Material_sign_red"]
-albedo_color = Color(0.8, 0.05, 0.05, 1)
 
 [node name="StopJunction" instance=ExtResource("base")]
 id = &"stop_junction"
@@ -63,39 +45,14 @@ surface_material_override/0 = SubResource("Material_paint")
 
 [node name="StopSign" type="Node3D" parent="Signs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2, 0, 5)
-
-[node name="Pole" type="MeshInstance3D" parent="Signs/StopSign"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
-mesh = SubResource("Mesh_pole")
-surface_material_override/0 = SubResource("Material_metal")
-
-[node name="Plate" type="MeshInstance3D" parent="Signs/StopSign"]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 2.4, 0.05)
-mesh = SubResource("Mesh_octagon")
-surface_material_override/0 = SubResource("Material_sign_red")
-
-[node name="Label3D" type="Label3D" parent="Signs/StopSign"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.4, 0.07)
-text = "STOP"
-font_size = 48
+script = ExtResource("sign")
+kind = 0
 
 [node name="SpeedSign" type="Node3D" parent="Signs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2, 0, 40)
-
-[node name="Pole" type="MeshInstance3D" parent="Signs/SpeedSign"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
-mesh = SubResource("Mesh_pole")
-surface_material_override/0 = SubResource("Material_metal")
-
-[node name="Plate" type="MeshInstance3D" parent="Signs/SpeedSign"]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 2.4, 0.05)
-mesh = SubResource("Mesh_disc")
-surface_material_override/0 = SubResource("Material_sign_red")
-
-[node name="Label3D" type="Label3D" parent="Signs/SpeedSign"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.4, 0.07)
-text = "30"
-font_size = 64
+script = ExtResource("sign")
+kind = 2
+value = 30
 
 [node name="ParkedCar" parent="Props" instance=ExtResource("parked")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.6, 0.75, 24)

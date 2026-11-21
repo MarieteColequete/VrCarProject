@@ -228,17 +228,38 @@ The authoring nodes in `scenarios/map/` build the usual parts of a map from a fe
 What the buttons generate is ordinary children, saved with the map and editable like any other;
 generating again replaces only what the node generated before.
 
+The Map Kit editor plugin (`addons/map_kit/`, enabled in `project.godot`) puts all of this in a
+dock beside the inspector:
+
+- **New map** creates `maps/<name>/<name>.tscn` as an inherited scene of the map base, with its id
+  and title, and opens it.
+- **Maps** lists every map the scan finds; double click one to open it.
+- **Play map** saves the open map and drives it in free drive in `scenarios/debug/map_sandbox.tscn`.
+- **Check map** lists the configuration warnings of the open map and its nodes, such as a missing
+  spawn, a check inside the map, or a zone without a box; selecting one selects its node.
+- **Selection** sets the selected meshes as road (the asphalt material), gives them a solid body on
+  the obstacle layer, links the lanes whose ends meet (the selected ones, or all of the map's), or
+  snaps them to a half metre grid.
+- **The palette** adds a road, one-way road, crossroads, T junction, lane, any marking but a bay
+  edge (a `ParkingBay` draws its own), traffic light, traffic source, any sign, any prop, a spawn,
+  a trigger zone, a no-parking zone, a pedestrian crossing, or a parking bay, under the map's
+  matching node, where the centre of the 3D view meets the ground.
+
+Every change the dock makes to the open map can be undone; creating a map and the save before
+playing cannot. The work behind it is `MapKitTools`, which runs without
+the editor. `maps/sample_town/` is built with the kit alone: a main road crossed by two side roads
+that give way, oncoming traffic, signs, parked cars, buildings, and trees.
+
 To build a map:
 
-1. Create `maps/<name>/<name>.tscn` as a new inherited scene of `scenarios/kit/map_base.tscn`, set
-   the root's id and title, and set the environment's ground size to cover the roads.
-2. Add `RoadSegment`s and `RoadJunction`s under `Roads` and generate their lanes and markings, or
-   draw `TrafficLane` and `RoadMarking` paths by hand under `Lanes` and `Markings`. Add lights,
-   sources, and scripted road users under `Traffic`, `RoadSign`s under `Signs`, `Prop`s under
-   `Props`, and the trigger zones that start lights and road users.
-3. Move `Spawn` to where the car starts, and add more `MapSpawn`s for other starts.
-4. Run `scenarios/debug/map_sandbox.tscn`, which drives the first map, or press M in the sandbox
-   to move from map to map.
+1. Create it with **New map**, and set the environment's ground size to cover the roads.
+2. Add roads and junctions from the palette, shape the roads' curves, and press their buttons to
+   generate lanes, markings, and give way or stop lines; or draw `TrafficLane` and `RoadMarking`
+   paths by hand. Link lanes whose ends meet with **Connect lanes**. Add lights, sources, signs,
+   props, and the trigger zones that start lights and road users from the palette, and scripted
+   road users (`ScriptedAgent`) by hand.
+3. Move `Spawn` to where the car starts, and add more spawns for other starts.
+4. Run **Check map**, then **Play map**; in the sandbox, M moves from map to map.
 
 ### Building a scenario
 
