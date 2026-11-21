@@ -1,12 +1,12 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://cdmfromvwm2ys"]
 
-[ext_resource type="Script" path="res://scenarios/map/road_segment.gd" id="2_u1clb"]
-[ext_resource type="Script" path="res://scenarios/traffic/traffic_lane.gd" id="3_esc1m"]
-[ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="4_myjpe"]
-[ext_resource type="Script" path="res://scenarios/map/road_junction.gd" id="5_2uwv0"]
-[ext_resource type="Script" path="res://scenarios/traffic/traffic_source.gd" id="6_wllqa"]
-[ext_resource type="Script" path="res://scenarios/map/road_sign.gd" id="7_xmerj"]
-[ext_resource type="Script" path="res://scenarios/map/prop.gd" id="8_hh4m5"]
+[ext_resource type="Script" uid="uid://bw0drrnnihvte" path="res://scenarios/map/road_segment.gd" id="2_u1clb"]
+[ext_resource type="Script" uid="uid://gnser0sdace3" path="res://scenarios/traffic/traffic_lane.gd" id="3_esc1m"]
+[ext_resource type="Script" uid="uid://cn1xe8vcfx6uc" path="res://scenarios/road/road_marking.gd" id="4_myjpe"]
+[ext_resource type="Script" uid="uid://cd1qdmmxqrqw4" path="res://scenarios/map/road_junction.gd" id="5_2uwv0"]
+[ext_resource type="Script" uid="uid://bslaihd10xwtn" path="res://scenarios/traffic/traffic_source.gd" id="6_wllqa"]
+[ext_resource type="Script" uid="uid://ya4qbr4a3pfd" path="res://scenarios/map/road_sign.gd" id="7_xmerj"]
+[ext_resource type="Script" uid="uid://b033v33w3beyd" path="res://scenarios/map/prop.gd" id="8_hh4m5"]
 [ext_resource type="PackedScene" path="res://scenarios/kit/map_base.tscn" id="base"]
 
 [sub_resource type="Curve3D" id="Curve3D_wtwpv"]
@@ -187,12 +187,14 @@ metadata/road_segment_generated = &"lanes"
 curve = SubResource("Curve3D_34ykx")
 script = ExtResource("4_myjpe")
 kind = 8
+paint = false
 metadata/road_segment_generated = &"markings"
 
 [node name="KerbLeft" type="Path3D" parent="Roads/EastRoad" index="3" unique_id=387077341]
 curve = SubResource("Curve3D_exwjm")
 script = ExtResource("4_myjpe")
 kind = 8
+paint = false
 metadata/road_segment_generated = &"markings"
 
 [node name="CentreLine" type="Path3D" parent="Roads/EastRoad" index="4" unique_id=338464966]
@@ -222,12 +224,14 @@ metadata/road_segment_generated = &"lanes"
 curve = SubResource("Curve3D_0w8xy")
 script = ExtResource("4_myjpe")
 kind = 8
+paint = false
 metadata/road_segment_generated = &"markings"
 
 [node name="KerbLeft" type="Path3D" parent="Roads/WestRoad" index="3" unique_id=703562476]
 curve = SubResource("Curve3D_k4dsd")
 script = ExtResource("4_myjpe")
 kind = 8
+paint = false
 metadata/road_segment_generated = &"markings"
 
 [node name="CentreLine" type="Path3D" parent="Roads/WestRoad" index="4" unique_id=114148279]

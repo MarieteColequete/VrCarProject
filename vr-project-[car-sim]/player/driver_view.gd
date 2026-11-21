@@ -3,8 +3,6 @@ extends Node3D
 ## The driver's eyes, placed at the driver's head in a car scene. With an OpenXR headset running,
 ## the headset drives the view. Otherwise a flat camera looks around the same way, turned by the
 ## mouse (while captured) and the right stick, within what a seated driver can turn.
-## Both cameras leave out render layer 20, where a car draws its own body, so the driver sees out
-## of a car whose model has no windows or inside.
 
 @export var mouse_sensitivity := 0.0025
 ## Turn rate at full stick deflection, in radians per second.

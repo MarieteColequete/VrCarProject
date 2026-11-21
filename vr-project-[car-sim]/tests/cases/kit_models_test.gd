@@ -8,7 +8,6 @@ func run() -> void:
 	_test_props()
 	_test_scenery()
 	_test_box_body()
-	_test_player_car()
 	await _test_road_users()
 
 
@@ -111,16 +110,3 @@ func _test_road_users() -> void:
 		"road users are drawn as the kit's cars, each once %s" % [counts])
 	runner.queue_free()
 	await process_frame
-
-
-func _test_player_car() -> void:
-	var car: Node3D = preload("res://scenarios/scenes/debug_car.tscn").instantiate()
-	var model := car.get_node("Model") as VisualInstance3D
-	var cameras := car.find_children("*", "Camera3D", true, false)
-	var hidden := cameras.filter(func(c: Camera3D) -> bool:
-		return c.name != "ChaseCamera" and (c.cull_mask & model.layers) == 0)
-	var chase := car.get_node("ChaseCamera") as Camera3D
-	expect(model.layers == 1 << 19 and hidden.size() == 2
-		and (chase.cull_mask & model.layers) != 0,
-		"the player's car body shows to the chase camera only, not the driver's view")
-	car.free()

@@ -17,6 +17,7 @@ scripts read them through `DriverInput`.
 | Steer | A and D, Left and Right | Left stick |
 | Handbrake | Space | A (Cross) |
 | Indicators | Q and E | Left and right shoulder |
+| Headlights on or off | L | X (Square) |
 | Look around | Mouse | Right stick |
 | Recentre the view | C | Right stick click |
 | Driver or chase view | V | Select |
@@ -126,13 +127,23 @@ Kit](https://kenney.nl/assets/train-kit), and [Animated Characters
 (Retro)](https://kenney.nl/assets/animated-characters-retro), under CC0, in
 `vr-project-[car-sim]/assets/kenney/` with their licences, textures, and previews. Each kit is an
 asset pack (see Maps). `KitModels` merges each model into one mesh at its pack's size in metres,
-facing -Z like the project's cars; parked cars, road users, props, and scenery draw them, and so
-does the player's car, but only in the chase view: the kit's cars have no windows or inside, so the
-driver's view leaves the body out (render layer 20). Road users are a car of the kit stretched to
+facing -Z like the project's cars; parked cars, road users, props, and scenery draw them. Road users are a car of the kit stretched to
 their body, or a lorry or van when longer than a car, and keep their look for their whole drive. Pedestrians are the survivors of
 Animated Characters (Retro), a man and a woman picked by the road user (`PedestrianModel`), scaled
 to the body's height. They stand idle when still and run when moving, the run slowed to the walking
 pace, since the kit has no walk; only the survivors' skins are imported, not the zombies'.
+
+The player's car is ["Kiri '86 - Low poly
+model"](https://sketchfab.com/3d-models/5c17c582ef9549798f694b660feea42a)
+by Daniel Zhabotinsky, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), in
+`vr-project-[car-sim]/assets/sketchfab/kiri86/`: a fictional 80s compact with a modelled cockpit,
+its materials made by the game from the model's textures (`PlayerCarModel`). It is scaled to the
+car's wheelbase, left-hand drive, and the driver's eyes sit behind its steering wheel. Everything
+the car reports is in the car, as in a real one, since the view is VR: the wheels roll and the
+front ones steer, the steering wheel turns with the steering, the blinkers, brake lights, reversing
+lights, and headlights glow with the car's state, and the instrument panel in the binnacle
+(`InstrumentCluster`) shows the speed on a dial and in figures, the indicator arrows blinking, and
+the handbrake, headlights, and reverse tell-tales.
 
 The Map Kit's roads take the look of City Kit (Roads) (`RoadKit`). The kit's straight road tile is a
 cross-section (asphalt, a darker band by the kerb, the kerb, and the pavement) swept along each
