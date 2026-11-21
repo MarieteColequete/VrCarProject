@@ -1,48 +1,13 @@
 [gd_scene format=3]
 
-[ext_resource type="PackedScene" path="res://scenarios/kit/scenario_base.tscn" id="base"]
+[ext_resource type="PackedScene" path="res://scenarios/kit/map_scenario_base.tscn" id="base"]
 [ext_resource type="Resource" path="res://scenarios/scenes/stop_junction/definition.tres" id="definition"]
-[ext_resource type="Material" path="res://scenarios/kit/asphalt.tres" id="asphalt"]
-[ext_resource type="PackedScene" path="res://scenarios/kit/parked_car.tscn" id="parked"]
+[ext_resource type="PackedScene" path="res://maps/stop_junction/stop_junction.tscn" id="map"]
 [ext_resource type="Script" path="res://scenarios/checks/stop_check.gd" id="5_stop"]
 [ext_resource type="Script" path="res://scenarios/checks/trigger_zone.gd" id="6_zone"]
 [ext_resource type="Script" path="res://scenarios/checks/speed_limit_check.gd" id="7_speed"]
 [ext_resource type="Script" path="res://scenarios/checks/route_check.gd" id="8_route"]
 [ext_resource type="Script" path="res://scenarios/checks/goal_check.gd" id="10_goal"]
-
-[sub_resource type="BoxMesh" id="Mesh_road_ns"]
-size = Vector3(7, 0.02, 100)
-
-[sub_resource type="BoxMesh" id="Mesh_road_ew"]
-size = Vector3(100, 0.02, 7)
-
-[sub_resource type="BoxMesh" id="Mesh_stop_line"]
-size = Vector3(3.5, 0.03, 0.4)
-
-[sub_resource type="StandardMaterial3D" id="Material_paint"]
-albedo_color = Color(0.95, 0.95, 0.95, 1)
-
-[sub_resource type="CylinderMesh" id="Mesh_pole"]
-top_radius = 0.04
-bottom_radius = 0.04
-height = 2.4
-
-[sub_resource type="StandardMaterial3D" id="Material_metal"]
-albedo_color = Color(0.6, 0.6, 0.62, 1)
-
-[sub_resource type="CylinderMesh" id="Mesh_octagon"]
-top_radius = 0.4
-bottom_radius = 0.4
-height = 0.03
-radial_segments = 8
-
-[sub_resource type="CylinderMesh" id="Mesh_disc"]
-top_radius = 0.35
-bottom_radius = 0.35
-height = 0.03
-
-[sub_resource type="StandardMaterial3D" id="Material_sign_red"]
-albedo_color = Color(0.8, 0.05, 0.05, 1)
 
 [sub_resource type="Curve3D" id="Curve_lane"]
 _data = {
@@ -63,69 +28,11 @@ size = Vector3(4, 3, 26)
 [sub_resource type="BoxShape3D" id="Shape_goal"]
 size = Vector3(8, 3, 6)
 
-[node name="StopJunction" instance=ExtResource("base")]
+[node name="StopJunction" node_paths=PackedStringArray("map") instance=ExtResource("base")]
 definition = ExtResource("definition")
+map = NodePath("Map")
 
-[node name="Environment" parent="."]
-ground_size = Vector2(200, 200)
-ground_offset = Vector3(0, 0, 0)
-
-[node name="RoadNorthSouth" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 10)
-mesh = SubResource("Mesh_road_ns")
-surface_material_override/0 = ExtResource("asphalt")
-
-[node name="RoadEastWest" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.012, 0)
-mesh = SubResource("Mesh_road_ew")
-surface_material_override/0 = ExtResource("asphalt")
-
-[node name="StopLine" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0.02, 4.5)
-mesh = SubResource("Mesh_stop_line")
-surface_material_override/0 = SubResource("Material_paint")
-
-[node name="StopSign" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2, 0, 5)
-
-[node name="Pole" type="MeshInstance3D" parent="StopSign"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
-mesh = SubResource("Mesh_pole")
-surface_material_override/0 = SubResource("Material_metal")
-
-[node name="Plate" type="MeshInstance3D" parent="StopSign"]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 2.4, 0.05)
-mesh = SubResource("Mesh_octagon")
-surface_material_override/0 = SubResource("Material_sign_red")
-
-[node name="Label3D" type="Label3D" parent="StopSign"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.4, 0.07)
-text = "STOP"
-font_size = 48
-
-[node name="SpeedSign" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2, 0, 40)
-
-[node name="Pole" type="MeshInstance3D" parent="SpeedSign"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
-mesh = SubResource("Mesh_pole")
-surface_material_override/0 = SubResource("Material_metal")
-
-[node name="Plate" type="MeshInstance3D" parent="SpeedSign"]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 2.4, 0.05)
-mesh = SubResource("Mesh_disc")
-surface_material_override/0 = SubResource("Material_sign_red")
-
-[node name="Label3D" type="Label3D" parent="SpeedSign"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.4, 0.07)
-text = "30"
-font_size = 64
-
-[node name="ParkedCar" parent="." instance=ExtResource("parked")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.6, 0.75, 24)
-
-[node name="SpawnPoint" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 46)
+[node name="Map" parent="." instance=ExtResource("map")]
 
 [node name="Lane" type="Path3D" parent="."]
 curve = SubResource("Curve_lane")

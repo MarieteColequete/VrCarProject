@@ -1,7 +1,8 @@
 @tool
 class_name ExamRunner
 extends Node3D
-## Loads a scenario scene, spawns its car at the spawn point, bakes both into a [World], and runs
+## Loads a scenario scene, or a map for free drive, spawns its car at the spawn point, bakes both
+## into a [World], and runs
 ## the simulation on a [WorldRunner]: the systems below judge the attempt, move traffic, and run
 ## the lights, and the views draw it. The UI reaches the attempt through [member session], and
 ## picks scenarios from the [ScenarioCatalogue] with [method load_definition].
@@ -22,6 +23,9 @@ signal scenario_loaded(scenario: Scenario, car: Node3D)
 @export var print_results := true
 
 var scenario: Scenario
+## The map being driven freely, after [method load_map]; null while a scenario is loaded.
+var map_scene: PackedScene
+var map_spawn := 0
 var car: Node3D
 ## The simulation of the current scenario.
 var world_runner: WorldRunner
@@ -61,13 +65,31 @@ func load_definition(definition: ScenarioDefinition) -> void:
 
 func load_scenario(scene: PackedScene) -> void:
 	scenario_scene = scene
+	map_scene = null
 	_clear()
-	scenario = scene.instantiate() as Scenario
-	assert(scenario != null, "The scenario scene's root needs the Scenario script")
+	var loaded := scene.instantiate() as Scenario
+	assert(loaded != null, "The scenario scene's root needs the Scenario script")
+	_start(loaded)
+
+
+## Loads [param scene], a map, for free drive, with the car at its spawn number [param spawn]. See
+## [method Scenario.free_drive].
+func load_map(scene: PackedScene, spawn := 0) -> void:
+	scenario_scene = null
+	map_scene = scene
+	map_spawn = spawn
+	_clear()
+	_start(Scenario.free_drive(scene, spawn))
+
+
+func _start(loaded: Scenario) -> void:
+	scenario = loaded
 	add_child(scenario)
+	var start := scenario.start()
+	assert(start != null, "The scenario needs a spawn point or a map with a MapSpawn")
 	var car_scene := car_scene_override if car_scene_override else scenario.definition.car_scene
 	car = car_scene.instantiate() as Node3D
-	car.transform = global_transform.affine_inverse() * scenario.spawn_point.global_transform
+	car.transform = global_transform.affine_inverse() * start.global_transform
 	add_child(car)
 	car.reset_physics_interpolation()
 	var probe := VehicleProbe.of(car)
@@ -133,7 +155,10 @@ func _start_session(runner: WorldRunner) -> void:
 
 
 func _reload() -> void:
-	load_scenario.call_deferred(scenario_scene)
+	if map_scene:
+		load_map.call_deferred(map_scene, map_spawn)
+	else:
+		load_scenario.call_deferred(scenario_scene)
 
 
 func _clear() -> void:

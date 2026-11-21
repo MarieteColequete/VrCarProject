@@ -1,6 +1,6 @@
 extends TestCase
-## The authoring kit: the scenario catalogue, the base scene every scenario inherits, and the
-## shared environment.
+## The authoring kit: the scenario catalogue, the base scenes scenarios inherit, the maps they are
+## set on, and the shared environment.
 
 
 func run() -> void:
@@ -29,9 +29,22 @@ func _test_catalogue() -> void:
 			continue
 		if scenario.definition != definition:
 			problems.append("%s's scene points at another definition" % definition.id)
-		for part in ["Environment", "SpawnPoint", "Markings", "Checks/ContactCheck", "Checks/LineCheck"]:
+		for part in ["Checks/ContactCheck", "Checks/LineCheck", "Checks/TrafficConflictCheck"]:
 			if not scenario.has_node(part):
 				problems.append("%s has no %s from the base scene" % [definition.id, part])
+		if scenario.map:
+			# Built on a map: the world comes from res://maps/, with a spawn.
+			if not scenario.map.scene_file_path.begins_with(MapCatalogue.ROOT) \
+					or not scenario.map.has_node("Environment") or scenario.start() == null:
+				problems.append("%s's map is not a map of %s with an environment and a spawn"
+					% [definition.id, MapCatalogue.ROOT])
+			elif MapCatalogue.scan().all(func(e: MapCatalogue.Entry) -> bool:
+					return e.path != scenario.map.scene_file_path):
+				problems.append("%s's map is not found by the map scan" % definition.id)
+		else:
+			for part in ["Environment", "SpawnPoint", "Markings"]:
+				if not scenario.has_node(part):
+					problems.append("%s has no %s from the base scene" % [definition.id, part])
 		if scenario.definition and scenario.definition.policy == null:
 			problems.append("%s has no scoring policy" % definition.id)
 		scenario.free()
@@ -50,7 +63,7 @@ func _test_load_definition() -> void:
 	await process_frame
 	expect(runner.scenario != null and runner.scenario.definition.id == &"bay_parking"
 		and runner.session.is_running(), "the runner loads and starts a scenario from its definition")
-	var environment := runner.scenario.get_node("Environment") as RoadEnvironment
+	var environment := runner.scenario.find_child("Environment", true, false) as RoadEnvironment
 	await physics_frame
 	var down := PhysicsRayQueryParameters3D.create(Vector3(0, 5, -10), Vector3(0, -5, -10))
 	expect(environment != null

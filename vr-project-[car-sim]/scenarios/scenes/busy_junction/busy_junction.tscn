@@ -12,6 +12,7 @@
 [ext_resource type="Script" path="res://scenarios/checks/trigger_zone.gd" id="zone"]
 [ext_resource type="Script" path="res://scenarios/checks/traffic_light_check.gd" id="lightcheck"]
 [ext_resource type="Script" path="res://scenarios/checks/crossing_check.gd" id="crossing"]
+[ext_resource type="Script" path="res://scenarios/map/crossing.gd" id="crossing_node"]
 [ext_resource type="Script" path="res://scenarios/checks/goal_check.gd" id="goal"]
 
 [sub_resource type="BoxMesh" id="Mesh_MainRoad"]
@@ -430,7 +431,7 @@ script = ExtResource("lane")
 speed_limit = 13.9
 light = NodePath("../../Lights/MainSouthbound")
 stop_offset = 114.0
-crossings = [NodePath("../../Checks/CrossingCheck")]
+crossings = [NodePath("../../Crossing")]
 right = NodePath("../MainRight")
 
 [node name="MainRight" type="Path3D" parent="Lanes" node_paths=PackedStringArray("light", "crossings", "left")]
@@ -439,7 +440,7 @@ script = ExtResource("lane")
 speed_limit = 13.9
 light = NodePath("../../Lights/MainSouthbound")
 stop_offset = 114.0
-crossings = [NodePath("../../Checks/CrossingCheck")]
+crossings = [NodePath("../../Crossing")]
 left = NodePath("../MainLeft")
 
 [node name="MainNorth" type="Path3D" parent="Lanes" node_paths=PackedStringArray("light", "crossings")]
@@ -448,7 +449,7 @@ script = ExtResource("lane")
 speed_limit = 13.9
 light = NodePath("../../Lights/MainNorthbound")
 stop_offset = 114.0
-crossings = [NodePath("../../Checks/CrossingCheck")]
+crossings = [NodePath("../../Crossing")]
 
 [node name="CrossWest" type="Path3D" parent="Lanes" node_paths=PackedStringArray("light")]
 curve = SubResource("Curve_CrossWest")
@@ -551,17 +552,21 @@ script = ExtResource("zone")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/LightCheck/LineZone"]
 shape = SubResource("Shape_Checks_LightCheck_LineZone")
 
-[node name="CrossingCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("crossing_zone", "pedestrians")]
-script = ExtResource("crossing")
-crossing_zone = NodePath("Zone")
-pedestrians = [NodePath("../../Traffic/Walker")]
+[node name="Crossing" type="Node3D" parent="." node_paths=PackedStringArray("zone", "pedestrians")]
+script = ExtResource("crossing_node")
+zone = NodePath("Zone")
+pedestrians = [NodePath("../Traffic/Walker")]
 
-[node name="Zone" type="Area3D" parent="Checks/CrossingCheck"]
+[node name="Zone" type="Area3D" parent="Crossing"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 1.5, -40)
 script = ExtResource("zone")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/CrossingCheck/Zone"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Crossing/Zone"]
 shape = SubResource("Shape_Checks_CrossingCheck_Zone")
+
+[node name="CrossingCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("crossing")]
+script = ExtResource("crossing")
+crossing = NodePath("../../Crossing")
 
 [node name="GoalCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("zone")]
 script = ExtResource("goal")

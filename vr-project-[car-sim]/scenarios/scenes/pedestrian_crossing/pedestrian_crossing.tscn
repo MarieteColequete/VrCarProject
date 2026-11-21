@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scenarios/traffic/scripted_agent.gd" id="agent"]
 [ext_resource type="Script" path="res://scenarios/checks/trigger_zone.gd" id="zone"]
 [ext_resource type="Script" path="res://scenarios/checks/crossing_check.gd" id="crossing"]
+[ext_resource type="Script" path="res://scenarios/map/crossing.gd" id="crossing_node"]
 [ext_resource type="Script" path="res://scenarios/checks/goal_check.gd" id="goal"]
 
 [sub_resource type="BoxMesh" id="Mesh_road"]
@@ -128,28 +129,36 @@ pedestrian = true
 body_size = Vector3(0.5, 1.8, 0.5)
 colour = Color(0.2, 0.6, 0.9, 1)
 
-[node name="BusyZebraCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("crossing_zone", "pedestrians")]
-script = ExtResource("crossing")
-crossing_zone = NodePath("Zone")
-pedestrians = [NodePath("../../Walker")]
+[node name="BusyZebra" type="Node3D" parent="." node_paths=PackedStringArray("zone", "pedestrians")]
+script = ExtResource("crossing_node")
+zone = NodePath("Zone")
+pedestrians = [NodePath("../Walker")]
 
-[node name="Zone" type="Area3D" parent="Checks/BusyZebraCheck"]
+[node name="Zone" type="Area3D" parent="BusyZebra"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 script = ExtResource("zone")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/BusyZebraCheck/Zone"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="BusyZebra/Zone"]
 shape = SubResource("Shape_crossing")
 
-[node name="QuietZebraCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("crossing_zone")]
+[node name="BusyZebraCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("crossing")]
 script = ExtResource("crossing")
-crossing_zone = NodePath("Zone")
+crossing = NodePath("../../BusyZebra")
 
-[node name="Zone" type="Area3D" parent="Checks/QuietZebraCheck"]
+[node name="QuietZebra" type="Node3D" parent="." node_paths=PackedStringArray("zone")]
+script = ExtResource("crossing_node")
+zone = NodePath("Zone")
+
+[node name="Zone" type="Area3D" parent="QuietZebra"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -60)
 script = ExtResource("zone")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/QuietZebraCheck/Zone"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="QuietZebra/Zone"]
 shape = SubResource("Shape_crossing")
+
+[node name="QuietZebraCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("crossing")]
+script = ExtResource("crossing")
+crossing = NodePath("../../QuietZebra")
 
 [node name="GoalCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("zone")]
 script = ExtResource("goal")

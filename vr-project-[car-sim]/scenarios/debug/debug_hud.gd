@@ -5,7 +5,8 @@ extends CanvasLayer
 ## performance readout, and the result. It only listens to the [ExamRunner], its [ExamSession], and
 ## the world's events, so it also shows how a UI uses them. Keys: exam_begin
 ## starts the attempt after the briefing, exam_restart restarts it, exam_next_scenario moves to
-## the next scenario of the [ScenarioCatalogue], and toggle_debug_hud hides the overlay; the hints
+## the next scenario of the [ScenarioCatalogue], exam_next_map drives the next map of the
+## [MapCatalogue] freely, and toggle_debug_hud hides the overlay; the hints
 ## it shows are read from the input map, so they follow any rebinding. It hides itself while a
 ## headset drives the view, where a UI of its own applies.
 
@@ -74,6 +75,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		runner.session.restart()
 	elif event.is_action_pressed(&"exam_next_scenario"):
 		next_scenario()
+	elif event.is_action_pressed(&"exam_next_map"):
+		next_map()
 	else:
 		return
 	get_viewport().set_input_as_handled()
@@ -87,6 +90,20 @@ func next_scenario() -> void:
 	if runner.scenario and runner.scenario.definition:
 		index = catalogue.scenarios.find(catalogue.find(runner.scenario.definition.id))
 	runner.load_definition(catalogue.scenarios[(index + 1) % catalogue.scenarios.size()])
+
+
+## Drives the map after the current one in the [MapCatalogue] freely, wrapping round to the
+## first; the first map when none is being driven.
+func next_map() -> void:
+	var maps := MapCatalogue.scan()
+	if maps.is_empty():
+		return
+	var index := -1
+	if runner.map_scene:
+		for i in maps.size():
+			if maps[i].path == runner.map_scene.resource_path:
+				index = i
+	runner.load_map(maps[(index + 1) % maps.size()].load_scene())
 
 
 ## The keys and buttons bound to [param action], as the input map has them: "Enter or Start".
@@ -187,8 +204,9 @@ func _on_finished(result: ScenarioResult) -> void:
 		lines.append("%s: %d (%s)" % [tier.title if not tier.title.is_empty() else tier.id,
 			tier.count, limit])
 	lines.append("")
-	lines.append("%s to restart, %s for the next scenario" % [binding_text(&"exam_restart"),
-		binding_text(&"exam_next_scenario")])
+	lines.append("%s to restart, %s for the next scenario, %s for the next map" % [
+		binding_text(&"exam_restart"), binding_text(&"exam_next_scenario"),
+		binding_text(&"exam_next_map")])
 	_show_message("\n".join(lines))
 
 
@@ -217,8 +235,9 @@ func _build() -> void:
 	performance_label.modulate = Color(1, 1, 1, 0.6)
 	feed = VBoxContainer.new()
 	var keys := Label.new()
-	keys.text = "%s begin   %s restart   %s next   %s hide" % [_first_key(&"exam_begin"),
-		_first_key(&"exam_restart"), _first_key(&"exam_next_scenario"), _first_key(&"toggle_debug_hud")]
+	keys.text = "%s begin   %s restart   %s next   %s map   %s hide" % [_first_key(&"exam_begin"),
+		_first_key(&"exam_restart"), _first_key(&"exam_next_scenario"), _first_key(&"exam_next_map"),
+		_first_key(&"toggle_debug_hud")]
 	keys.modulate = Color(1, 1, 1, 0.6)
 	for node: Control in [title_label, step_label, time_label, performance_label, feed, keys]:
 		column.add_child(node)

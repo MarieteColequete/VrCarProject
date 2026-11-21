@@ -206,15 +206,15 @@ func _fill_lanes() -> void:
 			data.right = lane_of(lane.right)
 			data.give_way_to = lanes_of(lane.give_way_to)
 			data.light = id_of(lane.light)
-			for crossing in lane.crossings:
-				var check := crossing as CrossingCheck
-				if check == null or check.crossing_zone == null or check.crossing_zone.box_data() == null:
+			for node in lane.crossings:
+				var crossing := node as Crossing
+				if crossing == null or crossing.zone == null or crossing.zone.box_data() == null:
 					continue
-				var zone := check.crossing_zone
+				var zone := crossing.zone
 				var box: Array = zone.box_data()
 				var centre := data.project(zone.global_position).x
 				data.crossings.append({zone = id_of(zone), transform = box[0], half = box[1],
-					pedestrians = ids_of(check.pedestrians), margin = check.kerb_margin,
+					pedestrians = ids_of(crossing.pedestrians), margin = crossing.kerb_margin,
 					stop = maxf(centre - maxf(box[1].x, box[1].z) - 1.0, 0.0)})
 
 

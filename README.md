@@ -24,6 +24,7 @@ scripts read them through `DriverInput`.
 | Begin the attempt after the briefing | Enter | Start |
 | Restart the attempt | R | Y (Triangle) |
 | Next scenario, in the sandbox | N | D-pad right |
+| Next map in free drive, in the sandbox | M | D-pad left |
 | Show or hide the debug HUD | F1 | Left stick click |
 
 `DriverView` is the driver's head in a car scene. With an OpenXR headset running, the headset turns
@@ -100,13 +101,16 @@ in `Research/scenario-detection/performance.md`.
 
 ## Scenarios
 
-A scenario is a scene under `vr-project-[car-sim]/scenarios/scenes/<name>/` that inherits
-`scenarios/kit/scenario_base.tscn`. The base gives the `Scenario` root, the shared
-`RoadEnvironment` (daylight, sky, and a grass ground sized per scenario), a `SpawnPoint`, a
-`Markings` node, and a `Checks` node already holding `ContactCheck`, `LineCheck`, and
-`TrafficConflictCheck`. The scenario
-adds its roads, markings, other road users, zones, and checks. Scenarios are laid out with the car
-driving towards -Z on the right-hand side of the road, in the lane centred on x = 1.75.
+A scenario is a map plus what is judged on it. The map is the world: roads, markings, lanes,
+lights, other road users, signs, props, and where a car may start (see Maps). The scenario is a
+scene under `vr-project-[car-sim]/scenarios/scenes/<name>/` that inherits
+`scenarios/kit/map_scenario_base.tscn`, instances its map as the `Map` child, and adds the checks,
+the zones only checks use, and any steps. The base gives the `Scenario` root and a `Checks` node
+already holding `ContactCheck`, `LineCheck`, and `TrafficConflictCheck`. The car starts at the
+scenario's `spawn_point`, or else at the map's first `MapSpawn`. Scenarios are laid out with the car
+driving towards -Z on the right-hand side of the road, in the lane centred on x = 1.75. Scenarios
+not yet set on a map inherit `scenarios/kit/scenario_base.tscn`, which carries the world itself: the
+shared `RoadEnvironment`, a `SpawnPoint`, and a `Markings` node.
 
 Its `ScenarioDefinition`, `definition.tres` beside the scene, gives the id, the title, the menu
 category and difficulty, the briefing, the time limit, the scoring policy, and the car scene to
@@ -187,19 +191,51 @@ fault. Its `to_dict()` gives
 the same as plain data: the scenario, the outcome, each fault with its description, and each tier's
 count against the policy's limit.
 
-`scenarios/debug/scenario_sandbox.tscn` runs any catalogued scenario with the `DebugHud`, a flat
+`scenarios/debug/scenario_sandbox.tscn` runs any catalogued scenario, and any map in free drive,
+with the `DebugHud`, a flat
 overlay showing the briefing, the current step, the time against the limit, faults as they are
 committed, how other road users react, the frame and physics times with the traffic pipeline's
 share of the main thread, and the result. It runs from the editor. The HUD only listens to the
 runner, the session, and the world's events, so it is also a working example of a UI on them; it
 hides itself in a headset.
 
+### Maps
+
+A map is a scene `vr-project-[car-sim]/maps/<name>/<name>.tscn` whose root is a `RoadMap`, with an
+id, a title, and a description. `MapCatalogue.scan()` finds every map by its folder, so a map is
+added by adding its folder, with no list to edit; a folder without the matching scene is left out
+with a warning. A map holds no checks. Any map can be driven on its own in free drive
+(`ExamRunner.load_map`), judged only by the checks that need nothing but the map: contact, road
+markings, parking places, and conflicts with other road users. Free drive has no goal or time
+limit, and ends on a restart or an eliminating fault.
+
+`scenarios/kit/map_base.tscn` is the start of every map: the `RoadMap` root, the shared
+`RoadEnvironment` (daylight, sky, and a grass ground sized per map), a `MapSpawn` named `Spawn`, and
+empty `Roads`, `Markings`, `Lanes`, `Traffic`, `Signs`, `Props`, and `Zones` nodes to keep the tree
+in order. A `MapSpawn` draws a car outline in the editor, facing its direction of travel. A
+pedestrian crossing is a `Crossing`: its zone, the pedestrians who use it, and the margin around it.
+Lanes list it so their traffic waits while it is in use, and a scenario's `CrossingCheck` points at
+it to judge the player there.
+
+To build a map:
+
+1. Create `maps/<name>/<name>.tscn` as a new inherited scene of `scenarios/kit/map_base.tscn`, set
+   the root's id and title, and set the environment's ground size to cover the roads.
+2. Add the roads (meshes with `scenarios/kit/asphalt.tres`) under `Roads`, the `RoadMarking` paths
+   under `Markings`, the `TrafficLane`s under `Lanes`, lights, sources, and scripted road users
+   under `Traffic`, parked cars (`scenarios/kit/parked_car.tscn`) and other obstacles under
+   `Props`, and the trigger zones of lights and road users under `Zones`.
+3. Move `Spawn` to where the car starts, and add more `MapSpawn`s for other starts.
+4. Run `scenarios/debug/map_sandbox.tscn`, which drives the first map, or press M in the sandbox
+   to move from map to map.
+
 ### Building a scenario
 
-1. Create `scenarios/scenes/<name>/<name>.tscn` as a new inherited scene of
-   `scenarios/kit/scenario_base.tscn`, and set the environment's ground size to cover the roads.
-2. Add the roads (meshes with `scenarios/kit/asphalt.tres`), the `RoadMarking` paths under
-   `Markings`, parked cars (`scenarios/kit/parked_car.tscn`), and any scripted road users.
+1. Create the map the scenario is set on, or pick an existing one.
+2. Create `scenarios/scenes/<name>/<name>.tscn` as a new inherited scene of
+   `scenarios/kit/map_scenario_base.tscn`, instance the map as its `Map` child, and set the root's
+   `map` to it. Turn on editable children of `Map` when a check needs to point at a map node, or a
+   map node needs changing for this scenario only.
 3. Add the checks under `Checks`, each with its zones as children. Faults default to the right
    `FaultDef`, so only a different fault needs setting. The editor flags a check missing a zone,
    and fills each zone with a colour by role: green for a goal, blue for a junction exit, yellow

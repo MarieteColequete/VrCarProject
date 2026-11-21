@@ -1,0 +1,20 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenarios/core/scenario.gd" id="scenario"]
+[ext_resource type="Script" path="res://scenarios/checks/contact_check.gd" id="contact"]
+[ext_resource type="Script" path="res://scenarios/checks/line_check.gd" id="lines"]
+[ext_resource type="Script" path="res://scenarios/checks/traffic_conflict_check.gd" id="conflict"]
+
+[node name="Scenario" type="Node3D"]
+script = ExtResource("scenario")
+
+[node name="Checks" type="Node3D" parent="."]
+
+[node name="ContactCheck" type="Node3D" parent="Checks"]
+script = ExtResource("contact")
+
+[node name="LineCheck" type="Node3D" parent="Checks"]
+script = ExtResource("lines")
+
+[node name="TrafficConflictCheck" type="Node3D" parent="Checks"]
+script = ExtResource("conflict")
