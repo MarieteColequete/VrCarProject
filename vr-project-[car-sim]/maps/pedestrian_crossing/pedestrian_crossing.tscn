@@ -1,0 +1,154 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenarios/kit/map_base.tscn" id="map_base"]
+
+[ext_resource type="Material" path="res://scenarios/kit/asphalt.tres" id="asphalt"]
+
+[ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="marking"]
+
+[ext_resource type="Script" path="res://scenarios/traffic/scripted_agent.gd" id="agent"]
+
+[ext_resource type="Script" path="res://scenarios/checks/trigger_zone.gd" id="zone"]
+
+[ext_resource type="Script" path="res://scenarios/map/crossing.gd" id="crossing_node"]
+
+[sub_resource type="BoxMesh" id="Mesh_road"]
+size = Vector3(7, 0.02, 180)
+
+[sub_resource type="BoxShape3D" id="Shape_crossing"]
+size = Vector3(7, 3, 3)
+
+[sub_resource type="BoxShape3D" id="Shape_trigger"]
+size = Vector3(8, 3, 3)
+
+[sub_resource type="Curve3D" id="Curve_CentreLine"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 0, -115),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_KerbRight"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 3.5, 0, 65, 0, 0, 0, 0, 0, 0, 3.5, 0, -115),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_KerbLeft"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -3.5, 0, 65, 0, 0, 0, 0, 0, 0, -3.5, 0, -115),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_BusyZebra"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 3.5, 0, 0, 0, 0, 0, 0, 0, 0, -3.5, 0, 0),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_QuietZebra"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 3.5, 0, -60, 0, 0, 0, 0, 0, 0, -3.5, 0, -60),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_Walk"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, -6, 0, 0),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[node name="PedestrianCrossing" instance=ExtResource("map_base")]
+id = &"pedestrian_crossing"
+title = "Pedestrian crossing"
+description = "A straight road with two zebra crossings, one busy and one quiet."
+
+[node name="Environment" parent="."]
+ground_size = Vector2(100, 200)
+ground_offset = Vector3(0, 0, -25)
+
+[node name="Spawn" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 60)
+
+[node name="Road" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -25)
+mesh = SubResource("Mesh_road")
+surface_material_override/0 = ExtResource("asphalt")
+
+[node name="CentreLine" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_CentreLine")
+script = ExtResource("marking")
+kind = 1
+
+[node name="KerbRight" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_KerbRight")
+script = ExtResource("marking")
+kind = 8
+
+[node name="KerbLeft" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_KerbLeft")
+script = ExtResource("marking")
+kind = 8
+
+[node name="BusyZebra" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_BusyZebra")
+script = ExtResource("marking")
+kind = 5
+width = 3.0
+dash_length = 0.5
+gap_length = 0.5
+
+[node name="QuietZebra" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_QuietZebra")
+script = ExtResource("marking")
+kind = 5
+width = 3.0
+dash_length = 0.5
+gap_length = 0.5
+
+[node name="WalkPath" type="Path3D" parent="."]
+curve = SubResource("Curve_Walk")
+
+[node name="WalkTrigger" type="Area3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 41.5)
+script = ExtResource("zone")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="WalkTrigger"]
+shape = SubResource("Shape_trigger")
+
+[node name="Walker" type="AnimatableBody3D" parent="." node_paths=PackedStringArray("path", "trigger")]
+script = ExtResource("agent")
+path = NodePath("../WalkPath")
+speed = 1.4
+trigger = NodePath("../WalkTrigger")
+pedestrian = true
+body_size = Vector3(0.5, 1.8, 0.5)
+colour = Color(0.2, 0.6, 0.9, 1)
+
+[node name="BusyZebra" type="Node3D" parent="." node_paths=PackedStringArray("zone", "pedestrians")]
+script = ExtResource("crossing_node")
+zone = NodePath("Zone")
+pedestrians = [NodePath("../Walker")]
+
+[node name="Zone" type="Area3D" parent="BusyZebra"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+script = ExtResource("zone")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="BusyZebra/Zone"]
+shape = SubResource("Shape_crossing")
+
+[node name="QuietZebra" type="Node3D" parent="." node_paths=PackedStringArray("zone")]
+script = ExtResource("crossing_node")
+zone = NodePath("Zone")
+
+[node name="Zone" type="Area3D" parent="QuietZebra"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -60)
+script = ExtResource("zone")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="QuietZebra/Zone"]
+shape = SubResource("Shape_crossing")

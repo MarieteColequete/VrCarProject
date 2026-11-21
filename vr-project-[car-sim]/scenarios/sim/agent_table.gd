@@ -46,7 +46,8 @@ const CONFIG := {
 	pause_at = -1.0, pause_time = 0.0, body_size = Vector3(1.8, 1.4, 4.2),
 	colour = Color(0.85, 0.75, 0.2), route = [], route_seed = 0, reactive = true,
 	max_accel = 2.0, comfort_decel = 3.0, max_decel = 8.0, hard_brake = 4.0, min_gap = 2.0,
-	time_headway = 1.5, patience = 4.0, change_time = 2.0,
+	time_headway = 1.5, patience = 4.0, change_time = 2.0, start_at = 0.0, goal_lane = 0,
+	goal_at = -1.0, model = "",
 }
 
 var ids := PackedInt64Array()
@@ -106,6 +107,14 @@ var min_gap := PackedFloat64Array()
 var time_headway := PackedFloat64Array()
 var patience := PackedFloat64Array()
 var change_time := PackedFloat64Array()
+## Metres along its first lane where it starts.
+var start_at := PackedFloat64Array()
+## The model the traffic view draws it with; empty to let the view pick.
+var model: Array = []
+## The lane entity of the point it drives to and stops at, and the metres along it; 0 for none,
+## when it drives its path to the end.
+var goal_lane := PackedInt64Array()
+var goal_at := PackedFloat64Array()
 
 # The decision columns: what thinking decided, row by row, for commit.
 var d_decided := PackedByteArray()
@@ -197,6 +206,7 @@ static func spawn_values(config: Dictionary, lane: LaneData, lanes: Dictionary) 
 	values.merge(DYNAMIC)
 	values.lane = lane.id
 	values.length = lane.length
+	values.progress = clampf(values.start_at, 0.0, lane.length)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = values.route_seed
 	values.rng_state = rng.state
@@ -483,6 +493,13 @@ func commit(i: int, lanes: Dictionary, markings: MarkingIndex, armed_now: bool,
 
 func _advance(i: int, step: float, lanes: Dictionary, events: Array) -> void:
 	progress[i] += step
+	if goal_lane[i] != 0 and lane[i] == goal_lane[i] and progress[i] >= goal_at[i]:
+		progress[i] = goal_at[i]
+		state[i] = State.DONE
+		current_speed[i] = 0.0
+		events.append([&"agent_finished", {reached = true}])
+		_place(i, lanes.get(lane[i]))
+		return
 	if pause_at[i] >= 0.0 and not paused_this_lap[i] and progress[i] >= pause_at[i]:
 		progress[i] = pause_at[i]
 		paused_this_lap[i] = 1
@@ -536,7 +553,7 @@ func _enter(i: int, l: LaneData) -> void:
 
 
 func _choose_next(i: int, l: LaneData) -> int:
-	if l == null or not l.is_lane or l.next.is_empty():
+	if l == null or not l.is_lane or l.next.is_empty() or l.id == goal_lane[i]:
 		return 0
 	for wanted: int in route[i]:
 		if l.next.has(wanted):

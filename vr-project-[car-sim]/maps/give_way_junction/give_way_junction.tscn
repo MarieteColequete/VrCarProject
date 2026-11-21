@@ -1,0 +1,179 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenarios/kit/map_base.tscn" id="map_base"]
+
+[ext_resource type="Material" path="res://scenarios/kit/asphalt.tres" id="asphalt"]
+
+[ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="marking"]
+
+[ext_resource type="Script" path="res://scenarios/traffic/scripted_agent.gd" id="agent"]
+
+[sub_resource type="BoxMesh" id="Mesh_minor"]
+size = Vector3(7, 0.02, 45)
+
+[sub_resource type="BoxMesh" id="Mesh_main"]
+size = Vector3(160, 0.02, 7)
+
+[sub_resource type="Curve3D" id="Curve_MinorCentre"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, 45, 0, 0, 0, 0, 0, 0, 0, 0, 0.5),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_MinorKerbRight"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 3.5, 0, 45, 0, 0, 0, 0, 0, 0, 3.5, 0, 0),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_MinorKerbLeft"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -3.5, 0, 45, 0, 0, 0, 0, 0, 0, -3.5, 0, 0),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_GiveWayLine"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0, 3.5, 0, 0.5),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_MainCentreWest"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -80, 0, -3.5, 0, 0, 0, 0, 0, 0, -4, 0, -3.5),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_MainCentreEast"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 4, 0, -3.5, 0, 0, 0, 0, 0, 0, 80, 0, -3.5),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_MainKerbNearWest"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -80, 0, 0, 0, 0, 0, 0, 0, 0, -3.5, 0, 0),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_MainKerbNearEast"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 3.5, 0, 0, 0, 0, 0, 0, 0, 0, 80, 0, 0),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_MainKerbFar"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -80, 0, -7, 0, 0, 0, 0, 0, 0, 80, 0, -7),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_Stream"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -70, 0, -1.75, 0, 0, 0, 0, 0, 0, 90, 0, -1.75),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[node name="GiveWayJunction" instance=ExtResource("map_base")]
+id = &"give_way_junction"
+title = "Give way junction"
+description = "A minor road meeting a busy main road at a give way junction."
+
+[node name="Environment" parent="."]
+ground_size = Vector2(200, 120)
+ground_offset = Vector3(0, 0, 10)
+
+[node name="Spawn" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 40)
+
+[node name="MinorRoad" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 22.5)
+mesh = SubResource("Mesh_minor")
+surface_material_override/0 = ExtResource("asphalt")
+
+[node name="MainRoad" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.012, -3.5)
+mesh = SubResource("Mesh_main")
+surface_material_override/0 = ExtResource("asphalt")
+
+[node name="MinorCentre" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_MinorCentre")
+script = ExtResource("marking")
+kind = 1
+
+[node name="MinorKerbRight" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_MinorKerbRight")
+script = ExtResource("marking")
+kind = 8
+
+[node name="MinorKerbLeft" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_MinorKerbLeft")
+script = ExtResource("marking")
+kind = 8
+
+[node name="GiveWayLine" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_GiveWayLine")
+script = ExtResource("marking")
+kind = 4
+
+[node name="MainCentreWest" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_MainCentreWest")
+script = ExtResource("marking")
+kind = 1
+
+[node name="MainCentreEast" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_MainCentreEast")
+script = ExtResource("marking")
+kind = 1
+
+[node name="MainKerbNearWest" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_MainKerbNearWest")
+script = ExtResource("marking")
+kind = 8
+
+[node name="MainKerbNearEast" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_MainKerbNearEast")
+script = ExtResource("marking")
+kind = 8
+
+[node name="MainKerbFar" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_MainKerbFar")
+script = ExtResource("marking")
+kind = 8
+
+[node name="StreamPath" type="Path3D" parent="."]
+curve = SubResource("Curve_Stream")
+
+[node name="CarA" type="AnimatableBody3D" parent="." node_paths=PackedStringArray("path")]
+script = ExtResource("agent")
+path = NodePath("../StreamPath")
+speed = 10.0
+start_delay = 0.0
+
+[node name="CarB" type="AnimatableBody3D" parent="." node_paths=PackedStringArray("path")]
+script = ExtResource("agent")
+path = NodePath("../StreamPath")
+speed = 10.0
+start_delay = 2.0
+
+[node name="CarC" type="AnimatableBody3D" parent="." node_paths=PackedStringArray("path")]
+script = ExtResource("agent")
+path = NodePath("../StreamPath")
+speed = 10.0
+start_delay = 4.0
+
+[node name="CarD" type="AnimatableBody3D" parent="." node_paths=PackedStringArray("path")]
+script = ExtResource("agent")
+path = NodePath("../StreamPath")
+speed = 10.0
+start_delay = 30.0

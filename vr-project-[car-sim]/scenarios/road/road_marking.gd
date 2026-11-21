@@ -2,8 +2,9 @@
 class_name RoadMarking
 extends Path3D
 ## A road marking drawn along its curve: a centre or lane line, a stop or give way line, a zebra,
-## a bay edge, a no-parking line, or a kerb. The same curve draws the paint and feeds detection,
-## through the scenario's [MarkingIndex], so what the driver sees is what is judged. A dashed line
+## a bay edge, a no-parking line, or a kerb. A drawn kerb is also solid: a thin wall of the
+## pavement [BodyType] along it stops the car's tyres. The same curve draws the paint and feeds
+## detection, through the scenario's [MarkingIndex], so what the driver sees is what is judged. A dashed line
 ## is judged along its whole length, gaps included: crossing it in a gap is still crossing it.
 
 enum Kind { SOLID, DASHED, DOUBLE_SOLID, STOP_LINE, GIVE_WAY_LINE, ZEBRA, BAY_EDGE, NO_PARKING, KERB }
@@ -26,14 +27,24 @@ enum Kind { SOLID, DASHED, DOUBLE_SOLID, STOP_LINE, GIVE_WAY_LINE, ZEBRA, BAY_ED
 	set(value):
 		gap_length = value
 		_queue_rebuild()
+## Whether it is drawn. A kerb along a road of the kit is judged but not drawn: the road draws
+## the kerb itself, and its pavement is solid.
+@export var paint := true:
+	set(value):
+		paint = value
+		_queue_rebuild()
 
 const PAINT_HEIGHT := 0.025
 const KERB_HEIGHT := 0.15
 const WHITE := Color(0.95, 0.95, 0.95)
 const YELLOW := Color(0.95, 0.8, 0.1)
 const KERB_GREY := Color(0.6, 0.6, 0.6)
+## Thickness of a drawn kerb's wall, centred on the line, so a tyre stopped by it is still on the
+## kerb line as [LineCheck] judges it.
+const KERB_WALL := 0.06
 
 var _mesh_instance: MeshInstance3D
+var _wall: StaticBody3D
 var _rebuild_queued := false
 
 
@@ -77,6 +88,34 @@ func rebuild() -> void:
 	if _mesh_instance == null:
 		return
 	_mesh_instance.mesh = _build_mesh()
+	if _wall and is_instance_valid(_wall):
+		remove_child(_wall)
+		_wall.queue_free()
+	_wall = RoadKit.pavement_body(_wall_shapes()) if kind == Kind.KERB and paint else null
+	if _wall:
+		add_child(_wall, false, INTERNAL_MODE_BACK)
+
+
+## The wall a drawn kerb stands up as; null for any other marking.
+func wall() -> StaticBody3D:
+	return _wall
+
+
+func _wall_shapes() -> Array[Shape3D]:
+	var out: Array[Shape3D] = []
+	if curve == null or curve.point_count < 2:
+		return out
+	var points := curve.tessellate(4, 4.0)
+	var half := KERB_WALL / 2.0
+	for i in points.size() - 1:
+		var along := points[i + 1] - points[i]
+		along.y = 0.0
+		if along.length() < 0.001:
+			continue
+		var right := along.normalized().cross(Vector3.UP) * half
+		out.append(RoadKit.prism([points[i] - right, points[i] + right, points[i + 1] + right,
+			points[i + 1] - right]))
+	return out
 
 
 func _queue_rebuild() -> void:
@@ -87,7 +126,7 @@ func _queue_rebuild() -> void:
 
 
 func _build_mesh() -> ArrayMesh:
-	if curve == null or curve.get_baked_points().size() < 2:
+	if not paint or curve == null or curve.get_baked_points().size() < 2:
 		return null
 	var points := curve.get_baked_points()
 	var st := SurfaceTool.new()

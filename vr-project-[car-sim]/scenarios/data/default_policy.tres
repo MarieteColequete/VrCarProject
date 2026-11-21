@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="ScoringPolicy" format=3]
+[gd_resource type="Resource" script_class="ScoringPolicy" format=3 uid="uid://1du2kdypmvws"]
 
-[ext_resource type="Script" path="res://scenarios/data/scoring_policy.gd" id="1_policy"]
-[ext_resource type="Script" path="res://scenarios/data/fault_tier.gd" id="2_tier"]
+[ext_resource type="Script" uid="uid://mik46qy6gpjo" path="res://scenarios/data/scoring_policy.gd" id="1_policy"]
+[ext_resource type="Script" uid="uid://cb0waqhbdqk8p" path="res://scenarios/data/fault_tier.gd" id="2_tier"]
 
 [sub_resource type="Resource" id="Tier_critical"]
 script = ExtResource("2_tier")

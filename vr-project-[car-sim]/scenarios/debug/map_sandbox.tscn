@@ -1,0 +1,16 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenarios/debug/map_sandbox.gd" id="sandbox"]
+[ext_resource type="PackedScene" path="res://scenarios/scenes/exam_runner.tscn" id="runner"]
+[ext_resource type="PackedScene" path="res://scenarios/debug/debug_hud.tscn" id="hud"]
+
+[node name="MapSandbox" type="Node" node_paths=PackedStringArray("runner")]
+script = ExtResource("sandbox")
+runner = NodePath("Runner")
+
+[node name="Runner" parent="." instance=ExtResource("runner")]
+scenario_scene = null
+autostart = false
+
+[node name="DebugHud" parent="." node_paths=PackedStringArray("runner") instance=ExtResource("hud")]
+runner = NodePath("../Runner")

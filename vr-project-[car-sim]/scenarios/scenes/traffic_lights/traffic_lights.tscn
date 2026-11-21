@@ -1,23 +1,18 @@
 [gd_scene format=3]
 
-[ext_resource type="PackedScene" path="res://scenarios/kit/scenario_base.tscn" id="base"]
+[ext_resource type="PackedScene" path="res://scenarios/kit/map_scenario_base.tscn" id="base"]
+
+[ext_resource type="PackedScene" path="res://maps/traffic_lights/traffic_lights.tscn" id="map"]
+
 [ext_resource type="Resource" path="res://scenarios/scenes/traffic_lights/definition.tres" id="definition"]
-[ext_resource type="Material" path="res://scenarios/kit/asphalt.tres" id="asphalt"]
-[ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="marking"]
-[ext_resource type="Script" path="res://scenarios/traffic/traffic_light.gd" id="light"]
+
 [ext_resource type="Script" path="res://scenarios/checks/trigger_zone.gd" id="zone"]
+
 [ext_resource type="Script" path="res://scenarios/checks/traffic_light_check.gd" id="lightcheck"]
+
 [ext_resource type="Script" path="res://scenarios/checks/speed_limit_check.gd" id="speed"]
+
 [ext_resource type="Script" path="res://scenarios/checks/goal_check.gd" id="goal"]
-
-[sub_resource type="BoxMesh" id="Mesh_road"]
-size = Vector3(7, 0.02, 250)
-
-[sub_resource type="BoxMesh" id="Mesh_cross"]
-size = Vector3(100, 0.02, 7)
-
-[sub_resource type="BoxShape3D" id="Shape_trigger"]
-size = Vector3(8, 3, 3)
 
 [sub_resource type="BoxShape3D" id="Shape_line"]
 size = Vector3(4, 3, 2)
@@ -28,112 +23,16 @@ size = Vector3(8, 3, 250)
 [sub_resource type="BoxShape3D" id="Shape_goal"]
 size = Vector3(12, 3, 4)
 
-[sub_resource type="Curve3D" id="Curve_CentreLine"]
-_data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, 85, 0, 0, 0, 0, 0, 0, 0, 0, -165),
-"tilts": PackedFloat32Array(0, 0)
-}
-point_count = 2
-
-[sub_resource type="Curve3D" id="Curve_KerbRight"]
-_data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 3.5, 0, 85, 0, 0, 0, 0, 0, 0, 3.5, 0, -165),
-"tilts": PackedFloat32Array(0, 0)
-}
-point_count = 2
-
-[sub_resource type="Curve3D" id="Curve_KerbLeft"]
-_data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -3.5, 0, 85, 0, 0, 0, 0, 0, 0, -3.5, 0, -165),
-"tilts": PackedFloat32Array(0, 0)
-}
-point_count = 2
-
-[sub_resource type="Curve3D" id="Curve_StopLine1"]
-_data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3.5, 0, 0),
-"tilts": PackedFloat32Array(0, 0)
-}
-point_count = 2
-
-[sub_resource type="Curve3D" id="Curve_StopLine2"]
-_data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, -100, 0, 0, 0, 0, 0, 0, 3.5, 0, -100),
-"tilts": PackedFloat32Array(0, 0)
-}
-point_count = 2
-
-[node name="TrafficLights" instance=ExtResource("base")]
+[node name="TrafficLights" node_paths=PackedStringArray("map") instance=ExtResource("base")]
 definition = ExtResource("definition")
+map = NodePath("Map")
 
-[node name="Environment" parent="."]
-ground_size = Vector2(200, 300)
-ground_offset = Vector3(0, 0, -40)
-
-[node name="Road" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -40)
-mesh = SubResource("Mesh_road")
-surface_material_override/0 = ExtResource("asphalt")
-
-[node name="CrossRoad1" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.012, -3.5)
-mesh = SubResource("Mesh_cross")
-surface_material_override/0 = ExtResource("asphalt")
-
-[node name="CrossRoad2" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.012, -103.5)
-mesh = SubResource("Mesh_cross")
-surface_material_override/0 = ExtResource("asphalt")
-
-[node name="SpawnPoint" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 75)
-
-[node name="CentreLine" type="Path3D" parent="Markings"]
-curve = SubResource("Curve_CentreLine")
-script = ExtResource("marking")
-kind = 1
-
-[node name="KerbRight" type="Path3D" parent="Markings"]
-curve = SubResource("Curve_KerbRight")
-script = ExtResource("marking")
-kind = 8
-
-[node name="KerbLeft" type="Path3D" parent="Markings"]
-curve = SubResource("Curve_KerbLeft")
-script = ExtResource("marking")
-kind = 8
-
-[node name="StopLine1" type="Path3D" parent="Markings"]
-curve = SubResource("Curve_StopLine1")
-script = ExtResource("marking")
-kind = 3
-
-[node name="StopLine2" type="Path3D" parent="Markings"]
-curve = SubResource("Curve_StopLine2")
-script = ExtResource("marking")
-kind = 3
-
-[node name="FirstTrigger" type="Area3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 46.5)
-script = ExtResource("zone")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="FirstTrigger"]
-shape = SubResource("Shape_trigger")
-
-[node name="FirstLight" type="Node3D" parent="." node_paths=PackedStringArray("trigger")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2, 0, 1)
-script = ExtResource("light")
-mode = 1
-initial = 2
-red_time = 6.0
-red_amber_time = 1.0
-amber_time = 4.0
-trigger = NodePath("../FirstTrigger")
+[node name="Map" parent="." instance=ExtResource("map")]
 
 [node name="FirstLightCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("light", "line_zone")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 0)
 script = ExtResource("lightcheck")
-light = NodePath("../../FirstLight")
+light = NodePath("../../Map/FirstLight")
 line_zone = NodePath("LineZone")
 
 [node name="LineZone" type="Area3D" parent="Checks/FirstLightCheck"]
@@ -143,27 +42,10 @@ script = ExtResource("zone")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/FirstLightCheck/LineZone"]
 shape = SubResource("Shape_line")
 
-[node name="SecondTrigger" type="Area3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -90.5)
-script = ExtResource("zone")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SecondTrigger"]
-shape = SubResource("Shape_trigger")
-
-[node name="SecondLight" type="Node3D" parent="." node_paths=PackedStringArray("trigger")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2, 0, -99)
-script = ExtResource("light")
-mode = 1
-initial = 2
-red_time = 6.0
-red_amber_time = 1.0
-amber_time = 3.0
-trigger = NodePath("../SecondTrigger")
-
 [node name="SecondLightCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("light", "line_zone")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, -100)
 script = ExtResource("lightcheck")
-light = NodePath("../../SecondLight")
+light = NodePath("../../Map/SecondLight")
 line_zone = NodePath("LineZone")
 
 [node name="LineZone" type="Area3D" parent="Checks/SecondLightCheck"]
@@ -195,3 +77,5 @@ script = ExtResource("zone")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/GoalCheck/Zone"]
 shape = SubResource("Shape_goal")
+
+[editable path="Map"]

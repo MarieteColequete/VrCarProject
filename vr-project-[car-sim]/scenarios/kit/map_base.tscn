@@ -1,0 +1,28 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenarios/map/road_map.gd" id="map"]
+[ext_resource type="PackedScene" path="res://scenarios/kit/road_environment.tscn" id="environment"]
+[ext_resource type="Script" path="res://scenarios/map/map_spawn.gd" id="spawn"]
+
+[node name="Map" type="Node3D"]
+script = ExtResource("map")
+
+[node name="Environment" parent="." instance=ExtResource("environment")]
+
+[node name="Spawn" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 0)
+script = ExtResource("spawn")
+
+[node name="Roads" type="Node3D" parent="."]
+
+[node name="Markings" type="Node3D" parent="."]
+
+[node name="Lanes" type="Node3D" parent="."]
+
+[node name="Traffic" type="Node3D" parent="."]
+
+[node name="Signs" type="Node3D" parent="."]
+
+[node name="Props" type="Node3D" parent="."]
+
+[node name="Zones" type="Node3D" parent="."]

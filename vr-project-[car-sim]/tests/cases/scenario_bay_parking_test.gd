@@ -18,7 +18,7 @@ func _reverse_into(bay: Vector3) -> Array:
 
 func _test_bay_parking() -> void:
 	var scene := BAY_PARKING.instantiate()
-	var into: Vector3 = -scene.get_node("Bays/Bay2").transform.basis.z
+	var into: Vector3 = -scene.get_node("Map/Bays/Bay2").transform.basis.z
 	expect(into.is_equal_approx(Vector3.RIGHT), "the car park's bays open onto the aisle")
 	scene.free()
 

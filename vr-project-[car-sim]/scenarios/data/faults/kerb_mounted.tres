@@ -5,6 +5,6 @@
 [resource]
 script = ExtResource("1_fault")
 id = &"kerb_mounted"
-title = "Mounted the kerb"
-description = "A wheel crossed a kerb."
+title = "Hit the kerb"
+description = "A tyre touched or crossed a kerb."
 tier = &"serious"

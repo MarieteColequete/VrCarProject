@@ -1,0 +1,83 @@
+[gd_resource type="Resource" script_class="AssetPack" format=3 uid="uid://bwkaguuchlsl1"]
+
+[ext_resource type="Script" uid="uid://blsq3hsw7vywm" path="res://scenarios/data/asset_category.gd" id="category"]
+[ext_resource type="Resource" path="res://scenarios/data/body_types/obstacle.tres" id="obstacle"]
+[ext_resource type="Script" uid="uid://c01e3sbfnk77t" path="res://scenarios/data/asset_pack.gd" id="pack"]
+[ext_resource type="Resource" path="res://scenarios/data/body_types/vehicle.tres" id="vehicle"]
+
+[sub_resource type="Resource" id="cars"]
+script = ExtResource("category")
+title = "Cars"
+models = PackedStringArray("sedan", "sedan-sports", "suv", "suv-luxury", "hatchback-sports", "taxi", "police")
+body = ExtResource("vehicle")
+fit = Vector3(1.8, 1.5, 4.3)
+order = 10
+
+[sub_resource type="Resource" id="vans_and_lorries"]
+script = ExtResource("category")
+title = "Vans and lorries"
+models = PackedStringArray("van", "delivery", "delivery-flat", "truck", "truck-flat")
+body = ExtResource("vehicle")
+fit = Vector3(2, 2.2, 5.2)
+order = 11
+
+[sub_resource type="Resource" id="service_vehicles"]
+script = ExtResource("category")
+title = "Service vehicles"
+models = PackedStringArray("ambulance", "firetruck", "garbage-truck")
+body = ExtResource("vehicle")
+fit = Vector3(2.3, 2.8, 6.5)
+order = 12
+
+[sub_resource type="Resource" id="race_cars"]
+script = ExtResource("category")
+title = "Race cars"
+models = PackedStringArray("race", "race-future")
+body = ExtResource("vehicle")
+fit = Vector3(1.9, 1.1, 4.5)
+order = 13
+
+[sub_resource type="Resource" id="tractors"]
+script = ExtResource("category")
+title = "Tractors"
+models = PackedStringArray("tractor*")
+body = ExtResource("vehicle")
+fit = Vector3(2, 2.5, 3.6)
+order = 14
+
+[sub_resource type="Resource" id="karts"]
+script = ExtResource("category")
+title = "Karts"
+models = PackedStringArray("kart-*")
+body = ExtResource("vehicle")
+order = 15
+
+[sub_resource type="Resource" id="road_items"]
+script = ExtResource("category")
+title = "Road items"
+models = PackedStringArray("cone", "cone-flat", "box")
+body = ExtResource("obstacle")
+order = 30
+
+[sub_resource type="Resource" id="debris"]
+script = ExtResource("category")
+title = "Debris"
+models = PackedStringArray("debris-*")
+body = ExtResource("obstacle")
+order = 40
+
+[sub_resource type="Resource" id="wheels"]
+script = ExtResource("category")
+title = "Wheels"
+models = PackedStringArray("wheel-*")
+body = ExtResource("obstacle")
+order = 41
+
+[resource]
+script = ExtResource("pack")
+title = "Car Kit"
+tag = "Car Kit"
+credit = "Kenney (kenney.nl), CC0"
+scale = 1.7
+turn_degrees = 180.0
+categories = Array[ExtResource("category")]([SubResource("cars"), SubResource("vans_and_lorries"), SubResource("service_vehicles"), SubResource("race_cars"), SubResource("tractors"), SubResource("karts"), SubResource("road_items"), SubResource("debris"), SubResource("wheels")])

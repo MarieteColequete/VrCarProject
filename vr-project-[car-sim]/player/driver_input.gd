@@ -11,10 +11,12 @@ const STEER_RIGHT := &"steer_right"
 const HANDBRAKE := &"handbrake"
 const INDICATOR_LEFT := &"indicator_left"
 const INDICATOR_RIGHT := &"indicator_right"
+const HEADLIGHTS := &"toggle_headlights"
 
 ## Every action a car reads, for checks that the bindings exist.
 const CAR_ACTIONS: Array[StringName] = [
-	THROTTLE, BRAKE, STEER_LEFT, STEER_RIGHT, HANDBRAKE, INDICATOR_LEFT, INDICATOR_RIGHT]
+	THROTTLE, BRAKE, STEER_LEFT, STEER_RIGHT, HANDBRAKE, INDICATOR_LEFT, INDICATOR_RIGHT,
+	HEADLIGHTS]
 
 
 ## Accelerator, 0 to 1.
@@ -34,6 +36,11 @@ static func steer() -> float:
 
 static func handbrake() -> bool:
 	return Input.is_action_pressed(HANDBRAKE)
+
+
+## Whether an input event switches the headlights on or off.
+static func headlights_pressed(event: InputEvent) -> bool:
+	return event.is_action_pressed(HEADLIGHTS)
 
 
 ## The indicator an input event switches, as a [enum VehicleProbe.Indicator]; OFF when it is not
