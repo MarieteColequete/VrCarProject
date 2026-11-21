@@ -32,23 +32,18 @@ func _test_catalogue() -> void:
 		for part in ["Checks/ContactCheck", "Checks/LineCheck", "Checks/TrafficConflictCheck"]:
 			if not scenario.has_node(part):
 				problems.append("%s has no %s from the base scene" % [definition.id, part])
-		if scenario.map:
-			# Built on a map: the world comes from res://maps/, with a spawn.
-			if not scenario.map.scene_file_path.begins_with(MapCatalogue.ROOT) \
-					or not scenario.map.has_node("Environment") or scenario.start() == null:
-				problems.append("%s's map is not a map of %s with an environment and a spawn"
-					% [definition.id, MapCatalogue.ROOT])
-			elif MapCatalogue.scan().all(func(e: MapCatalogue.Entry) -> bool:
-					return e.path != scenario.map.scene_file_path):
-				problems.append("%s's map is not found by the map scan" % definition.id)
-		else:
-			for part in ["Environment", "SpawnPoint", "Markings"]:
-				if not scenario.has_node(part):
-					problems.append("%s has no %s from the base scene" % [definition.id, part])
+		if scenario.map == null or scenario.map != scenario.get_node_or_null("Map") \
+				or not scenario.map.scene_file_path.begins_with(MapCatalogue.ROOT) \
+				or not scenario.map.has_node("Environment") or scenario.start() == null:
+			problems.append("%s is not set on a map of %s with an environment and a spawn"
+				% [definition.id, MapCatalogue.ROOT])
+		elif MapCatalogue.scan().all(func(e: MapCatalogue.Entry) -> bool:
+				return e.path != scenario.map.scene_file_path):
+			problems.append("%s's map is not found by the map scan" % definition.id)
 		if scenario.definition and scenario.definition.policy == null:
 			problems.append("%s has no scoring policy" % definition.id)
 		scenario.free()
-	expect(problems.is_empty(), "every catalogue entry loads a scene built on the base %s" % [problems])
+	expect(problems.is_empty(), "every catalogue entry loads a scenario set on a map %s" % [problems])
 	expect(catalogue.find(&"roundabout") != null and catalogue.find(&"no_such") == null,
 		"the catalogue finds a scenario by id")
 	expect(catalogue.in_category("Parking").size() == 2, "the catalogue groups scenarios by category")

@@ -1,60 +1,22 @@
 [gd_scene format=3]
 
-[ext_resource type="PackedScene" path="res://scenarios/kit/scenario_base.tscn" id="base"]
+[ext_resource type="PackedScene" path="res://scenarios/kit/map_scenario_base.tscn" id="base"]
+
+[ext_resource type="PackedScene" path="res://maps/parallel_parking/parallel_parking.tscn" id="map"]
+
 [ext_resource type="Resource" path="res://scenarios/scenes/parallel_parking/definition.tres" id="definition"]
-[ext_resource type="Material" path="res://scenarios/kit/asphalt.tres" id="asphalt"]
-[ext_resource type="PackedScene" path="res://scenarios/kit/parked_car.tscn" id="parked"]
+
 [ext_resource type="Script" path="res://scenarios/core/scenario_step.gd" id="step"]
-[ext_resource type="Script" path="res://scenarios/road/parking_bay.gd" id="bay"]
-[ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="marking"]
+
 [ext_resource type="Script" path="res://scenarios/checks/parking_check.gd" id="parking"]
+
 [ext_resource type="Script" path="res://scenarios/checks/parking_choice_check.gd" id="choice"]
 
-[sub_resource type="BoxMesh" id="Mesh_road"]
-size = Vector3(9.3, 0.02, 80)
-
-[sub_resource type="Curve3D" id="Curve_KerbRight"]
-_data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 5.8, 0, 15, 0, 0, 0, 0, 0, 0, 5.8, 0, -60),
-"tilts": PackedFloat32Array(0, 0)
-}
-point_count = 2
-
-[sub_resource type="Curve3D" id="Curve_KerbLeft"]
-_data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -3.5, 0, 15, 0, 0, 0, 0, 0, 0, -3.5, 0, -60),
-"tilts": PackedFloat32Array(0, 0)
-}
-point_count = 2
-
-[sub_resource type="Curve3D" id="Curve_CentreLine"]
-_data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0, 0, 0, 0, 0, 0, -60),
-"tilts": PackedFloat32Array(0, 0)
-}
-point_count = 2
-
-[sub_resource type="Curve3D" id="Curve_KerbNoParking"]
-_data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 5.6, 0, -2, 0, 0, 0, 0, 0, 0, 5.6, 0, -12),
-"tilts": PackedFloat32Array(0, 0)
-}
-point_count = 2
-
-[node name="ParallelParking" instance=ExtResource("base")]
+[node name="ParallelParking" node_paths=PackedStringArray("map") instance=ExtResource("base")]
 definition = ExtResource("definition")
+map = NodePath("Map")
 
-[node name="Environment" parent="."]
-ground_size = Vector2(60, 90)
-ground_offset = Vector3(0, 0, -20)
-
-[node name="Asphalt" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.15, 0.01, -20)
-mesh = SubResource("Mesh_road")
-surface_material_override/0 = ExtResource("asphalt")
-
-[node name="SpawnPoint" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 0)
+[node name="Map" parent="." instance=ExtResource("map")]
 
 [node name="Steps" type="Node" parent="."]
 
@@ -62,44 +24,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 0)
 script = ExtResource("step")
 title = "Park in the gap"
 instruction = "Park in the gap between the two parked cars, parallel to the kerb."
-
-[node name="Bays" type="Node3D" parent="."]
-
-[node name="Bay1" type="Node3D" parent="Bays"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.65, 0, -21.25)
-script = ExtResource("bay")
-size = Vector2(2.3, 6.3)
-facing = 0
-reserved = false
-draw_edges = false
-
-[node name="ParkedCars" type="Node3D" parent="."]
-
-[node name="Parked1" parent="ParkedCars" instance=ExtResource("parked")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.65, 0.75, -16)
-
-[node name="Parked2" parent="ParkedCars" instance=ExtResource("parked")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.65, 0.75, -26.5)
-
-[node name="KerbRight" type="Path3D" parent="Markings"]
-curve = SubResource("Curve_KerbRight")
-script = ExtResource("marking")
-kind = 8
-
-[node name="KerbLeft" type="Path3D" parent="Markings"]
-curve = SubResource("Curve_KerbLeft")
-script = ExtResource("marking")
-kind = 8
-
-[node name="CentreLine" type="Path3D" parent="Markings"]
-curve = SubResource("Curve_CentreLine")
-script = ExtResource("marking")
-kind = 1
-
-[node name="KerbNoParking" type="Path3D" parent="Markings"]
-curve = SubResource("Curve_KerbNoParking")
-script = ExtResource("marking")
-kind = 7
 
 [node name="ParkingCheck" type="Node3D" parent="Checks" node_paths=PackedStringArray("step", "active_steps")]
 script = ExtResource("parking")

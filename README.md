@@ -108,9 +108,8 @@ scene under `vr-project-[car-sim]/scenarios/scenes/<name>/` that inherits
 the zones only checks use, and any steps. The base gives the `Scenario` root and a `Checks` node
 already holding `ContactCheck`, `LineCheck`, and `TrafficConflictCheck`. The car starts at the
 scenario's `spawn_point`, or else at the map's first `MapSpawn`. Scenarios are laid out with the car
-driving towards -Z on the right-hand side of the road, in the lane centred on x = 1.75. Scenarios
-not yet set on a map inherit `scenarios/kit/scenario_base.tscn`, which carries the world itself: the
-shared `RoadEnvironment`, a `SpawnPoint`, and a `Markings` node.
+driving towards -Z on the right-hand side of the road, in the lane centred on x = 1.75. Each of the
+nine scenarios is set on the map of the same name in `maps/`.
 
 Its `ScenarioDefinition`, `definition.tres` beside the scene, gives the id, the title, the menu
 category and difficulty, the briefing, the time limit, the scoring policy, and the car scene to
@@ -217,14 +216,26 @@ pedestrian crossing is a `Crossing`: its zone, the pedestrians who use it, and t
 Lanes list it so their traffic waits while it is in use, and a scenario's `CrossingCheck` points at
 it to judge the player there.
 
+The authoring nodes in `scenarios/map/` build the usual parts of a map from a few settings:
+
+| Node | What it builds |
+|---|---|
+| `RoadSegment` | The asphalt along its curve, from the lanes each way, the lane width, and one way or not. Its buttons generate the `TrafficLane`s, on the right of their direction of travel, with the speed limit and neighbours set, and the kerbs, centre line, and lane lines as `RoadMarking`s |
+| `RoadJunction` | A crossroads or T junction pad for roads of a given width. Its button generates a stop or give way line on each controlled arm; `arm_end` is where a road leaving by an arm starts |
+| `RoadSign` | A sign on a pole: stop, give way, speed limit with its number, no entry, pedestrian crossing, roundabout, no parking, or one way. It is scenery; the rule it shows comes from a lane or a check |
+| `Prop` | A parked car, van, cone, barrier, bollard, building, or tree, solid on the obstacle layer, so the car collides with it, road users see it, and `ContactCheck` judges touching it |
+
+What the buttons generate is ordinary children, saved with the map and editable like any other;
+generating again replaces only what the node generated before.
+
 To build a map:
 
 1. Create `maps/<name>/<name>.tscn` as a new inherited scene of `scenarios/kit/map_base.tscn`, set
    the root's id and title, and set the environment's ground size to cover the roads.
-2. Add the roads (meshes with `scenarios/kit/asphalt.tres`) under `Roads`, the `RoadMarking` paths
-   under `Markings`, the `TrafficLane`s under `Lanes`, lights, sources, and scripted road users
-   under `Traffic`, parked cars (`scenarios/kit/parked_car.tscn`) and other obstacles under
-   `Props`, and the trigger zones of lights and road users under `Zones`.
+2. Add `RoadSegment`s and `RoadJunction`s under `Roads` and generate their lanes and markings, or
+   draw `TrafficLane` and `RoadMarking` paths by hand under `Lanes` and `Markings`. Add lights,
+   sources, and scripted road users under `Traffic`, `RoadSign`s under `Signs`, `Prop`s under
+   `Props`, and the trigger zones that start lights and road users.
 3. Move `Spawn` to where the car starts, and add more `MapSpawn`s for other starts.
 4. Run `scenarios/debug/map_sandbox.tscn`, which drives the first map, or press M in the sandbox
    to move from map to map.

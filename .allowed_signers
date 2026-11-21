@@ -1,5 +1,5 @@
-# The keys trusted to sign commits and tags, read by .gitlab/ci/verify-signatures.sh from the
-# protected branch. One per line: <email> namespaces="git" <key type> <public key>
+# The keys trusted to sign commits and tags, read by the verify-signatures job of .gitlab-ci.yml
+# from the protected branch. One per line: <email> namespaces="git" <key type> <public key>
 # To rotate a key, keep the old line with valid-before="YYYYMMDD" and add the new key with
 # valid-after="YYYYMMDD" (namespaces="git",valid-after="20270101"); each commit is checked
 # against the key valid at its commit time, so history signed with the old key still verifies.

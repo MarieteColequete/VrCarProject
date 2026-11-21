@@ -1,0 +1,104 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenarios/kit/map_base.tscn" id="map_base"]
+
+[ext_resource type="Material" path="res://scenarios/kit/asphalt.tres" id="asphalt"]
+
+[ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="marking"]
+
+[ext_resource type="Script" path="res://scenarios/traffic/scripted_agent.gd" id="agent"]
+
+[sub_resource type="BoxMesh" id="Mesh_road"]
+size = Vector3(7, 0.02, 300)
+
+[sub_resource type="Curve3D" id="Curve_CentreDashed"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, 85, 0, 0, 0, 0, 0, 0, 0, 0, -60),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_CentreSolid"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, -60, 0, 0, 0, 0, 0, 0, 0, 0, -120),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_CentreDashedAfter"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, -120, 0, 0, 0, 0, 0, 0, 0, 0, -205),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_KerbRight"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 3.5, 0, 85, 0, 0, 0, 0, 0, 0, 3.5, 0, -205),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_KerbLeft"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -3.5, 0, 85, 0, 0, 0, 0, 0, 0, -3.5, 0, -205),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve_Slow"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 1.75, 0, 40, 0, 0, 0, 0, 0, 0, 1.75, 0, -260),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[node name="LaneChangeOvertake" instance=ExtResource("map_base")]
+id = &"lane_change_overtake"
+title = "Lane change and overtaking"
+description = "A two-lane road with a slow vehicle ahead."
+
+[node name="Environment" parent="."]
+ground_size = Vector2(100, 320)
+ground_offset = Vector3(0, 0, -60)
+
+[node name="Spawn" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 80)
+
+[node name="Road" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -60)
+mesh = SubResource("Mesh_road")
+surface_material_override/0 = ExtResource("asphalt")
+
+[node name="CentreDashed" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_CentreDashed")
+script = ExtResource("marking")
+kind = 1
+
+[node name="CentreSolid" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_CentreSolid")
+script = ExtResource("marking")
+kind = 0
+
+[node name="CentreDashedAfter" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_CentreDashedAfter")
+script = ExtResource("marking")
+kind = 1
+
+[node name="KerbRight" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_KerbRight")
+script = ExtResource("marking")
+kind = 8
+
+[node name="KerbLeft" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_KerbLeft")
+script = ExtResource("marking")
+kind = 8
+
+[node name="SlowPath" type="Path3D" parent="."]
+curve = SubResource("Curve_Slow")
+
+[node name="SlowVehicle" type="AnimatableBody3D" parent="." node_paths=PackedStringArray("path")]
+script = ExtResource("agent")
+path = NodePath("../SlowPath")
+speed = 4.0

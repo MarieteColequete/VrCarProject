@@ -1,0 +1,117 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenarios/kit/map_base.tscn" id="map_base"]
+
+[ext_resource type="Material" path="res://scenarios/kit/asphalt.tres" id="asphalt"]
+
+[ext_resource type="PackedScene" path="res://scenarios/kit/parked_car.tscn" id="parked"]
+
+[ext_resource type="Script" path="res://scenarios/road/parking_bay.gd" id="bay"]
+
+[ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="marking"]
+
+[ext_resource type="Script" path="res://scenarios/road/no_parking_zone.gd" id="nopark"]
+
+[sub_resource type="BoxMesh" id="Mesh_road"]
+size = Vector3(12, 0.02, 50)
+
+[sub_resource type="BoxShape3D" id="Shape_zone0"]
+size = Vector3(6, 3, 8)
+
+[sub_resource type="Curve3D" id="Curve_AisleNoParking"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -3, 0, 12, 0, 0, 0, 0, 0, 0, -3, 0, -32),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[node name="BayParking" instance=ExtResource("map_base")]
+id = &"bay_parking"
+title = "Bay parking"
+description = "A car park with marked bays, parked cars, and a no-parking zone."
+
+[node name="Environment" parent="."]
+ground_size = Vector2(60, 80)
+ground_offset = Vector3(0, 0, -10)
+
+[node name="Spawn" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 10)
+
+[node name="Asphalt" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 0.01, -10)
+mesh = SubResource("Mesh_road")
+surface_material_override/0 = ExtResource("asphalt")
+
+[node name="Bays" type="Node3D" parent="."]
+
+[node name="Bay1" type="Node3D" parent="Bays"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0, -5)
+script = ExtResource("bay")
+size = Vector2(2.5, 5.0)
+facing = 2
+reserved = false
+draw_edges = true
+
+[node name="Bay2" type="Node3D" parent="Bays"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0, -7.5)
+script = ExtResource("bay")
+size = Vector2(2.5, 5.0)
+facing = 2
+reserved = false
+draw_edges = true
+
+[node name="Bay3" type="Node3D" parent="Bays"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0, -10)
+script = ExtResource("bay")
+size = Vector2(2.5, 5.0)
+facing = 2
+reserved = false
+draw_edges = true
+
+[node name="Bay4" type="Node3D" parent="Bays"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0, -12.5)
+script = ExtResource("bay")
+size = Vector2(2.5, 5.0)
+facing = 2
+reserved = true
+draw_edges = true
+
+[node name="Bay5" type="Node3D" parent="Bays"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0, -15)
+script = ExtResource("bay")
+size = Vector2(2.5, 5.0)
+facing = 2
+reserved = false
+draw_edges = true
+
+[node name="Bay6" type="Node3D" parent="Bays"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0, -17.5)
+script = ExtResource("bay")
+size = Vector2(2.5, 5.0)
+facing = 2
+reserved = false
+draw_edges = true
+
+[node name="ParkedCars" type="Node3D" parent="."]
+
+[node name="Parked1" parent="ParkedCars" instance=ExtResource("parked")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0.75, -5)
+
+[node name="Parked2" parent="ParkedCars" instance=ExtResource("parked")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0.75, -10)
+
+[node name="Parked3" parent="ParkedCars" instance=ExtResource("parked")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0.75, -17.5)
+
+[node name="AisleNoParking" type="Path3D" parent="Markings"]
+curve = SubResource("Curve_AisleNoParking")
+script = ExtResource("marking")
+kind = 7
+
+[node name="NoParking1" type="Area3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -26)
+script = ExtResource("nopark")
+reason = "Fire lane"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="NoParking1"]
+shape = SubResource("Shape_zone0")

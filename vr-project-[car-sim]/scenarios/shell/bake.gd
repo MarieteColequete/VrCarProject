@@ -156,18 +156,26 @@ func _light(light: TrafficLight) -> void:
 
 
 ## Every box shape of a static body on the obstacle layer among [param list], such as a parked
-## van.
+## van, and of the bodies of each [Prop] among it.
 func add_obstacles(list: Array) -> void:
 	for node: Node in list:
-		var body := node as StaticBody3D
-		if body == null or (body.collision_layer & (Layers.OBSTACLE | Layers.PEDESTRIAN)) == 0:
+		if node is Prop:
+			for body in node.bodies():
+				_body_obstacles(body, node.name)
 			continue
-		for child in body.get_children():
-			var shape := child as CollisionShape3D
-			if shape and shape.shape is BoxShape3D and not shape.disabled:
-				world.spawn({obstacle = {transform = shape.global_transform,
-					size = shape.shape.size, name = body.name,
-					pedestrian = (body.collision_layer & Layers.PEDESTRIAN) != 0}})
+		if node is StaticBody3D:
+			_body_obstacles(node, node.name)
+
+
+func _body_obstacles(body: StaticBody3D, obstacle_name: StringName) -> void:
+	if (body.collision_layer & (Layers.OBSTACLE | Layers.PEDESTRIAN)) == 0:
+		return
+	for child in body.get_children():
+		var shape := child as CollisionShape3D
+		if shape and shape.shape is BoxShape3D and not shape.disabled:
+			world.spawn({obstacle = {transform = shape.global_transform,
+				size = shape.shape.size, name = obstacle_name,
+				pedestrian = (body.collision_layer & Layers.PEDESTRIAN) != 0}})
 
 
 func _spawner(spawner: AgentSpawner) -> void:
