@@ -1,0 +1,56 @@
+[gd_resource type="Resource" script_class="AssetPack" format=3 uid="uid://cw11j8idwxbj8"]
+
+[ext_resource type="Script" uid="uid://blsq3hsw7vywm" path="res://scenarios/data/asset_category.gd" id="category"]
+[ext_resource type="Resource" path="res://scenarios/data/body_types/obstacle.tres" id="obstacle"]
+[ext_resource type="Script" uid="uid://c01e3sbfnk77t" path="res://scenarios/data/asset_pack.gd" id="pack"]
+
+[sub_resource type="Resource" id="houses"]
+script = ExtResource("category")
+title = "Houses"
+models = PackedStringArray("building-type-*")
+body = ExtResource("obstacle")
+order = 20
+
+[sub_resource type="Resource" id="trees"]
+script = ExtResource("category")
+title = "Trees"
+models = PackedStringArray("tree-*")
+body = ExtResource("obstacle")
+extra_scale = 1.6
+solid_part = Vector3(0.45, 1, 0.45)
+order = 21
+
+[sub_resource type="Resource" id="fences"]
+script = ExtResource("category")
+title = "Fences"
+models = PackedStringArray("fence")
+body = ExtResource("obstacle")
+order = 22
+
+[sub_resource type="Resource" id="yard_fences"]
+script = ExtResource("category")
+title = "Yard fences"
+models = PackedStringArray("fence-*")
+body = ExtResource("obstacle")
+order = 23
+
+[sub_resource type="Resource" id="planters"]
+script = ExtResource("category")
+title = "Planters"
+models = PackedStringArray("planter")
+body = ExtResource("obstacle")
+order = 24
+
+[sub_resource type="Resource" id="paths_and_driveways"]
+script = ExtResource("category")
+title = "Paths and driveways"
+models = PackedStringArray("path*", "driveway*")
+order = 25
+
+[resource]
+script = ExtResource("pack")
+title = "City Kit (Suburban)"
+tag = "Suburban"
+credit = "Kenney (kenney.nl), CC0"
+scale = 7.0
+categories = Array[ExtResource("category")]([SubResource("houses"), SubResource("trees"), SubResource("fences"), SubResource("yard_fences"), SubResource("planters"), SubResource("paths_and_driveways")])

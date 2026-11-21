@@ -1,5 +1,4 @@
 # The project's pipeline: the preset signature check, then the project's own jobs.
 # The signature check is not switched on yet, and the repository is hosted on GitHub.
-# include:
-#   - local: .gitlab/ci/signatures.yml
+# Switching it on means copying the verify-signatures job of the preset's template .gitlab-ci.yml.
 

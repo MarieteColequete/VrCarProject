@@ -5,7 +5,8 @@ extends CanvasLayer
 ## performance readout, and the result. It only listens to the [ExamRunner], its [ExamSession], and
 ## the world's events, so it also shows how a UI uses them. Keys: exam_begin
 ## starts the attempt after the briefing, exam_restart restarts it, exam_next_scenario moves to
-## the next scenario of the [ScenarioCatalogue], and toggle_debug_hud hides the overlay; the hints
+## the next scenario of the [ScenarioCatalogue], exam_next_map drives the next map of the
+## [MapCatalogue] freely, and toggle_debug_hud hides the overlay; the hints
 ## it shows are read from the input map, so they follow any rebinding. It hides itself while a
 ## headset drives the view, where a UI of its own applies.
 
@@ -33,6 +34,8 @@ var performance_label: Label
 var feed: VBoxContainer
 var message_panel: PanelContainer
 var message_label: Label
+## The line of key hints; [method add_key_hints] extends it.
+var keys_label: Label
 
 
 func _ready() -> void:
@@ -60,7 +63,7 @@ func _process(_delta: float) -> void:
 	var limit := session.definition.time_limit
 	time_label.text = "%.1f s" % session.elapsed if limit <= 0.0 \
 		else "%.1f / %.0f s" % [session.elapsed, limit]
-	performance_label.text = _performance_text()
+	performance_label.text = performance_text(runner)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -74,6 +77,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		runner.session.restart()
 	elif event.is_action_pressed(&"exam_next_scenario"):
 		next_scenario()
+	elif event.is_action_pressed(&"exam_next_map"):
+		next_map()
 	else:
 		return
 	get_viewport().set_input_as_handled()
@@ -89,6 +94,20 @@ func next_scenario() -> void:
 	runner.load_definition(catalogue.scenarios[(index + 1) % catalogue.scenarios.size()])
 
 
+## Drives the map after the current one in the [MapCatalogue] freely, wrapping round to the
+## first; the first map when none is being driven.
+func next_map() -> void:
+	var maps := MapCatalogue.scan()
+	if maps.is_empty():
+		return
+	var index := -1
+	if runner.map_scene:
+		for i in maps.size():
+			if maps[i].path == runner.map_scene.resource_path:
+				index = i
+	runner.load_map(maps[(index + 1) % maps.size()].load_scene())
+
+
 ## The keys and buttons bound to [param action], as the input map has them: "Enter or Start".
 static func binding_text(action: StringName) -> String:
 	var names := PackedStringArray()
@@ -101,8 +120,9 @@ static func binding_text(action: StringName) -> String:
 
 
 ## The main thread's process time, the physics process time, and the traffic pipeline's main
-## thread time (snapshot and committing) and any wait for its threads, in milliseconds.
-func _performance_text() -> String:
+## thread time (snapshot and committing) and any wait for its threads, in milliseconds; shared
+## with the [DevHud].
+static func performance_text(runner: ExamRunner) -> String:
 	var text := "main %.1f ms  physics %.1f ms" % [
 		Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
 		Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0]
@@ -187,8 +207,9 @@ func _on_finished(result: ScenarioResult) -> void:
 		lines.append("%s: %d (%s)" % [tier.title if not tier.title.is_empty() else tier.id,
 			tier.count, limit])
 	lines.append("")
-	lines.append("%s to restart, %s for the next scenario" % [binding_text(&"exam_restart"),
-		binding_text(&"exam_next_scenario")])
+	lines.append("%s to restart, %s for the next scenario, %s for the next map" % [
+		binding_text(&"exam_restart"), binding_text(&"exam_next_scenario"),
+		binding_text(&"exam_next_map")])
 	_show_message("\n".join(lines))
 
 
@@ -216,11 +237,13 @@ func _build() -> void:
 	performance_label = Label.new()
 	performance_label.modulate = Color(1, 1, 1, 0.6)
 	feed = VBoxContainer.new()
-	var keys := Label.new()
-	keys.text = "%s begin   %s restart   %s next   %s hide" % [_first_key(&"exam_begin"),
-		_first_key(&"exam_restart"), _first_key(&"exam_next_scenario"), _first_key(&"toggle_debug_hud")]
-	keys.modulate = Color(1, 1, 1, 0.6)
-	for node: Control in [title_label, step_label, time_label, performance_label, feed, keys]:
+	keys_label = Label.new()
+	keys_label.text = "%s begin   %s restart   %s next   %s map   %s hide" % [
+		first_key(&"exam_begin"), first_key(&"exam_restart"), first_key(&"exam_next_scenario"),
+		first_key(&"exam_next_map"), first_key(&"toggle_debug_hud")]
+	keys_label.modulate = Color(1, 1, 1, 0.6)
+	for node: Control in [title_label, step_label, time_label, performance_label, feed,
+			keys_label]:
 		column.add_child(node)
 
 	message_panel = PanelContainer.new()
@@ -236,7 +259,15 @@ func _build() -> void:
 	message_panel.add_child(message_label)
 
 
-static func _first_key(action: StringName) -> String:
+## Adds a line of key hints under the overlay's own, such as the [DevHud]'s; once per text.
+func add_key_hints(text: String) -> void:
+	if not keys_label.text.contains(text):
+		keys_label.text += "\n" + text
+
+
+## The first key bound to [param action], as the input map has it: "F3"; the action's name when
+## no key is bound.
+static func first_key(action: StringName) -> String:
 	for event in InputMap.action_get_events(action):
 		if event is InputEventKey:
 			return event.as_text_physical_keycode()

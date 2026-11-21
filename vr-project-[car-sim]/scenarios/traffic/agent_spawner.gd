@@ -14,7 +14,13 @@ extends Node3D
 @export var keep_free := 1
 ## The parked car; empty for a plain box of a car's size.
 @export var parked_car_scene: PackedScene
+## The colour of a parked car without a model.
 @export var colour := Color(0.3, 0.35, 0.6)
+
+## A parked car's box, metres.
+const CAR_SIZE := Vector3(1.8, 1.4, 4.2)
+
+var _cars_made := 0
 
 ## The bays to fill, from [member random_seed]: [param eligible] is whether each of [member bays]
 ## may be chosen (neither reserved nor occupied). Pure: the same seed gives the same bays.
@@ -35,13 +41,13 @@ func choose(eligible: Array[bool]) -> Array[int]:
 	return order.slice(0, count)
 
 
-## A parked car's body for a bay: the scene, or a plain box of a car's size. The obstacle view
-## places it.
+## A parked car's body for a bay: the scene, or a box of a car's size showing one of the kit's
+## cars, each call the next. The obstacle view places it.
 func make_car() -> Node3D:
 	if parked_car_scene:
 		return parked_car_scene.instantiate()
 	var body := StaticBody3D.new()
-	body.collision_layer = Layers.OBSTACLE
-	body.collision_mask = 0
-	BoxBody.build(body, Vector3(1.8, 1.4, 4.2), colour)
+	BodyType.of(&"vehicle").apply(body)
+	BoxBody.build(body, CAR_SIZE, colour, KitModels.car(_cars_made))
+	_cars_made += 1
 	return body

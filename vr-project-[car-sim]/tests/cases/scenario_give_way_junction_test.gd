@@ -17,7 +17,7 @@ func _turn_right(wait: float, indicate := true) -> Array:
 	if wait > 0.0:
 		legs.append({wait = wait})
 	legs += [
-		{to = Vector3(2.6, 0, -0.8), speed = 4.0}, {to = Vector3(8, 0, -1.75), speed = 6.0},
+		{to = Vector3(2.4, 0, -1.0), speed = 4.0}, {to = Vector3(8, 0, -1.75), speed = 6.0},
 		{to = Vector3(45, 0, -1.75), speed = 8.0}]
 	return legs
 

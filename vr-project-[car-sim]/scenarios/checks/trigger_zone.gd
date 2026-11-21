@@ -1,13 +1,13 @@
 @tool
 class_name TriggerZone
 extends Area3D
-## A region of the road that checks watch, authored as a box [CollisionShape3D] child. When the
-## scenario loads, a [Bake] turns it into a zone entity, and the zone system decides by geometry
+## A region of the road, authored as a box [CollisionShape3D] child: what a check watches, what
+## starts a light or a road user, or the area of a [Crossing]. When the scenario loads, a [Bake] turns it into a zone entity, and the zone system decides by geometry
 ## whether the car is in it; the node itself detects nothing at runtime.
 ##
 ## In the editor it fills its box with a translucent colour by role, so a scenario reads at a
 ## glance: green for a goal, blue for a junction exit, yellow for no parking, red where the car
-## must give way or stop, and orange for any other zone. [member editor_colour] overrides it.
+## must give way or stop (a crossing included), and orange for any other zone. [member editor_colour] overrides it.
 
 const GOAL := Color(0.2, 0.85, 0.3, 0.25)
 const EXIT := Color(0.25, 0.5, 1.0, 0.25)
@@ -54,7 +54,7 @@ func role_colour() -> Color:
 	if parent is GoalCheck:
 		return GOAL
 	if parent is YieldCheck or parent is CrossingCheck or parent is StopCheck \
-			or parent is TrafficLightCheck:
+			or parent is TrafficLightCheck or parent is Crossing:
 		return YIELD
 	return OTHER
 

@@ -11,7 +11,8 @@ const ZONE := &"zone"
 ## A road marking's line, for detection.
 const MARKING := &"marking"
 const BAY := &"bay"
-## Something standing in the way: a parked car or any static box on the obstacle layer.
+## Something standing in the way: a parked car or any static box on a judged layer
+## ([constant Layers.JUDGED]).
 const OBSTACLE := &"obstacle"
 const LIGHT := &"light"
 ## A road user: a scripted car or pedestrian.

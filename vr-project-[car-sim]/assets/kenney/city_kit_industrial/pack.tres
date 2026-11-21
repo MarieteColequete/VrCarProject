@@ -1,0 +1,56 @@
+[gd_resource type="Resource" script_class="AssetPack" format=3 uid="uid://dgng01gui0pb8"]
+
+[ext_resource type="Script" uid="uid://blsq3hsw7vywm" path="res://scenarios/data/asset_category.gd" id="category"]
+[ext_resource type="Resource" path="res://scenarios/data/body_types/obstacle.tres" id="obstacle"]
+[ext_resource type="Script" uid="uid://c01e3sbfnk77t" path="res://scenarios/data/asset_pack.gd" id="pack"]
+
+[sub_resource type="Resource" id="factories"]
+script = ExtResource("category")
+title = "Factories and warehouses"
+models = PackedStringArray("building-*")
+body = ExtResource("obstacle")
+order = 60
+
+[sub_resource type="Resource" id="chimneys"]
+script = ExtResource("category")
+title = "Chimneys"
+models = PackedStringArray("chimney-*")
+body = ExtResource("obstacle")
+order = 61
+
+[sub_resource type="Resource" id="tanks"]
+script = ExtResource("category")
+title = "Tanks and towers"
+models = PackedStringArray("detail-tank*", "water-tower")
+body = ExtResource("obstacle")
+order = 62
+
+[sub_resource type="Resource" id="containers"]
+script = ExtResource("category")
+title = "Shipping containers"
+models = PackedStringArray("shipping-container-*")
+body = ExtResource("obstacle")
+order = 63
+
+[sub_resource type="Resource" id="solar"]
+script = ExtResource("category")
+title = "Solar panels"
+models = PackedStringArray("solar-panel-*")
+body = ExtResource("obstacle")
+order = 64
+
+[sub_resource type="Resource" id="turbines"]
+script = ExtResource("category")
+title = "Wind turbines"
+models = PackedStringArray("windmill*")
+body = ExtResource("obstacle")
+solid_part = Vector3(0.25, 1, 0.25)
+order = 65
+
+[resource]
+script = ExtResource("pack")
+title = "City Kit (Industrial)"
+tag = "Industrial"
+credit = "Kenney (kenney.nl), CC0"
+scale = 7.0
+categories = Array[ExtResource("category")]([SubResource("factories"), SubResource("chimneys"), SubResource("tanks"), SubResource("containers"), SubResource("solar"), SubResource("turbines")])

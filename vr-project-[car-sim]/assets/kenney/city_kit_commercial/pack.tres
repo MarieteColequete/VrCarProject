@@ -1,0 +1,49 @@
+[gd_resource type="Resource" script_class="AssetPack" format=3 uid="uid://dim5aptcolbrp"]
+
+[ext_resource type="Script" uid="uid://blsq3hsw7vywm" path="res://scenarios/data/asset_category.gd" id="category"]
+[ext_resource type="Resource" path="res://scenarios/data/body_types/obstacle.tres" id="obstacle"]
+[ext_resource type="Script" uid="uid://c01e3sbfnk77t" path="res://scenarios/data/asset_pack.gd" id="pack"]
+
+[sub_resource type="Resource" id="shops"]
+script = ExtResource("category")
+title = "Shops and offices"
+models = PackedStringArray("building-?")
+body = ExtResource("obstacle")
+order = 50
+
+[sub_resource type="Resource" id="skyscrapers"]
+script = ExtResource("category")
+title = "Skyscrapers"
+models = PackedStringArray("building-skyscraper-*")
+body = ExtResource("obstacle")
+order = 51
+
+[sub_resource type="Resource" id="distant"]
+script = ExtResource("category")
+title = "Distant buildings"
+models = PackedStringArray("low-detail-building-*")
+body = ExtResource("obstacle")
+order = 52
+
+[sub_resource type="Resource" id="parasols"]
+script = ExtResource("category")
+title = "Parasols"
+models = PackedStringArray("detail-parasol-*")
+body = ExtResource("obstacle")
+extra_scale = 0.85
+solid_part = Vector3(0.15, 1, 0.15)
+order = 53
+
+[sub_resource type="Resource" id="awnings"]
+script = ExtResource("category")
+title = "Awnings"
+models = PackedStringArray("detail-awning*", "detail-overhang*")
+order = 54
+
+[resource]
+script = ExtResource("pack")
+title = "City Kit (Commercial)"
+tag = "Commercial"
+credit = "Kenney (kenney.nl), CC0"
+scale = 7.0
+categories = Array[ExtResource("category")]([SubResource("shops"), SubResource("skyscrapers"), SubResource("distant"), SubResource("parasols"), SubResource("awnings")])

@@ -2,7 +2,9 @@ class_name ScenarioDefinition
 extends Resource
 ## What a scenario is, apart from its world: how menus list it, the text shown before it, its
 ## time limit, how it is scored, and which car drives it. Each scenario keeps its definition in
-## [code]definition.tres[/code] beside its scene, and the [ScenarioCatalogue] lists them.
+## [code]definition.tres[/code] beside its scene, and the [ScenarioCatalogue] lists them. Free
+## drive's definition, [code]res://scenarios/data/free_drive.tres[/code], has no scene of its own:
+## it judges whichever map is driven.
 
 ## A stable name for saves and links, such as [code]stop_junction[/code].
 @export var id: StringName

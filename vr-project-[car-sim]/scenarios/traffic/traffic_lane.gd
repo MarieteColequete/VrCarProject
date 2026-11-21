@@ -25,9 +25,8 @@ extends Path3D
 @export var stop_offset := -1.0
 ## Seconds of clear road on the priority lanes that pulling out needs.
 @export var safe_gap := 4.0
-## Pedestrian crossings on the lane, their [CrossingCheck]s; traffic waits before one in use.
-## Typed as plain nodes so the lane, its road users, and the crossing check do not load in a
-## cycle.
+## Pedestrian crossings on the lane, [Crossing] nodes; traffic waits before one in use. Typed as
+## plain nodes so the lane, its road users, and the crossing do not load in a cycle.
 @export var crossings: Array[Node] = []
 
 @export_group("Neighbours")
@@ -70,8 +69,8 @@ func _get_configuration_warnings() -> PackedStringArray:
 	if curve == null or curve.point_count < 2:
 		warnings.append("Draw the lane's curve in the direction of traffic.")
 	for crossing in crossings:
-		if crossing == null or not &"crossing_zone" in crossing:
-			warnings.append("Crossings must be CrossingCheck nodes.")
+		if crossing == null or not crossing is Crossing:
+			warnings.append("Crossings must be Crossing nodes.")
 			break
 	return warnings
 

@@ -17,6 +17,7 @@ scripts read them through `DriverInput`.
 | Steer | A and D, Left and Right | Left stick |
 | Handbrake | Space | A (Cross) |
 | Indicators | Q and E | Left and right shoulder |
+| Headlights on or off | L | X (Square) |
 | Look around | Mouse | Right stick |
 | Recentre the view | C | Right stick click |
 | Driver or chase view | V | Select |
@@ -24,7 +25,12 @@ scripts read them through `DriverInput`.
 | Begin the attempt after the briefing | Enter | Start |
 | Restart the attempt | R | Y (Triangle) |
 | Next scenario, in the sandbox | N | D-pad right |
+| Next map in free drive, in the sandbox | M | D-pad left |
 | Show or hide the debug HUD | F1 | Left stick click |
+
+With the Dev HUD on (see Maps), F3 to F9 drive its tools, as input actions; its free camera flies
+with the mouse, W, A, S, and D, Q and E for down and up, and Shift to go faster, keys that are
+fixed, not input actions.
 
 `DriverView` is the driver's head in a car scene. With an OpenXR headset running, the headset turns
 the view; otherwise the mouse and the right stick turn a flat camera within a seated driver's
@@ -83,6 +89,17 @@ world and touch nodes and servers only: the road users are one `MultiMesh`, inte
 ticks, with a kinematic body each in the physics server so the player's car collides with them;
 lights light their lamps; parked cars are placed once.
 
+Solid things collide by their kind, a `BodyType` (`scenarios/data/body_types/`), one per physics
+layer: the ground, pavements and kerbs, obstacles (houses, poles, fences, props), vehicles (parked
+cars and road users, on the traffic layer), pedestrians, and the player's car. A type sets the
+layer, what it collides with, and the surface's grip and bounce (kept for wheel physics; the arcade
+car does not read them). Whether it is judged follows its layer: the bake turns the boxes of
+obstacles, vehicles, and pedestrians into obstacle entities, which road users see and
+`ContactCheck` judges, and leaves pavements out. The player's car is a box riding 0.25 m above the ground, so the bodywork clears a
+kerb and may overhang it, and a box for each tyre, which is what a kerb stops. A tyre touching or
+crossing a kerb line is judged as hitting the kerb, from its side or, driven straight at it, its
+front or back.
+
 ## Threads
 
 The simulation is spread across cores. The physics step runs on a thread of its own
@@ -98,15 +115,59 @@ the threads' timing; with detection and scoring on geometry, scoring is reproduc
 construction, and only the player's own car physics is best effort. The method and the numbers are
 in `Research/scenario-detection/performance.md`.
 
+## Models
+
+The cars, trains, houses, shops, factories, trees, fences, paths, roads, and street furniture are from
+Kenney's [Car Kit](https://kenney.nl/assets/car-kit) (3.1), [City Kit
+(Suburban)](https://kenney.nl/assets/city-kit-suburban) (2.0), [City Kit
+(Roads)](https://kenney.nl/assets/city-kit-roads) (2.2), [City Kit
+(Commercial)](https://kenney.nl/assets/city-kit-commercial), [City Kit
+(Industrial)](https://kenney.nl/assets/city-kit-industrial), [Train
+Kit](https://kenney.nl/assets/train-kit), and [Animated Characters
+(Retro)](https://kenney.nl/assets/animated-characters-retro), under CC0, in
+`vr-project-[car-sim]/assets/kenney/` with their licences, textures, and previews. Each kit is an
+asset pack (see Maps). `KitModels` merges each model into one mesh at its pack's size in metres,
+facing -Z like the project's cars; parked cars, road users, props, and scenery draw them. Road users are a car of the kit stretched to
+their body, or a lorry or van when longer than a car, and keep their look for their whole drive. Pedestrians are the survivors of
+Animated Characters (Retro), a man and a woman picked by the road user (`PedestrianModel`), scaled
+to the body's height. They stand idle when still and run when moving, the run slowed to the walking
+pace, since the kit has no walk; only the survivors' skins are imported, not the zombies'.
+
+The player's car is ["Kiri '86 - Low poly
+model"](https://sketchfab.com/3d-models/5c17c582ef9549798f694b660feea42a)
+by Daniel Zhabotinsky, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), in
+`vr-project-[car-sim]/assets/sketchfab/kiri86/`: a fictional 80s compact with a modelled cockpit,
+its materials made by the game from the model's textures (`PlayerCarModel`). It is scaled to the
+car's wheelbase, left-hand drive, and the driver's eyes sit behind its steering wheel. Everything
+the car reports is in the car, as in a real one, since the view is VR: the wheels roll and the
+front ones steer, the steering wheel turns with the steering, the blinkers, brake lights, reversing
+lights, and headlights glow with the car's state, and the instrument panel in the binnacle
+(`InstrumentCluster`) shows the speed on a dial and in figures, the indicator arrows blinking, and
+the handbrake, headlights, and reverse tell-tales.
+
+The Map Kit's roads take the look of City Kit (Roads) (`RoadKit`). The kit's straight road tile is a
+cross-section (asphalt, a darker band by the kerb, the kerb, and the pavement) swept along each
+`RoadSegment`'s curve, and its crossroads and T tiles are fitted over each `RoadJunction`'s pad.
+The tiles are fitted rather than scaled: the asphalt spans the road's lanes, the band and the
+pavement keep their widths in metres, and the kerb is as high as the kerb line that is judged. The
+kit's own centre line is painted over, since the road's `RoadMarking`s draw the lines that are
+judged; a kerb line along a kit road is judged but not drawn, as the road draws the kerb. Each
+road and junction pad has one solid pavement body, kerb high and following the curve with no
+gaps, which stops the car's tyres; the car drives on the ground beneath the asphalt. A kerb line
+drawn by hand, as on the maps built before the kit, is a thin solid wall too. A road given a plain
+`surface` material is drawn flat in it instead, and a road without kerbs has no pavement body.
+
 ## Scenarios
 
-A scenario is a scene under `vr-project-[car-sim]/scenarios/scenes/<name>/` that inherits
-`scenarios/kit/scenario_base.tscn`. The base gives the `Scenario` root, the shared
-`RoadEnvironment` (daylight, sky, and a grass ground sized per scenario), a `SpawnPoint`, a
-`Markings` node, and a `Checks` node already holding `ContactCheck`, `LineCheck`, and
-`TrafficConflictCheck`. The scenario
-adds its roads, markings, other road users, zones, and checks. Scenarios are laid out with the car
-driving towards -Z on the right-hand side of the road, in the lane centred on x = 1.75.
+A scenario is a map plus what is judged on it. The map is the world: roads, markings, lanes,
+lights, other road users, signs, props, and where a car may start (see Maps). The scenario is a
+scene under `vr-project-[car-sim]/scenarios/scenes/<name>/` that inherits
+`scenarios/kit/map_scenario_base.tscn`, instances its map as the `Map` child, and adds the checks,
+the zones only checks use, and any steps. The base gives the `Scenario` root and a `Checks` node
+already holding `ContactCheck`, `LineCheck`, and `TrafficConflictCheck`. The car starts at the
+scenario's `spawn_point`, or else at the map's first `MapSpawn`. Scenarios are laid out with the car
+driving towards -Z on the right-hand side of the road, in the lane centred on x = 1.75. Each of the
+nine scenarios is set on the map of the same name in `maps/`.
 
 Its `ScenarioDefinition`, `definition.tres` beside the scene, gives the id, the title, the menu
 category and difficulty, the briefing, the time limit, the scoring policy, and the car scene to
@@ -121,7 +182,7 @@ a rule entity judged by the rule's pure functions (`scenarios/rules/`):
 | `StopCheck` | A complete stop inside the approach zone before the line zone is entered |
 | `SpeedLimitCheck` | The speed limit over a zone, with a grace time and a serious margin |
 | `RouteCheck` | Staying in the lane of a `Path3D` centreline, on the road, and not against traffic |
-| `LineCheck` | Crossing a solid line, crossing a dashed line without indicating that way, riding on a line, mounting a kerb |
+| `LineCheck` | Crossing a solid line, crossing a dashed line without indicating that way, riding on a line, hitting a kerb (a tyre touching or crossing it) |
 | `ParkingCheck` | Once settled in a `ParkingBay`: overhanging it, facing the wrong way, too many direction changes, taking too long |
 | `TrafficLightCheck` | Crossing the stop line on red, or on amber when the car could have stopped as it changed |
 | `CrossingCheck` | Driving onto a pedestrian crossing while someone is on it or about to cross, stopping on it |
@@ -157,7 +218,11 @@ A `TrafficSensor` sweeps the path ahead every tick, and when something is in the
 car, another road user, a pedestrian, an obstacle) the road user slows or stops by the Intelligent
 Driver Model, then returns to its script; road users think on worker threads (see Threads). Each
 change is a `reacted` event, and braking harder than its `hard_brake` a `forced_to_brake` event; a
-pedestrian waits for a car standing on its way.
+pedestrian waits for a car standing on its way. A road user can also drive to a point: with a
+`destination` (usually a `Checkpoint`) and a lane as its path, it starts where it stands on that
+lane, takes the shortest way along the lanes to the lane passing nearest the destination
+(`LaneRouter`, worked out when the map is baked), reacts to traffic on the way like any other, and
+stops there.
 
 Roads are described for road users by `TrafficLane` paths, each along a lane's centre in the
 direction of traffic: its speed limit, the lanes it continues onto, its light and stop line, the
@@ -187,19 +252,162 @@ fault. Its `to_dict()` gives
 the same as plain data: the scenario, the outcome, each fault with its description, and each tier's
 count against the policy's limit.
 
-`scenarios/debug/scenario_sandbox.tscn` runs any catalogued scenario with the `DebugHud`, a flat
+`scenarios/debug/scenario_sandbox.tscn` runs any catalogued scenario, and any map in free drive,
+with the `DebugHud`, a flat
 overlay showing the briefing, the current step, the time against the limit, faults as they are
 committed, how other road users react, the frame and physics times with the traffic pipeline's
 share of the main thread, and the result. It runs from the editor. The HUD only listens to the
 runner, the session, and the world's events, so it is also a working example of a UI on them; it
 hides itself in a headset.
 
+### Maps
+
+[docs/map-guide.md](docs/map-guide.md) walks through building a map with the Map Kit and the Asset
+Library, step by step, for readers new to Godot; this section is the reference.
+
+A map is a scene `vr-project-[car-sim]/maps/<name>/<name>.tscn` whose root is a `RoadMap`, with an
+id, a title, and a description. `MapCatalogue.scan()` finds every map by its folder, so a map is
+added by adding its folder, with no list to edit; a folder without the matching scene is left out
+with a warning. A map holds no checks. Any map can be driven on its own in free drive
+(`ExamRunner.load_map`), judged only by the checks that need nothing but the map: contact, road
+markings, parking places, and conflicts with other road users. Free drive has no goal or time
+limit, and ends on a restart or an eliminating fault.
+
+`scenarios/kit/map_base.tscn` is the start of every map: the `RoadMap` root, the shared
+`RoadEnvironment` (daylight, sky, and a grass ground sized per map), a `MapSpawn` named `Spawn`, and
+empty `Roads`, `Markings`, `Lanes`, `Traffic`, `Signs`, `Props`, and `Zones` nodes to keep the tree
+in order. A `MapSpawn` draws a car outline in the editor, facing its direction of travel. A
+pedestrian crossing is a `Crossing`: its zone, the pedestrians who use it, and the margin around it.
+Lanes list it so their traffic waits while it is in use, and a scenario's `CrossingCheck` points at
+it to judge the player there.
+
+The authoring nodes in `scenarios/map/` build the usual parts of a map from a few settings:
+
+| Node | What it builds |
+|---|---|
+| `RoadSegment` | The road along its curve, in the roads kit's look (see Models), from the lanes each way, the lane width, one way or not, and the kerbs with their pavement width. Its buttons generate the `TrafficLane`s, on the right of their direction of travel, with the speed limit and neighbours set, and the kerbs, centre line, and lane lines as `RoadMarking`s |
+| `RoadJunction` | A crossroads or T junction pad for roads of a given width, in the roads kit's look. Its buttons generate a stop or give way line on each controlled arm, and the lanes through the pad from each arm to every other, for one lane each way; who gives way, and lights, are set on those lanes by hand. `arm_end` is where a road leaving by an arm starts |
+| `RoadSign` | A sign on a pole: stop, give way, speed limit with its number, no entry, pedestrian crossing, roundabout, no parking, or one way. It is scenery; the rule it shows comes from a lane or a check |
+| `Prop` | Not in the palette any more: the Asset Library places models. A parked car, van, cone, barrier, bollard, house, tree, small tree, fence panel, planter, or crate, solid, of the obstacle type (the vehicle type for the cars and vans), so the car collides with it, road users see it, and `ContactCheck` judges touching it. Most show a model of the Kenney kits; `variant` picks among the cars, vans, and houses, and a building's house is stretched to its `building_size` |
+| `Scenery` | Not in the palette any more. A footpath, stone path, or driveway from the suburban kit, lying on the ground. It is looks only: nothing collides with it or judges it |
+| `Checkpoint` | A point road users drive to. It draws a ring and a flag in the editor and nothing in the game |
+| `MapAsset` | Any model of `assets/`, as the Asset Library pane places it: solid, of its category's body type (a box, or the model's own surface for road tiles), or looks only, as its category says, and stretched or scaled as it says. Its settings are saved with the map |
+
+What the buttons generate is ordinary children, saved with the map and editable like any other;
+generating again replaces only what the node generated before.
+
+The Map Kit editor plugin (`addons/map_kit/`, enabled in `project.godot`) puts all of this in a
+dock beside the inspector, in folding sections that stay as they were left:
+
+- **Open map** edits the open map's title and description, and saves or plays it.
+- **Maps** lists every map the scan finds. Create a map by name: `maps/<name>/<name>.tscn`, an
+  inherited scene of the map base with its id and title, opened at once. Open, play, rename,
+  duplicate, or delete the selected map, from the buttons or its right-click menu. Renaming moves
+  the folder and scene, sets the id, and rewrites the path in the scenarios using the map;
+  a duplicate gets a scene of its own; deleting moves the folder to the trash, and a map a scenario
+  uses is never deleted. **Play** saves the map and drives it in free drive in
+  `scenarios/debug/map_sandbox.tscn`.
+- **Problems** lists the open map's problems as it is edited, warnings before notices, and
+  the dock's tab counts the warnings. A missing spawn, a zone without a box, a road with no lanes
+  or markings, and a lane whose end meets another's start without a link each have a fix; a lane
+  leading nowhere, a spawn off the road, and spawns on top of each other are notices. Selecting one
+  selects its node; **Fix all** applies every fix at once.
+- **Selection** sets the selected meshes as road (the asphalt material), gives them a solid body on
+  the obstacle layer, links the lanes whose ends meet (the selected ones, or all of the map's), or
+  snaps them to the grid. **Next look** steps the selected map assets to the next model of their
+  category, and props and scenery to their next look.
+- **Road users** turns the selected cars into road users that drive to a checkpoint: select the
+  cars (map assets from the Asset Library, props, or road users already) and the checkpoint (or
+  leave it out when the map has only one), and press **Drive to checkpoint**. Each becomes a
+  `ScriptedAgent` in the car's place, on the lane beside it that runs its way, with its model,
+  size, and the lane's speed limit; the overlay draws a dashed line from it to its checkpoint, and
+  **Problems** flags one that cannot reach it along the lanes. How it drives is the traffic code's:
+  it keeps the rules and reacts to traffic, and there is nothing to script.
+- **The palette** holds a road, one-way road, crossroads, T junction, lane, any marking but a bay
+  edge (a `ParkingBay` draws its own), traffic light, traffic source, checkpoint, any sign, a spawn,
+  a trigger zone, a no-parking zone, a crossing area, and a parking bay, with a search box; cars,
+  houses, trees, and other models are in the Asset Library. Pick a piece and click in the 3D view to
+  place it under the map's matching node, on the grid; a road or junction placed near an open road
+  end joins it. Shift and click keeps placing, R turns the piece a quarter (Shift and R by 15
+  degrees), and Escape or a right click stops. A double click on a piece drops it where the centre
+  of the 3D view meets the ground.
+- **View** switches the overlay and the Dev HUD, and sets the grid step.
+
+The **Asset Library** pane, a bottom panel beside Output, lists every model in
+`vr-project-[car-sim]/assets/`. On the left are the sources: **Favourites**, **Recent** (the last
+20 models placed), every pack, and each pack (Car Kit, Suburban, Roads, Commercial, Industrial,
+Trains) with its colour; below them are the chosen source's categories (Cars, Houses, Shops and
+offices, Shipping containers, and more). On the right are a search box, chips that show only one
+body type (obstacle, vehicle, pavement, looks only), a switch between thumbnails and a list, and
+the thumbnail size. The search matches every word as part of a model's name, category, or pack;
+`pack:`, `cat:`, and `body:` narrow a word to that field, as in `pack:trains body:vehicle tram`.
+Thumbnails are rendered by the pane itself (`AssetThumbnails`), each model alone from the same
+angle and light, and kept under `.godot/`; a pack's own preview shows until a model's render is
+ready. Each is faintly tinted with its pack's colour, and a model whose name another pack also
+uses is labelled with its pack's short name, as in "Building a · Commercial". Hovering a model
+shows its category, pack, and body type; picking it also shows its size and triangles.
+
+Pick a model and click in the 3D view to place it as a `MapAsset`, or drag it into the view; Shift
+and click keeps placing, and a double click or Enter drops it where the centre of the view meets
+the ground. While placing, a see-through ghost stands on whatever solid is under the mouse (a road
+tile, a pavement, another model), or else on the ground, snapped to the grid across; R turns it a
+quarter, Shift and R by 15 degrees, and Shift and E straightens it. Each model keeps the turn it
+was last placed with, and Space in the 3D view places the last piece again. Right click a model to
+place it at the view's centre, mark it as a favourite (or press F), replace the selected map
+assets with it, show it in the FileSystem, or copy its path. **Next look** in the Map Kit dock
+steps a map asset to the next model of its category. The pane remembers its source, category,
+search, chips, view, size, favourites, recent models, and turns per project, and looks for packs
+again when a model or pack file under `assets/` changes, or on **Refresh**.
+
+Assets come in packs: a folder of `.glb` models with a `pack.tres` (an `AssetPack`), and optionally
+`previews/<model>.png` thumbnails. The pack file sets the title, a short name for the pane (`tag`; by default the part
+of the title in brackets), the credit, the scale to metres, the turn
+that faces the models' fronts to -Z, and the categories (`AssetCategory`): which models belong, by
+name pattern such as `building-type-*`, their body type (obstacle, vehicle, pavement) or none for
+looks only, a size to stretch
+them to, a further scale, the solid part of their box (a tree's trunk), and the order they are
+listed in. A category of the same name in several packs is listed as one. To add assets, drop a
+pack folder anywhere under `assets/`: the pane finds it when the filesystem changes, or on
+**Refresh**. A folder of models without a pack file is listed under Other at the models' own size,
+solid, and the editor draws thumbnails for models without previews.
+
+The overlay, also on the 3D view's toolbar, draws over the open map: arrows along the lanes, each
+lane's end green when it leads on and red when it leads nowhere, a plus on each open road end, the
+spawns' numbers, the zones' names, and the map's title with its problem count.
+
+With **Dev HUD when playing** on, **Play** adds the Dev HUD (`scenarios/debug/dev_hud.tscn`) to the
+sandbox: the frame rate with a graph of recent frame times, the car's speed, position, heading, and
+nearest lane with its limit, the road users near it, the lights, and the session, with tools to try
+the map. F3 hides it, F4 flies a free camera, pausing the drive until F4 gives the view back (mouse
+to turn, W, A, S, and D to move, Q and E down and up, Shift faster), F5 and F6 slow and speed time
+from a quarter to double, F7 pauses, F8 steps one tick while paused, and F9 moves the car to the
+next spawn; a check box on its panel draws the world's trigger zones and lanes in 3D.
+
+Every change the dock makes to the open map is one undo step; creating, renaming, duplicating,
+and deleting maps, and the save before playing, are not. The work behind it is `MapKitTools`,
+which runs without the editor. `maps/sample_town/` is built with the kit alone: a main road
+crossed by two side roads that give way, oncoming traffic, signs, parked cars, buildings, and trees.
+
+To build a map (in more detail in [docs/map-guide.md](docs/map-guide.md)):
+
+1. Create it under **Maps**, and set the environment's ground size to cover the roads.
+2. Place a road, shape its curve, and place more roads and junctions on its open ends, which they
+   join when placed near one. Generate each road's lanes and markings and each junction's lines
+   and lanes with the buttons in the inspector, or draw `TrafficLane` and `RoadMarking` paths by
+   hand, and link them with **Connect lanes**. Place lights, sources,
+   signs, and the trigger zones that start lights and road users, and models from the Asset
+   Library. For a road user, place a car and a checkpoint and press **Drive to checkpoint**; for a
+   steady flow, place a traffic source.
+3. Move `Spawn` to where the car starts, and add more spawns for other starts.
+4. Clear the **Problems**, then **Play**; in the sandbox, M moves from map to map.
+
 ### Building a scenario
 
-1. Create `scenarios/scenes/<name>/<name>.tscn` as a new inherited scene of
-   `scenarios/kit/scenario_base.tscn`, and set the environment's ground size to cover the roads.
-2. Add the roads (meshes with `scenarios/kit/asphalt.tres`), the `RoadMarking` paths under
-   `Markings`, parked cars (`scenarios/kit/parked_car.tscn`), and any scripted road users.
+1. Create the map the scenario is set on, or pick an existing one.
+2. Create `scenarios/scenes/<name>/<name>.tscn` as a new inherited scene of
+   `scenarios/kit/map_scenario_base.tscn`, instance the map as its `Map` child, and set the root's
+   `map` to it. Turn on editable children of `Map` when a check needs to point at a map node, or a
+   map node needs changing for this scenario only.
 3. Add the checks under `Checks`, each with its zones as children. Faults default to the right
    `FaultDef`, so only a different fault needs setting. The editor flags a check missing a zone,
    and fills each zone with a colour by role: green for a goal, blue for a junction exit, yellow

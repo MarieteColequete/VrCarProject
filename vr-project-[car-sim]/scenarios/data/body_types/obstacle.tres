@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="BodyType" format=3]
+
+[ext_resource type="Script" path="res://scenarios/data/body_type.gd" id="type"]
+
+[resource]
+script = ExtResource("type")
+title = "Obstacle"
+layer = 4
+mask = 0
+friction = 0.6

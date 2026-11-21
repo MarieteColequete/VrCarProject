@@ -46,6 +46,7 @@ func _rebuild() -> void:
 		_ground.queue_free()
 	_ground = StaticBody3D.new()
 	_ground.name = "Ground"
+	BodyType.of(&"ground").apply(_ground)
 	_ground.position = ground_offset
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
