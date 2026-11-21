@@ -32,6 +32,11 @@ var _ghost: Node3D
 var _base_y := 0.0
 ## Where the ghost stands, in the map's space; null before the mouse has been over the map.
 var _at: Variant = null
+## The mouse position the ghost last followed, in the 3D view.
+var _mouse := Vector2(-1.0, -1.0)
+## The ray waiting for the next physics frame to find the surface under the mouse:
+## [code][world, from, normal][/code]; empty when none is.
+var _ray: Array = []
 
 
 func _init(p_plugin: MapKitPlugin) -> void:
@@ -102,7 +107,9 @@ func input(camera: Camera3D, event: InputEvent) -> bool:
 			disarm()
 			return true
 		if button.button_index == MOUSE_BUTTON_LEFT:
-			follow(camera, button.position)
+			# Where the mouse has not moved, the ghost already stands on the surface found.
+			if button.position != _mouse or _at == null:
+				follow(camera, button.position)
 			if _at != null:
 				place(road_map, _at)
 			if not button.shift_pressed:
@@ -146,31 +153,45 @@ func place_here(road_map: RoadMap) -> void:
 		place(road_map, _at)
 
 
-## Moves the ghost to what is under [param mouse] in the view seen by [param camera].
+## Moves the ghost to what is under [param mouse] in the view seen by [param camera]: onto the
+## ground at once, and for a model onto the solid under it when the next physics frame finds one.
 func follow(camera: Camera3D, mouse: Vector2) -> void:
 	var road_map := plugin.edited_map()
 	if road_map == null or _ghost == null or not is_instance_valid(_ghost):
 		return
-	var hit: Variant = surface_under(camera, mouse)
-	if hit == null:
-		return
-	_at = road_map.global_transform.affine_inverse() * (hit as Vector3)
-	_show_ghost(road_map, _at)
-
-
-## Where the ray through [param mouse] meets the ground, or, for a model, a solid of the edited
-## world first, the ghost's own aside; null when it meets neither.
-func surface_under(camera: Camera3D, mouse: Vector2) -> Variant:
+	_mouse = mouse
 	var from := camera.project_ray_origin(mouse)
 	var normal := camera.project_ray_normal(mouse)
-	var space := camera.get_world_3d().direct_space_state if camera.get_world_3d() else null
-	if space and _ghost is MapAsset:
-		var query := PhysicsRayQueryParameters3D.create(from, from + normal * REACH)
-		query.exclude = _ghost_bodies()
-		var hit := space.intersect_ray(query)
-		if not hit.is_empty():
-			return hit.position
-	return Plane.PLANE_XZ.intersects_ray(from, normal)
+	var hit: Variant = Plane.PLANE_XZ.intersects_ray(from, normal)
+	if hit != null:
+		_at = road_map.global_transform.affine_inverse() * (hit as Vector3)
+		_show_ghost(road_map, _at)
+	if _ghost is MapAsset and camera.get_world_3d():
+		# The physics space answers queries only in a physics frame, as the physics runs on a
+		# thread of its own.
+		if _ray.is_empty():
+			plugin.get_tree().physics_frame.connect(_find_surface, CONNECT_ONE_SHOT)
+		_ray = [camera.get_world_3d(), from, normal]
+
+
+## Lifts the ghost onto the solid the waiting ray meets, if any: a road tile, a pavement, or
+## another model's body, the ghost's own aside.
+func _find_surface() -> void:
+	var ray := _ray
+	_ray = []
+	var road_map := plugin.edited_map()
+	if ray.is_empty() or road_map == null or _ghost == null or not is_instance_valid(_ghost):
+		return
+	var from: Vector3 = ray[1]
+	var normal: Vector3 = ray[2]
+	var query := PhysicsRayQueryParameters3D.create(from, from + normal * REACH)
+	query.exclude = _ghost_bodies()
+	var hit := (ray[0] as World3D).direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return
+	_at = road_map.global_transform.affine_inverse() * (hit.position as Vector3)
+	_show_ghost(road_map, _at)
+	plugin.update_overlays()
 
 
 ## The transform of a piece placed at [param point]: snapped to the grid of [param step] across,

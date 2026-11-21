@@ -28,9 +28,9 @@ scripts read them through `DriverInput`.
 | Next map in free drive, in the sandbox | M | D-pad left |
 | Show or hide the debug HUD | F1 | Left stick click |
 
-With the Dev HUD on (see Maps), F3 to F9 drive its tools, and its free camera flies with the
-mouse, W, A, S, and D, Q and E for down and up, and Shift to go faster; those keys are fixed, not
-input actions.
+With the Dev HUD on (see Maps), F3 to F9 drive its tools, as input actions; its free camera flies
+with the mouse, W, A, S, and D, Q and E for down and up, and Shift to go faster, keys that are
+fixed, not input actions.
 
 `DriverView` is the driver's head in a car scene. With an OpenXR headset running, the headset turns
 the view; otherwise the mouse and the right stick turn a flat camera within a seated driver's
@@ -262,6 +262,9 @@ hides itself in a headset.
 
 ### Maps
 
+[docs/map-guide.md](docs/map-guide.md) walks through building a map with the Map Kit and the Asset
+Library, step by step, for readers new to Godot; this section is the reference.
+
 A map is a scene `vr-project-[car-sim]/maps/<name>/<name>.tscn` whose root is a `RoadMap`, with an
 id, a title, and a description. `MapCatalogue.scan()` finds every map by its folder, so a map is
 added by adding its folder, with no list to edit; a folder without the matching scene is left out
@@ -375,17 +378,17 @@ spawns' numbers, the zones' names, and the map's title with its problem count.
 With **Dev HUD when playing** on, **Play** adds the Dev HUD (`scenarios/debug/dev_hud.tscn`) to the
 sandbox: the frame rate with a graph of recent frame times, the car's speed, position, heading, and
 nearest lane with its limit, the road users near it, the lights, and the session, with tools to try
-the map. F3 hides it, F4 flies a free camera while the drive is paused (mouse to turn, W, A, S, and
-D to move, Q and E down and up, Shift faster), F5 and F6 slow and speed time from a quarter to
-double, F7 pauses, F8 steps one tick while paused, and F9 moves the car to the next spawn; a check
-box on its panel draws the world's trigger zones and lanes in 3D.
+the map. F3 hides it, F4 flies a free camera, pausing the drive until F4 gives the view back (mouse
+to turn, W, A, S, and D to move, Q and E down and up, Shift faster), F5 and F6 slow and speed time
+from a quarter to double, F7 pauses, F8 steps one tick while paused, and F9 moves the car to the
+next spawn; a check box on its panel draws the world's trigger zones and lanes in 3D.
 
 Every change the dock makes to the open map is one undo step; creating, renaming, duplicating,
 and deleting maps, and the save before playing, are not. The work behind it is `MapKitTools`,
 which runs without the editor. `maps/sample_town/` is built with the kit alone: a main road
 crossed by two side roads that give way, oncoming traffic, signs, parked cars, buildings, and trees.
 
-To build a map:
+To build a map (in more detail in [docs/map-guide.md](docs/map-guide.md)):
 
 1. Create it under **Maps**, and set the environment's ground size to cover the roads.
 2. Place a road, shape its curve, and place more roads and junctions on its open ends, which they
