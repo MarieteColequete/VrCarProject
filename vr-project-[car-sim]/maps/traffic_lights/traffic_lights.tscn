@@ -1,23 +1,10 @@
-[gd_scene format=3]
-
-[ext_resource type="PackedScene" path="res://scenarios/kit/map_base.tscn" id="map_base"]
+[gd_scene format=3 uid="uid://dbgkmynsirl7l"]
 
 [ext_resource type="Material" path="res://scenarios/kit/asphalt.tres" id="asphalt"]
-
-[ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="marking"]
-
-[ext_resource type="Script" path="res://scenarios/traffic/traffic_light.gd" id="light"]
-
-[ext_resource type="Script" path="res://scenarios/checks/trigger_zone.gd" id="zone"]
-
-[sub_resource type="BoxMesh" id="Mesh_road"]
-size = Vector3(7, 0.02, 250)
-
-[sub_resource type="BoxMesh" id="Mesh_cross"]
-size = Vector3(100, 0.02, 7)
-
-[sub_resource type="BoxShape3D" id="Shape_trigger"]
-size = Vector3(8, 3, 3)
+[ext_resource type="Script" uid="uid://clrjjml70t231" path="res://scenarios/traffic/traffic_light.gd" id="light"]
+[ext_resource type="PackedScene" path="res://scenarios/kit/map_base.tscn" id="map_base"]
+[ext_resource type="Script" uid="uid://cn1xe8vcfx6uc" path="res://scenarios/road/road_marking.gd" id="marking"]
+[ext_resource type="Script" uid="uid://ceir6f0hak8mq" path="res://scenarios/checks/trigger_zone.gd" id="zone"]
 
 [sub_resource type="Curve3D" id="Curve_CentreLine"]
 _data = {
@@ -54,88 +41,92 @@ _data = {
 }
 point_count = 2
 
-[node name="TrafficLights" instance=ExtResource("map_base")]
+[sub_resource type="BoxMesh" id="Mesh_road"]
+size = Vector3(7, 0.02, 250)
+
+[sub_resource type="BoxMesh" id="Mesh_cross"]
+size = Vector3(100, 0.02, 7)
+
+[sub_resource type="BoxShape3D" id="Shape_trigger"]
+size = Vector3(8, 3, 3)
+
+[node name="TrafficLights" unique_id=1373970799 instance=ExtResource("map_base")]
 id = &"traffic_lights"
 title = "Traffic lights"
 description = "A main road with two light-controlled junctions in a row."
 
-[node name="Environment" parent="."]
+[node name="Environment" parent="." index="0"]
 ground_size = Vector2(200, 300)
 ground_offset = Vector3(0, 0, -40)
 
-[node name="Spawn" parent="."]
+[node name="Spawn" parent="." index="1"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 75)
 
-[node name="Road" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -40)
-mesh = SubResource("Mesh_road")
-surface_material_override/0 = ExtResource("asphalt")
-
-[node name="CrossRoad1" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.012, -3.5)
-mesh = SubResource("Mesh_cross")
-surface_material_override/0 = ExtResource("asphalt")
-
-[node name="CrossRoad2" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.012, -103.5)
-mesh = SubResource("Mesh_cross")
-surface_material_override/0 = ExtResource("asphalt")
-
-[node name="CentreLine" type="Path3D" parent="Markings"]
+[node name="CentreLine" type="Path3D" parent="Markings" index="0" unique_id=1767207750]
 curve = SubResource("Curve_CentreLine")
 script = ExtResource("marking")
 kind = 1
 
-[node name="KerbRight" type="Path3D" parent="Markings"]
+[node name="KerbRight" type="Path3D" parent="Markings" index="1" unique_id=1237683291]
 curve = SubResource("Curve_KerbRight")
 script = ExtResource("marking")
 kind = 8
 
-[node name="KerbLeft" type="Path3D" parent="Markings"]
+[node name="KerbLeft" type="Path3D" parent="Markings" index="2" unique_id=106099082]
 curve = SubResource("Curve_KerbLeft")
 script = ExtResource("marking")
 kind = 8
 
-[node name="StopLine1" type="Path3D" parent="Markings"]
+[node name="StopLine1" type="Path3D" parent="Markings" index="3" unique_id=500085916]
 curve = SubResource("Curve_StopLine1")
 script = ExtResource("marking")
 kind = 3
 
-[node name="StopLine2" type="Path3D" parent="Markings"]
+[node name="StopLine2" type="Path3D" parent="Markings" index="4" unique_id=654265642]
 curve = SubResource("Curve_StopLine2")
 script = ExtResource("marking")
 kind = 3
 
-[node name="FirstTrigger" type="Area3D" parent="."]
+[node name="Road" type="MeshInstance3D" parent="." index="9" unique_id=1305467375]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -40)
+mesh = SubResource("Mesh_road")
+surface_material_override/0 = ExtResource("asphalt")
+
+[node name="CrossRoad1" type="MeshInstance3D" parent="." index="10" unique_id=475069840]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.012, -3.5)
+mesh = SubResource("Mesh_cross")
+surface_material_override/0 = ExtResource("asphalt")
+
+[node name="CrossRoad2" type="MeshInstance3D" parent="." index="11" unique_id=324120311]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.012, -103.5)
+mesh = SubResource("Mesh_cross")
+surface_material_override/0 = ExtResource("asphalt")
+
+[node name="FirstTrigger" type="Area3D" parent="." index="12" unique_id=1979446856]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 46.5)
 script = ExtResource("zone")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="FirstTrigger"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="FirstTrigger" index="0" unique_id=1009135373]
 shape = SubResource("Shape_trigger")
 
-[node name="FirstLight" type="Node3D" parent="." node_paths=PackedStringArray("trigger")]
+[node name="FirstLight" type="Node3D" parent="." index="13" unique_id=605105848 node_paths=PackedStringArray("trigger")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2, 0, 1)
 script = ExtResource("light")
 mode = 1
 initial = 2
-red_time = 6.0
-red_amber_time = 1.0
 amber_time = 4.0
 trigger = NodePath("../FirstTrigger")
 
-[node name="SecondTrigger" type="Area3D" parent="."]
+[node name="SecondTrigger" type="Area3D" parent="." index="14" unique_id=748418933]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -90.5)
 script = ExtResource("zone")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SecondTrigger"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SecondTrigger" index="0" unique_id=672638078]
 shape = SubResource("Shape_trigger")
 
-[node name="SecondLight" type="Node3D" parent="." node_paths=PackedStringArray("trigger")]
+[node name="SecondLight" type="Node3D" parent="." index="15" unique_id=1172536151 node_paths=PackedStringArray("trigger")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2, 0, -99)
 script = ExtResource("light")
 mode = 1
 initial = 2
-red_time = 6.0
-red_amber_time = 1.0
-amber_time = 3.0
 trigger = NodePath("../SecondTrigger")

@@ -246,14 +246,14 @@ curve = SubResource("Curve3D_vw120")
 script = ExtResource("4_myjpe")
 kind = 4
 width = 0.3
-metadata/road_junction_generated = true
+metadata/road_junction_generated = &"lines"
 
 [node name="WestLine" type="Path3D" parent="Roads/Junction" index="1" unique_id=1104022809]
 curve = SubResource("Curve3D_bokco")
 script = ExtResource("4_myjpe")
 kind = 4
 width = 0.3
-metadata/road_junction_generated = true
+metadata/road_junction_generated = &"lines"
 
 [node name="Oncoming" type="Node3D" parent="Traffic" index="0" unique_id=504223484 node_paths=PackedStringArray("lane")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.75, 0, -90)

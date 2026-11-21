@@ -1,21 +1,19 @@
 [gd_scene format=3]
 
+[ext_resource type="Script" path="res://scenarios/core/kit_model.gd" id="model"]
+
 [sub_resource type="BoxShape3D" id="Shape_body"]
 size = Vector3(1.8, 1.4, 4.2)
 
-[sub_resource type="BoxMesh" id="Mesh_body"]
-size = Vector3(1.8, 1.4, 4.2)
-
-[sub_resource type="StandardMaterial3D" id="Material_body"]
-albedo_color = Color(0.7, 0.2, 0.15, 1)
-
 [node name="ParkedCar" type="StaticBody3D"]
-collision_layer = 4
+collision_layer = 32
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 shape = SubResource("Shape_body")
 
-[node name="Mesh" type="MeshInstance3D" parent="."]
-mesh = SubResource("Mesh_body")
-surface_material_override/0 = SubResource("Material_body")
+[node name="Model" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.7, 0)
+script = ExtResource("model")
+model = "res://assets/kenney/car_kit/sedan.glb"
+fit = Vector3(1.8, 1.4, 4.2)

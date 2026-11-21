@@ -28,6 +28,16 @@ extends Node3D
 ## [member route_seed].
 @export var route: Array[TrafficLane] = []
 @export var route_seed := 0
+## The model the traffic view draws it with, a [code].glb[/code] of [code]res://assets/[/code];
+## empty to let the view pick a car.
+@export_file("*.glb") var model := ""
+
+@export_group("Drive to")
+## A point to drive to and stop at, such as a [Checkpoint]. With it set and [member path] a lane,
+## the road user starts where it stands on that lane and takes the shortest way along the lanes
+## to the lane passing nearest it, reacting to traffic on the way; [member route] is worked out
+## for it.
+@export var destination: Node3D
 
 @export_group("Reactions")
 ## Looks ahead and reacts to what is in the way; off, it plays its script whatever happens.
@@ -59,10 +69,12 @@ func config(bake: Bake) -> Dictionary:
 		route_seed = route_seed, reactive = reactive, max_accel = max_accel,
 		comfort_decel = comfort_decel, max_decel = max_decel, hard_brake = hard_brake,
 		min_gap = min_gap, time_headway = time_headway, patience = patience,
-		change_time = change_time}
+		change_time = change_time, model = model}.merged(bake.drive_to(self), true)
 
 
 func _get_configuration_warnings() -> PackedStringArray:
 	if path == null:
 		return ["Set the path the agent follows."]
+	if destination and not path is TrafficLane:
+		return ["To drive to a destination, the path needs to be a TrafficLane."]
 	return []

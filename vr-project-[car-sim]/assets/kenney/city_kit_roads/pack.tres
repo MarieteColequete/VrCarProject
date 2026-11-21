@@ -1,0 +1,68 @@
+[gd_resource type="Resource" script_class="AssetPack" format=3 uid="uid://dmn80rjeo1spl"]
+
+[ext_resource type="Script" uid="uid://blsq3hsw7vywm" path="res://scenarios/data/asset_category.gd" id="category"]
+[ext_resource type="Resource" path="res://scenarios/data/body_types/obstacle.tres" id="obstacle"]
+[ext_resource type="Script" uid="uid://c01e3sbfnk77t" path="res://scenarios/data/asset_pack.gd" id="pack"]
+[ext_resource type="Resource" path="res://scenarios/data/body_types/pavement.tres" id="pavement"]
+
+[sub_resource type="Resource" id="street_lights"]
+script = ExtResource("category")
+title = "Street lights"
+models = PackedStringArray("light-*")
+body = ExtResource("obstacle")
+solid_part = Vector3(0.4, 1, 0.2)
+order = 30
+
+[sub_resource type="Resource" id="sign_models"]
+script = ExtResource("category")
+title = "Sign models"
+models = PackedStringArray("road-sign-*", "sign-*")
+body = ExtResource("obstacle")
+extra_scale = 0.6
+solid_part = Vector3(0.4, 1, 0.3)
+order = 31
+
+[sub_resource type="Resource" id="traffic_light_models"]
+script = ExtResource("category")
+title = "Traffic light models"
+models = PackedStringArray("traffic-light*")
+body = ExtResource("obstacle")
+solid_part = Vector3(0.4, 1, 0.4)
+order = 32
+
+[sub_resource type="Resource" id="roadworks"]
+script = ExtResource("category")
+title = "Roadworks"
+models = PackedStringArray("construction-*")
+body = ExtResource("obstacle")
+order = 33
+
+[sub_resource type="Resource" id="poles"]
+script = ExtResource("category")
+title = "Poles and wires"
+models = PackedStringArray("electricity-*")
+body = ExtResource("obstacle")
+solid_part = Vector3(0.3, 1, 0.3)
+order = 34
+
+[sub_resource type="Resource" id="street_items"]
+script = ExtResource("category")
+title = "Street items"
+models = PackedStringArray("dumpster")
+body = ExtResource("obstacle")
+order = 35
+
+[sub_resource type="Resource" id="road_tiles"]
+script = ExtResource("category")
+title = "Road tiles"
+models = PackedStringArray("road-*", "tile-*", "bridge-*")
+body = ExtResource("pavement")
+collider = 1
+order = 36
+
+[resource]
+script = ExtResource("pack")
+title = "City Kit (Roads)"
+credit = "Kenney (kenney.nl), CC0"
+scale = 8.75
+categories = Array[ExtResource("category")]([SubResource("street_lights"), SubResource("sign_models"), SubResource("traffic_light_models"), SubResource("roadworks"), SubResource("poles"), SubResource("street_items"), SubResource("road_tiles")])

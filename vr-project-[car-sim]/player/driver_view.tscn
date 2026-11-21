@@ -6,10 +6,12 @@
 script = ExtResource("1_view")
 
 [node name="FlatCamera" type="Camera3D" parent="."]
+cull_mask = 524287
 fov = 80.0
 near = 0.05
 
 [node name="XROrigin3D" type="XROrigin3D" parent="."]
 
 [node name="XRCamera3D" type="XRCamera3D" parent="XROrigin3D"]
+cull_mask = 524287
 near = 0.05

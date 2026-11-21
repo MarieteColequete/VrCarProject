@@ -1,7 +1,8 @@
 @tool
 class_name ContactCheck
 extends Check
-## Contact between the car and anything on the obstacle or pedestrian layers. A body in the
+## Contact between the car and anything on a judged layer ([constant Layers.JUDGED]): obstacles,
+## traffic, and pedestrians. A body in the
 ## pedestrian group, or on the pedestrian layer, gives the pedestrian fault. Each body is
 ## reported once per attempt.
 

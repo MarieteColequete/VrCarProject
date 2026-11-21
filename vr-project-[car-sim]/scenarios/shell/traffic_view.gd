@@ -1,57 +1,58 @@
 class_name TrafficView
 extends RefCounted
-## Draws the road users and gives them bodies, reading only the world: one [MultiMesh] of boxes,
-## coloured and sized per road user and interpolated between physics ticks, and a kinematic box
-## per road user in the physics server, on the obstacle or pedestrian layer, so the player's car
-## collides with them as with any car or walker. Neither takes part in the simulation; with no
-## view at all, traffic runs the same.
+## Draws the road users and gives them bodies, reading only the world: a car of the
+## [KitModels] per vehicle, stretched to its body and lightly tinted with its colour, and a
+## coloured box per pedestrian, one [MultiMesh] per model, interpolated between physics ticks;
+## and a kinematic box per road user in the physics server, on the traffic or pedestrian layer,
+## so the player's car collides with them as with any car or walker. Neither takes part in the
+## simulation; with no view at all, traffic runs the same.
 
-const MATERIAL_COLOUR := Color.WHITE
 ## Floats per instance in the buffer: a 3x4 transform and a colour.
 const STRIDE := 16
+## Road users longer than this, metres, are drawn as a lorry or van.
+const LONG := 5.5
+## How much of a road user's colour tints its model.
+const TINT := 0.35
+const WALKER := "walker"
 
-var _instance: MultiMeshInstance3D
-var _multimesh: MultiMesh
+var _parent: Node3D
+var _capacity: int
 var _space: RID
-# Road user entity to its slot in the multimesh, and to its body, shape, and last transform.
-var _slots := {}
+## Model path (or [constant WALKER]) to its group: [code]{multimesh, instance, slots, drawn,
+## current, previous}[/code], slots mapping a road user to its instance.
+var _groups := {}
+# Road user entity to its group's key, and to its body, shape, and last transform.
+var _group_of := {}
 var _bodies := {}
-var _drawn := {}
-var _current := PackedFloat32Array()
-var _previous := PackedFloat32Array()
 
 
-## A view under [param parent], with room for [param capacity] road users to start with.
+## A view under [param parent], with room for [param capacity] road users per model to start with.
 func _init(parent: Node3D, capacity: int) -> void:
-	_multimesh = MultiMesh.new()
-	_multimesh.transform_format = MultiMesh.TRANSFORM_3D
-	_multimesh.use_colors = true
-	var box := BoxMesh.new()
-	var material := StandardMaterial3D.new()
-	material.vertex_color_use_as_albedo = true
-	material.albedo_color = MATERIAL_COLOUR
-	box.material = material
-	_multimesh.mesh = box
-	_multimesh.instance_count = maxi(capacity, 1)
-	_multimesh.visible_instance_count = 0
-	_current.resize(_multimesh.instance_count * STRIDE)
-	_previous.resize(_multimesh.instance_count * STRIDE)
-	_instance = MultiMeshInstance3D.new()
-	_instance.name = "RoadUsers"
-	_instance.multimesh = _multimesh
-	parent.add_child(_instance)
+	_parent = parent
+	_capacity = maxi(capacity, 1)
 	_space = parent.get_world_3d().space
 
 
-## The view's step: places every road user's box and body where the world has it. The boxes go to
-## the multimesh as one buffer, with the last tick's as the one to interpolate from (the two
-## buffers swap each tick); a body moves only when its road user did. A road user that left the
-## world gives up its slot and body.
+## The model a road user is drawn with: a box for a pedestrian, its own [param model] when it
+## has one that loads, else a car, or a long vehicle for a long body, picked by its entity so each
+## keeps its look.
+static func model_for(entity: int, size: Vector3, is_pedestrian: bool, model := "") -> String:
+	if is_pedestrian:
+		return WALKER
+	if not model.is_empty() and KitModels.mesh(model) != null:
+		return model
+	return KitModels.long_vehicle(entity) if size.z > LONG else KitModels.car(entity)
+
+
+## The view's step: places every road user's model and body where the world has it. Each group's
+## instances go to its multimesh as one buffer, with the last tick's as the one to interpolate from
+## (the two buffers swap each tick); a body moves only when its road user did. A road user that
+## left the world gives up its instance and body.
 func draw(world: World) -> void:
 	var store := world.store(Schema.AGENT)
 	if store == null:
 		return
-	if _slots.size() > store.size():
+	if _group_of.size() > store.size():
 		_release(store)
 	if store.size() == 0:
 		return
@@ -62,58 +63,85 @@ func draw(world: World) -> void:
 	var facings: PackedVector3Array = store.column(&"facing")
 	var jumps: PackedByteArray = store.column(&"jumped")
 	var walkers: PackedByteArray = store.column(&"pedestrian")
+	var models: Array = store.column(&"model")
 	for i in ids.size():
-		if not _slots.has(ids[i]):
-			_slots[ids[i]] = _slots.size()
+		if not _group_of.has(ids[i]):
+			var key := model_for(ids[i], sizes[i], walkers[i] == 1, models[i])
+			var group := _group(key)
+			group.slots[ids[i]] = group.slots.size()
+			_group_of[ids[i]] = key
 			_body(ids[i], sizes[i], walkers[i] == 1)
-	if _grow(_slots.size()):
-		_drawn.clear()
-	var current := _current
-	var previous := _previous
+	var by_group := {}
 	for i in ids.size():
-		var id := ids[i]
-		var slot: int = _slots[id]
-		var size := sizes[i]
-		var at := positions[i]
-		var f := facings[i]
-		# Facing on the ground, as Basis.looking_at would give it: z behind, x to the right.
-		var z := Vector3(-f.x, 0.0, -f.z)
-		var x := Vector3(-f.z, 0.0, f.x)
-		if f.length_squared() < 0.000001:
-			z = Vector3.BACK
-			x = Vector3.RIGHT
-		var k := slot * STRIDE
-		var cx := x * size.x
-		var cy := size.y
-		var cz := z * size.z
-		current[k] = cx.x
-		current[k + 1] = 0.0
-		current[k + 2] = cz.x
-		current[k + 3] = at.x
-		current[k + 4] = 0.0
-		current[k + 5] = cy
-		current[k + 6] = 0.0
-		current[k + 7] = at.y + cy * 0.5
-		current[k + 8] = cx.z
-		current[k + 9] = 0.0
-		current[k + 10] = cz.z
-		current[k + 11] = at.z
-		if not _drawn.has(id):
-			_write_colour(current, slot, colours[i])
-			_write_colour(previous, slot, colours[i])
-		if jumps[i] or not _drawn.has(id):
-			for c in 12:
-				previous[k + c] = current[k + c]
-			_drawn[id] = true
-		var place := Transform3D(Basis(x, Vector3.UP, z), at)
-		var pair: Array = _bodies[id]
-		if pair[2] != place:
-			pair[2] = place
-			PhysicsServer3D.body_set_state(pair[0], PhysicsServer3D.BODY_STATE_TRANSFORM, place)
-	_multimesh.set_buffer_interpolated(current, previous)
-	_multimesh.visible_instance_count = _slots.size()
-	_previous = current
-	_current = previous
+		var key: String = _group_of[ids[i]]
+		if not by_group.has(key):
+			by_group[key] = []
+		(by_group[key] as Array).append(i)
+	for key: String in _groups:
+		var group: Dictionary = _groups[key]
+		if _grow(group):
+			group.drawn.clear()
+		# Taken out of the group while written, so the writes do not copy the buffers.
+		var current: PackedFloat32Array = group.current
+		var previous: PackedFloat32Array = group.previous
+		group.current = PackedFloat32Array()
+		group.previous = PackedFloat32Array()
+		var drawn: Dictionary = group.drawn
+		var slots: Dictionary = group.slots
+		for i: int in by_group.get(key, []):
+			var id := ids[i]
+			var slot: int = slots[id]
+			var size := sizes[i]
+			var at := positions[i]
+			var f := facings[i]
+			# Facing on the ground, as Basis.looking_at would give it: z behind, x to the right.
+			var z := Vector3(-f.x, 0.0, -f.z)
+			var x := Vector3(-f.z, 0.0, f.x)
+			if f.length_squared() < 0.000001:
+				z = Vector3.BACK
+				x = Vector3.RIGHT
+			var k := slot * STRIDE
+			var cx := x * size.x
+			var cz := z * size.z
+			current[k] = cx.x
+			current[k + 1] = 0.0
+			current[k + 2] = cz.x
+			current[k + 3] = at.x
+			current[k + 4] = 0.0
+			current[k + 5] = size.y
+			current[k + 6] = 0.0
+			current[k + 7] = at.y
+			current[k + 8] = cx.z
+			current[k + 9] = 0.0
+			current[k + 10] = cz.z
+			current[k + 11] = at.z
+			if not drawn.has(id):
+				var colour := colours[i] if key == WALKER else Color.WHITE.lerp(colours[i], TINT)
+				_write_colour(current, slot, colour)
+				_write_colour(previous, slot, colour)
+			if jumps[i] or not drawn.has(id):
+				for c in 12:
+					previous[k + c] = current[k + c]
+				drawn[id] = true
+			var place := Transform3D(Basis(x, Vector3.UP, z), at)
+			var pair: Array = _bodies[id]
+			if pair[2] != place:
+				pair[2] = place
+				PhysicsServer3D.body_set_state(pair[0], PhysicsServer3D.BODY_STATE_TRANSFORM,
+					place)
+		var multimesh: MultiMesh = group.multimesh
+		multimesh.set_buffer_interpolated(current, previous)
+		multimesh.visible_instance_count = slots.size()
+		group.current = previous
+		group.previous = current
+
+
+## How many road users each model draws, by model path: for tests and the Dev HUD.
+func counts() -> Dictionary:
+	var out := {}
+	for key: String in _groups:
+		out[key] = (_groups[key].slots as Dictionary).size()
+	return out
 
 
 ## Writes [param colour] into slot [param slot] of [param buffer].
@@ -125,41 +153,89 @@ static func _write_colour(buffer: PackedFloat32Array, slot: int, colour: Color) 
 	buffer[i + 3] = colour.a
 
 
-## Frees the slot and body of every road user no longer in [param store]: the last slot moves into
-## each freed one and is drawn there afresh.
+## The group drawing [param key], made on first use.
+func _group(key: String) -> Dictionary:
+	if _groups.has(key):
+		return _groups[key]
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.use_colors = true
+	var material: StandardMaterial3D
+	if key == WALKER:
+		var box := BoxMesh.new()
+		box.size = Vector3.ONE
+		# Standing on its origin, as the models do.
+		var arrays := box.get_mesh_arrays()
+		var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		for p in points.size():
+			points[p].y += 0.5
+		arrays[Mesh.ARRAY_VERTEX] = points
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		multimesh.mesh = mesh
+		material = StandardMaterial3D.new()
+	else:
+		var mesh := KitModels.unit_mesh(key)
+		multimesh.mesh = mesh
+		var own := mesh.surface_get_material(0) as StandardMaterial3D if mesh else null
+		material = own.duplicate() if own else StandardMaterial3D.new()
+	material.vertex_color_use_as_albedo = true
+	multimesh.instance_count = _capacity
+	multimesh.visible_instance_count = 0
+	var instance := MultiMeshInstance3D.new()
+	instance.name = "RoadUsers_" + key.get_file().get_basename()
+	instance.multimesh = multimesh
+	instance.material_override = material
+	_parent.add_child(instance)
+	var current := PackedFloat32Array()
+	current.resize(_capacity * STRIDE)
+	var previous := PackedFloat32Array()
+	previous.resize(_capacity * STRIDE)
+	var group := {multimesh = multimesh, instance = instance, slots = {}, drawn = {},
+		current = current, previous = previous}
+	_groups[key] = group
+	return group
+
+
+## Frees the instance and body of every road user no longer in [param store]: its group's last
+## instance moves into each freed one and is drawn there afresh.
 func _release(store: ComponentStore) -> void:
 	var gone := []
-	for id: int in _slots:
+	for id: int in _group_of:
 		if not store.has(id):
 			gone.append(id)
 	for id: int in gone:
-		var slot: int = _slots[id]
-		_slots.erase(id)
-		_drawn.erase(id)
+		var group: Dictionary = _groups[_group_of[id]]
+		var slots: Dictionary = group.slots
+		var slot: int = slots[id]
+		slots.erase(id)
+		group.drawn.erase(id)
+		_group_of.erase(id)
 		var pair: Array = _bodies[id]
 		PhysicsServer3D.free_rid(pair[0])
 		PhysicsServer3D.free_rid(pair[1])
 		_bodies.erase(id)
-		var last := _slots.size()
+		var last := slots.size()
 		if slot != last:
-			for moved: int in _slots:
-				if _slots[moved] == last:
-					_slots[moved] = slot
-					_drawn.erase(moved)
+			for moved: int in slots:
+				if slots[moved] == last:
+					slots[moved] = slot
+					group.drawn.erase(moved)
 					break
-	_multimesh.visible_instance_count = _slots.size()
+		(group.multimesh as MultiMesh).visible_instance_count = slots.size()
 
 
-## Frees the bodies and the multimesh's node.
+## Frees the bodies and the multimeshes' nodes.
 func clear() -> void:
 	for pair: Array in _bodies.values():
 		PhysicsServer3D.free_rid(pair[0])
 		PhysicsServer3D.free_rid(pair[1])
 	_bodies.clear()
-	_slots.clear()
-	_drawn.clear()
-	if is_instance_valid(_instance):
-		_instance.queue_free()
+	_group_of.clear()
+	for group: Dictionary in _groups.values():
+		if is_instance_valid(group.instance):
+			(group.instance as Node).queue_free()
+	_groups.clear()
 
 
 func _body(id: int, size: Vector3, is_pedestrian: bool) -> void:
@@ -168,20 +244,25 @@ func _body(id: int, size: Vector3, is_pedestrian: bool) -> void:
 	var shape := PhysicsServer3D.box_shape_create()
 	PhysicsServer3D.shape_set_data(shape, size * 0.5)
 	PhysicsServer3D.body_add_shape(body, shape, Transform3D(Basis(), Vector3(0, size.y * 0.5, 0)))
-	PhysicsServer3D.body_set_collision_layer(body,
-		Layers.PEDESTRIAN if is_pedestrian else Layers.OBSTACLE)
-	PhysicsServer3D.body_set_collision_mask(body, 0)
+	BodyType.of(&"pedestrian" if is_pedestrian else &"vehicle").apply_rid(body)
 	PhysicsServer3D.body_set_space(body, _space)
 	_bodies[id] = [body, shape, Transform3D()]
 
 
-## Makes room for [param needed] instances; true when it had to, which clears every slot.
-func _grow(needed: int) -> bool:
-	if needed <= _multimesh.instance_count:
+## Makes room in [param group] for its road users; true when it had to, which clears its
+## instances.
+func _grow(group: Dictionary) -> bool:
+	var multimesh: MultiMesh = group.multimesh
+	var needed: int = group.slots.size()
+	if needed <= multimesh.instance_count:
 		return false
 	# Resizing clears the instances; every slot is set again in the same draw.
-	_multimesh.instance_count = maxi(needed, _multimesh.instance_count * 2)
-	_multimesh.visible_instance_count = 0
-	_current.resize(_multimesh.instance_count * STRIDE)
-	_previous.resize(_multimesh.instance_count * STRIDE)
+	multimesh.instance_count = maxi(needed, multimesh.instance_count * 2)
+	multimesh.visible_instance_count = 0
+	var current: PackedFloat32Array = group.current
+	var previous: PackedFloat32Array = group.previous
+	current.resize(multimesh.instance_count * STRIDE)
+	previous.resize(multimesh.instance_count * STRIDE)
+	group.current = current
+	group.previous = previous
 	return true

@@ -1,11 +1,12 @@
 @tool
 class_name RoadSegment
 extends Path3D
-## A stretch of road along its curve, the curve on the road's centre line: the asphalt is built
-## from the curve, and the tool buttons generate the road's [TrafficLane]s and [RoadMarking]s as
-## ordinary children, which are saved with the map and can be edited like any other. Traffic keeps
-## to the right: the lanes running in the curve's direction lie on its right-hand side. Generating
-## again replaces what the segment generated before, and leaves other children alone.
+## A stretch of road along its curve, the curve on the road's centre line: the road is built from
+## the curve in the look of Kenney's City Kit (Roads) (see [RoadKit]), and the tool buttons
+## generate the road's [TrafficLane]s and [RoadMarking]s as ordinary children, which are saved with
+## the map and can be edited like any other. Traffic keeps to the right: the lanes running in the
+## curve's direction lie on its right-hand side. Generating again replaces what the segment
+## generated before, and leaves other children alone.
 
 enum Centre { DASHED, SOLID, DOUBLE_SOLID, NONE }
 
@@ -27,9 +28,19 @@ enum Centre { DASHED, SOLID, DOUBLE_SOLID, NONE }
 @export var speed_limit_kmh := 50.0
 ## The line between the two directions.
 @export var centre := Centre.DASHED
-## Kerbs along both edges.
-@export var kerbs := true
-@export var surface: Material = preload("res://scenarios/kit/asphalt.tres"):
+## Kerbs along both edges, with a pavement beyond.
+@export var kerbs := true:
+	set(value):
+		kerbs = value
+		_queue_rebuild()
+## The pavement's width beyond each kerb, metres.
+@export_range(0.5, 6.0, 0.1) var pavement := RoadKit.PAVEMENT:
+	set(value):
+		pavement = value
+		_queue_rebuild()
+## A plain material to draw the road with instead of the kit's look: a flat strip, kerbs and
+## pavement left to the markings.
+@export var surface: Material:
 	set(value):
 		surface = value
 		_queue_rebuild()
@@ -41,8 +52,12 @@ const STEP := 2.0
 ## Height of the asphalt above the ground.
 const LIFT := 0.01
 const GENERATED := &"road_segment_generated"
+const ASPHALT := preload("res://scenarios/kit/asphalt.tres")
+const LANES := &"lanes"
+const MARKINGS := &"markings"
 
 var _mesh_instance: MeshInstance3D
+var _pavement: StaticBody3D
 var _rebuild_queued := false
 
 
@@ -76,7 +91,26 @@ func lane_offsets(forward: bool) -> PackedFloat32Array:
 ## Replaces the generated lanes: one [TrafficLane] per lane, in its direction of travel, with the
 ## speed limit and the lanes beside it set.
 func generate_lanes() -> Array[TrafficLane]:
-	_clear(&"lanes")
+	_clear(LANES)
+	var made := make_lanes()
+	for lane in made:
+		_keep(lane)
+	return made
+
+
+## Replaces the generated markings: the kerbs, the centre line, and dashed lines between lanes
+## running the same way.
+func generate_markings() -> Array[RoadMarking]:
+	_clear(MARKINGS)
+	var made := make_markings()
+	for marking in made:
+		_keep(marking)
+	return made
+
+
+## The lanes [method generate_lanes] adds, built but not added, so an editor can add them with
+## undo.
+func make_lanes() -> Array[TrafficLane]:
 	var made: Array[TrafficLane] = []
 	for forward in [true, false]:
 		var lanes: Array[TrafficLane] = []
@@ -85,7 +119,7 @@ func generate_lanes() -> Array[TrafficLane]:
 			lane.name = "%s%d" % ["Lane" if forward else "LaneBack", lanes.size() + 1]
 			lane.curve = _offset_curve(offset, not forward)
 			lane.speed_limit = speed_limit_kmh / 3.6
-			_keep(lane, &"lanes")
+			lane.set_meta(GENERATED, LANES)
 			lanes.append(lane)
 		for i in lanes.size():
 			if i > 0:
@@ -96,10 +130,8 @@ func generate_lanes() -> Array[TrafficLane]:
 	return made
 
 
-## Replaces the generated markings: the kerbs, the centre line, and dashed lines between lanes
-## running the same way.
-func generate_markings() -> Array[RoadMarking]:
-	_clear(&"markings")
+## The markings [method generate_markings] adds, built but not added.
+func make_markings() -> Array[RoadMarking]:
 	var made: Array[RoadMarking] = []
 	var half := width() / 2.0
 	if kerbs:
@@ -130,7 +162,7 @@ func frames() -> Array:
 		return out
 	var offsets: Array[float] = []
 	var at := 0.0
-	while at < total:
+	while at < total - STEP * 0.25:
 		offsets.append(at)
 		at += STEP
 	offsets.append(total)
@@ -149,6 +181,31 @@ func rebuild() -> void:
 	if _mesh_instance == null:
 		return
 	_mesh_instance.mesh = _build_mesh()
+	_set_pavement(RoadKit.pavement_body(RoadKit.pavement_shapes(frames(), width() / 2.0, pavement))
+		if kit_look() and kerbs else null)
+	for marking in generated(MARKINGS):
+		if marking is RoadMarking and marking.kind == RoadMarking.Kind.KERB:
+			marking.paint = not kit_look()
+
+
+## The pavements' body, which stops the car's tyres at the kerbs; null without kerbs or in a
+## plain surface.
+func pavement_body() -> StaticBody3D:
+	return _pavement
+
+
+func _set_pavement(body: StaticBody3D) -> void:
+	if _pavement and is_instance_valid(_pavement):
+		remove_child(_pavement)
+		_pavement.queue_free()
+	_pavement = body
+	if body:
+		add_child(body, false, INTERNAL_MODE_BACK)
+
+
+## Whether the road is drawn in the kit's look, kerbs and pavement included.
+func kit_look() -> bool:
+	return surface == null and RoadKit.available()
 
 
 func _queue_rebuild() -> void:
@@ -162,6 +219,8 @@ func _build_mesh() -> ArrayMesh:
 	var along := frames()
 	if along.size() < 2:
 		return null
+	if kit_look():
+		return RoadKit.road(along, width() / 2.0, pavement, kerbs)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var half := width() / 2.0
@@ -180,8 +239,7 @@ func _build_mesh() -> ArrayMesh:
 			st.add_vertex(quad[k] + Vector3.UP * LIFT)
 		travelled += step
 	var mesh := st.commit()
-	if surface:
-		mesh.surface_set_material(0, surface)
+	mesh.surface_set_material(0, surface if surface else ASPHALT)
 	return mesh
 
 
@@ -202,19 +260,46 @@ func _marking(marking_name: String, kind: RoadMarking.Kind, offset: float) -> Ro
 	marking.name = marking_name
 	marking.kind = kind
 	marking.curve = _offset_curve(offset, false)
-	_keep(marking, &"markings")
+	marking.paint = kind != RoadMarking.Kind.KERB or not kit_look()
+	marking.set_meta(GENERATED, MARKINGS)
 	return marking
 
 
+## The children generated as [param what], [constant LANES] or [constant MARKINGS].
+func generated(what: StringName) -> Array[Node]:
+	var out: Array[Node] = []
+	for child in get_children():
+		if child.get_meta(GENERATED, &"") == what:
+			out.append(child)
+	return out
+
+
+## Where the road starts and ends, local space, each facing out of the road along -Z: where
+## another road or a junction arm joins it. Empty without a curve.
+func ends() -> Array[Transform3D]:
+	var along := frames()
+	if along.size() < 2:
+		return []
+	var first: Array = along[0]
+	var last: Array = along[-1]
+	var out: Array[Transform3D] = []
+	out.append(Transform3D(Basis.looking_at(-_ahead(first[1])), first[0]))
+	out.append(Transform3D(Basis.looking_at(_ahead(last[1])), last[0]))
+	return out
+
+
+## The direction of travel along the curve where [param right] is to its right.
+static func _ahead(right: Vector3) -> Vector3:
+	return Vector3.UP.cross(right).normalized()
+
+
 ## Adds a generated child the scene saves.
-func _keep(node: Node, what: StringName) -> void:
-	node.set_meta(GENERATED, what)
+func _keep(node: Node) -> void:
 	add_child(node, true)
 	node.owner = owner if owner else self
 
 
 func _clear(what: StringName) -> void:
-	for child in get_children():
-		if child.get_meta(GENERATED, &"") == what:
-			remove_child(child)
-			child.free()
+	for child in generated(what):
+		remove_child(child)
+		child.free()

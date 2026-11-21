@@ -7,6 +7,7 @@ func run() -> void:
 	_test_segment_lanes()
 	_test_segment_markings()
 	_test_junction()
+	_test_road_look()
 	_test_sign()
 	await _test_bake()
 
@@ -67,6 +68,51 @@ func _test_segment_markings() -> void:
 	segment.free()
 
 
+## The mesh a road node draws, its internal child.
+static func _drawn(node: Node) -> Mesh:
+	for child in node.get_children(true):
+		if child is MeshInstance3D:
+			return (child as MeshInstance3D).mesh
+	return null
+
+
+func _test_road_look() -> void:
+	expect(RoadKit.available(), "the road kit's tiles load")
+	var segment := _segment(2)
+	root.add_child(segment)
+	segment.rebuild()
+	var box := _drawn(segment).get_aabb() if _drawn(segment) else AABB()
+	expect(segment.kit_look() and is_equal_approx(box.size.x, 14.0 + 2.0 * RoadKit.PAVEMENT)
+		and is_equal_approx(box.size.z, 40.0)
+		and is_equal_approx(box.end.y, RoadMarking.KERB_HEIGHT),
+		"a road is drawn in the kit's look: its lanes' width, a pavement each side, kerb high")
+	var kerbs := segment.generate_markings().filter(func(m: RoadMarking) -> bool:
+		return m.kind == RoadMarking.Kind.KERB)
+	expect(kerbs.size() == 2 and kerbs.all(func(m: RoadMarking) -> bool: return not m.paint),
+		"its kerb lines are judged but not drawn over the kit's kerbs")
+	segment.kerbs = false
+	segment.rebuild()
+	box = _drawn(segment).get_aabb()
+	expect(is_equal_approx(box.size.x, 14.0) and box.end.y < 0.05,
+		"without kerbs, the asphalt alone")
+	segment.surface = RoadSegment.ASPHALT
+	segment.rebuild()
+	expect(not segment.kit_look() and _drawn(segment).surface_get_material(0) == RoadSegment.ASPHALT,
+		"a plain surface set draws the flat road instead")
+	segment.free()
+
+	var junction := RoadJunction.new()
+	junction.shape = RoadJunction.Shape.T
+	root.add_child(junction)
+	box = _drawn(junction).get_aabb()
+	var reach := junction.road_width / 2.0 + junction.arm_length
+	expect(is_equal_approx(box.position.x, -reach) and is_equal_approx(box.end.x, reach)
+		and is_equal_approx(box.end.z, reach)
+		and is_equal_approx(box.position.z, -junction.road_width / 2.0 - RoadKit.PAVEMENT),
+		"a T pad reaches its three arms' ends, a pavement along its closed side")
+	junction.free()
+
+
 func _test_junction() -> void:
 	var junction := RoadJunction.new()
 	junction.shape = RoadJunction.Shape.T
@@ -79,6 +125,23 @@ func _test_junction() -> void:
 	expect(lines.size() == 1 and lines[0].kind == RoadMarking.Kind.STOP_LINE
 		and lines[0].world_points()[0].z > 3.5 and lines[0].world_points()[-1].x > 3.0,
 		"a controlled arm gets its line across the incoming half")
+	var turns := junction.make_lanes()
+	expect(turns.size() == 6
+		and turns.all(func(l: TrafficLane) -> bool: return l.get_parent() == null),
+		"a T junction's lanes join each of its three arms to the two others, unattached")
+	junction.shape = RoadJunction.Shape.CROSSROADS
+	var through := junction.generate_lanes()
+	var south_north := through.filter(func(l: TrafficLane) -> bool: return l.name == "SouthToNorth")
+	var south_east := through.filter(func(l: TrafficLane) -> bool: return l.name == "SouthToEast")
+	expect(through.size() == 12 and south_north.size() == 1 and south_east.size() == 1
+		and south_north[0].point_at(0.0).is_equal_approx(Vector3(1.75, 0, 7.5))
+		and south_north[0].point_at(south_north[0].length()).is_equal_approx(Vector3(1.75, 0, -7.5))
+		and south_east[0].point_at(south_east[0].length()).is_equal_approx(Vector3(7.5, 0, 1.75)),
+		"a crossroads' lanes run on the right, in from one arm and out by each other")
+	junction.generate_lanes()
+	expect(junction.generated(RoadJunction.LANES).size() == 12
+		and junction.generated(RoadJunction.LINES).size() == 1,
+		"generating lanes again replaces them and leaves the lines")
 	var end := junction.arm_end(RoadJunction.Arm.EAST)
 	expect(end.origin.is_equal_approx(Vector3(7.5, 0, 0))
 		and (-end.basis.z).is_equal_approx(Vector3.RIGHT),

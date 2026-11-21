@@ -155,11 +155,12 @@ func _light(light: TrafficLight) -> void:
 	nodes[_ids[light]] = light
 
 
-## Every box shape of a static body on the obstacle layer among [param list], such as a parked
-## van, and of the bodies of each [Prop] among it.
+## Every box shape of a static body on a judged layer ([constant Layers.JUDGED]) among
+## [param list], such as a parked van, and of the bodies of each [Prop] and [MapAsset] among it.
+## Kerbs and pavements are not obstacles: the kerb lines judge them.
 func add_obstacles(list: Array) -> void:
 	for node: Node in list:
-		if node is Prop:
+		if node is Prop or node is MapAsset:
 			for body in node.bodies():
 				_body_obstacles(body, node.name)
 			continue
@@ -168,7 +169,7 @@ func add_obstacles(list: Array) -> void:
 
 
 func _body_obstacles(body: StaticBody3D, obstacle_name: StringName) -> void:
-	if (body.collision_layer & (Layers.OBSTACLE | Layers.PEDESTRIAN)) == 0:
+	if (body.collision_layer & Layers.JUDGED) == 0:
 		return
 	for child in body.get_children():
 		var shape := child as CollisionShape3D
@@ -234,6 +235,26 @@ func add_agent(agent: ScriptedAgent) -> int:
 	_fill_lanes()
 	_agent(agent)
 	return _ids[agent]
+
+
+## What a road user driving to its [member ScriptedAgent.destination] needs: where it starts on
+## its lane, the lanes to take, and where to stop; nothing when it has no destination or its path
+## is not a lane. Warns when the destination cannot be reached along the lanes.
+func drive_to(agent: ScriptedAgent) -> Dictionary:
+	if agent.destination == null or not agent.path is TrafficLane:
+		return {}
+	var lane: LaneData = _lanes.get(lane_of(agent.path))
+	if lane == null:
+		return {}
+	var start_at := lane.project(agent.global_position).x
+	var way := LaneRouter.route(_lanes, lane.id, start_at, agent.destination.global_position)
+	if not way.reachable or not way.on_lane:
+		push_warning("%s cannot reach %s along the lanes; it stops at the nearest point" % [
+			agent.name, agent.destination.name])
+	if not way.reachable:
+		return {start_at = start_at}
+	return {start_at = start_at, route = way.route, goal_lane = way.goal_lane,
+		goal_at = way.goal_at}
 
 
 func _agent(agent: ScriptedAgent) -> void:
