@@ -43,7 +43,9 @@ static func define(world: World) -> void:
 		started_moving = -1,
 		indicator = VehicleProbe.Indicator.UNKNOWN, indicator_seen = VehicleProbe.Indicator.UNKNOWN,
 		indicator_since = 0.0, handbrake = VehicleProbe.Toggle.UNKNOWN,
-		look = Vector3.FORWARD, clock = 0.0,
+		look = Vector3.FORWARD, eye = Vector3.ZERO, clock = 0.0,
+		# The car's mirrors in its own space: interior, left, right; empty without them.
+		mirrors = PackedVector3Array(),
 		corners = PackedVector3Array(), wheels = PackedVector3Array(),
 		previous_wheels = PackedVector3Array(),
 		body_length = 4.2, body_width = 1.8, wheelbase = 2.6, track = 1.55,

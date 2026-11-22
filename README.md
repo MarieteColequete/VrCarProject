@@ -20,7 +20,8 @@ scripts read them through `DriverInput`.
 | Headlights on or off | L | X (Square) |
 | Look around | Mouse | Right stick |
 | Recentre the view | C | Right stick click |
-| Driver or chase view | V | Select |
+| Set a mirror: interior, left, right, then none; parked only | Tab, then the mouse | D-pad up, then the right stick |
+| Driver or chase view; in VR, the spectator's chase or shoulder view | V | Select |
 | Free the mouse, recapture it | Escape, click | |
 | Begin the attempt after the briefing | Enter | Start |
 | Restart the attempt | R | Y (Triangle) |
@@ -44,8 +45,32 @@ starts in the headset and `DriverView` follows the head; otherwise it starts fla
 with no alert, and the mouse and right stick turn the view. `--xr-mode off` on the command line
 forces flat, for a machine whose active runtime would otherwise launch, such as SteamVR. Closing
 the application from the headset's menu quits the game. The action map (`openxr_action_map.tres`)
-is Godot's stock map; the motion controllers are not bound to driving yet, so the car is driven
-with the keyboard, a gamepad, or a wheel.
+is Godot's stock map, and `DriverView` turns the motion controllers' inputs into the car's input
+actions, so the car reads them as it reads a keyboard or a gamepad:
+
+| Action | Motion controllers |
+|---|---|
+| Steer | Grip the steering wheel's rim with one or both hands and turn it |
+| Throttle | Right trigger |
+| Brake, then reverse once stopped | Left trigger |
+| Handbrake | Right A |
+| Indicators | Flick the left stick left or right |
+| Headlights on or off | Right B |
+| Recentre the seat | Right stick click, or hold both grips away from the wheel for 2 s |
+| Set a mirror | Grip its glass and move the hand across it, or the left stick click, then the right stick |
+
+A grip within 10 cm of the rim takes hold of the wheel there (`WheelGrab`), and the glove is drawn
+on the rim while it holds; the wheel turns as the holding hands move round it, the average of the
+two with both, and centres itself once let go. The controllers buzz on the indicator, a gear
+change, and a tyre meeting a kerb. The gloves are simple shapes made by the game, on a visual layer
+of their own that the mirrors leave out.
+
+On a desktop the window shows an instructor's view while the driver is in the headset
+(`SpectatorView`), as Godot's OpenXR spectator demo does: the headset renders a viewport of its own
+sharing the world, and the window follows the car from behind and above, or from behind the
+driver's shoulder, steadied so it turns with the car but never pitches or rolls; toggle_view (V,
+Select) switches between them, and the debug HUD and the Dev HUD draw over it. The headset's camera
+hears the car's sound. A standalone headset has no window, and no spectator.
 
 The world ticks at a fixed 60 Hz whatever the headset's refresh rate (commonly 72 to 144 Hz), and
 physics interpolation draws every body between ticks at the headset's own rate, so the world moves
@@ -141,9 +166,67 @@ its materials made by the game from the model's textures (`PlayerCarModel`). It 
 car's wheelbase, left-hand drive, and the driver's eyes sit behind its steering wheel. Everything
 the car reports is in the car, as in a real one, since the view is VR: the wheels roll and the
 front ones steer, the steering wheel turns with the steering, the blinkers, brake lights, reversing
-lights, and headlights glow with the car's state, and the instrument panel in the binnacle
-(`InstrumentCluster`) shows the speed on a dial and in figures, the indicator arrows blinking, and
-the handbrake, headlights, and reverse tell-tales.
+lights, and headlights glow with the car's state, the headlamps cast dipped beams on the road, and
+the instrument panel in the binnacle (`InstrumentCluster`) shows the speed on a dial and in figures,
+the engine's revolutions and the gear, the indicator arrows blinking, and the handbrake, headlights,
+and reverse tell-tales; its needles follow their readings without overshooting. The paint has a
+clear coat, and the number plates' letters, the badges, and the tyre walls stand out through normal
+maps made from the model's height maps by `tools/kiri86_normals.gd`.
+
+The cabin is the model's one interior mesh, cut by the game when the car is built into the seats,
+their leather bolsters, the carpet, the headliner, the door cards, and the dash, by where each
+triangle is and which way it faces (`PlayerCarModel.cabin_zone`), and the steering wheel is trimmed
+in leather. The model's texture coordinates for its cabin are a trim sheet, so each part gets its
+own, laid across it in the car's space along the axis each triangle faces, with one texture
+read per map, light enough for a standalone headset. The materials are CC0 sets from
+[ambientCG](https://ambientcg.com), in `vr-project-[car-sim]/assets/ambientcg/` with their credits:
+[Fabric030](https://ambientcg.com/view?id=Fabric030) for the seats,
+[Leather026](https://ambientcg.com/view?id=Leather026) for the bolsters and the wheel,
+[Carpet012](https://ambientcg.com/view?id=Carpet012) for the carpet, made grey by
+`tools/cabin_textures.gd`, [Fabric034](https://ambientcg.com/view?id=Fabric034) for the
+headliner, and [Plastic012A](https://ambientcg.com/view?id=Plastic012A) for the dash and doors;
+each is tinted to the car's black cabin.
+
+The car drives as an arcade car with a real car's habits (`CarDrivetrain`). A five speed automatic
+gearbox changes up as the engine's revolutions rise, later the harder the throttle is pressed, and
+down as the car slows, with a short pause in the drive at each change. The car turns along its front
+wheels like a bicycle, so it turns only while it moves and more tightly the slower it goes: the lock
+eases with the speed, so a full turn never pushes the car sideways harder than a tyre grips. The
+steering eases to the controls rather than snapping. The car dips under braking, squats under
+acceleration, and rolls out of a turn, all of it as one, cockpit, instruments, and mirrors
+included, while the wheels stay on the road and the driver's head stays level, so the cabin moves a
+little round the driver as a real body does on its springs.
+
+The car has an interior mirror and two door mirrors (`CarMirror`), their picture on the model's
+own glass: `PlayerCarModel` cuts each housing's face out of the model when the car is built, as it
+splits the blinkers, and gives it UVs across the face. Each shows what a mirror there would: a camera at the driver's eye reflected across the
+glass looks back through it, cut to the glass's edges, so the picture moves with the head as a real
+mirror's does. The door mirrors see a little wider than flat glass, as convex mirrors do. The
+reflecting plane is turned within the glass, so the housing round it is cut out of the model too,
+onto a visual layer the mirrors leave out, and the picture begins past the glass's far corner:
+nothing of the housing comes into its own mirror.
+
+The driver sets the mirrors as in a real car. In VR a grip within 8 cm of a mirror's glass takes
+hold of it (`MirrorGrab`), and moving the hand across the glass tilts it, right to see more to the
+right, up to see higher. On the keyboard, the gamepad, or the controllers, the mirror switch
+(`MirrorAdjust`, the `mirror_adjust` action) picks the interior mirror, then the left, then the
+right; the picked mirror's glass lights up a little, and the look controls tilt it instead of
+turning the head. Like a car's mirror switch, it is for a car standing still: it lets go once the
+car passes 5 km/h, or after 6 s untouched. Each mirror tilts up to 20° either way from where the
+car sets it for the seat, and the tilts are kept between sessions in `user://car.cfg`.
+
+To save the frame, the interior mirror is drawn on one frame and the door mirrors
+on the next. The project setting `car/mirrors` sets them to `full`, to `low` (half the pixels, one
+mirror a frame, for standalone headsets), or `off`. The gaze check judges a mirror look by where the
+driver looks: held for a fifth of a second within 12° of the direction from the eye to the mirror, so
+a glance with the eyes counts as well as a turn of the head; a car without mirrors is still judged
+on the head's turn.
+
+The car sounds from its cabin (`CarSound`), on an audio bus of its own, `Car`. The engine pitches
+and swells with the revolutions and the throttle and dips as a gear changes, the indicator ticks as
+it blinks, the tyres squeal near their grip at speed, and a tyre thumps when it meets a kerb. The
+sounds are made by the game when the car is built, so it carries no recordings: the engine is a
+four-cylinder's firing pulses and their harmonics, made once slow and once fast and crossfaded.
 
 The Map Kit's roads take the look of City Kit (Roads) (`RoadKit`). The kit's straight road tile is a
 cross-section (asphalt, a darker band by the kerb, the kerb, and the pavement) swept along each
@@ -186,7 +269,7 @@ a rule entity judged by the rule's pure functions (`scenarios/rules/`):
 | `ParkingCheck` | Once settled in a `ParkingBay`: overhanging it, facing the wrong way, too many direction changes, taking too long |
 | `TrafficLightCheck` | Crossing the stop line on red, or on amber when the car could have stopped as it changed |
 | `CrossingCheck` | Driving onto a pedestrian crossing while someone is on it or about to cross, stopping on it |
-| `GazeCheck` | Changing lanes (or moving off) without first looking in the mirror and over the shoulder on that side |
+| `GazeCheck` | Changing lanes (or moving off) without first looking in the mirror and over the shoulder on that side; optionally the interior mirror too, and the eyes off the road too long |
 | `FollowingDistanceCheck` | Staying under a two second time gap behind a road user in the same lane |
 | `YieldCheck` | Entering a conflict zone while a road user with priority is in it or due within a safe gap, and waiting too long when the way is clear |
 | `JunctionCheck` | Leaving a junction or roundabout by a `JunctionExit` the route does not take, or without indicating that way, read on approach or, at a roundabout, on leaving |
