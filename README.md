@@ -20,7 +20,7 @@ scripts read them through `DriverInput`.
 | Headlights on or off | L | X (Square) |
 | Look around | Mouse | Right stick |
 | Recentre the view | C | Right stick click |
-| Driver or chase view | V | Select |
+| Driver or chase view; in VR, the spectator's chase or shoulder view | V | Select |
 | Free the mouse, recapture it | Escape, click | |
 | Begin the attempt after the briefing | Enter | Start |
 | Restart the attempt | R | Y (Triangle) |
@@ -62,6 +62,13 @@ on the rim while it holds; the wheel turns as the holding hands move round it, t
 two with both, and centres itself once let go. The controllers buzz on the indicator, a gear
 change, and a tyre meeting a kerb. The gloves are simple shapes made by the game, on a visual layer
 of their own that the mirrors leave out.
+
+On a desktop the window shows an instructor's view while the driver is in the headset
+(`SpectatorView`), as Godot's OpenXR spectator demo does: the headset renders a viewport of its own
+sharing the world, and the window follows the car from behind and above, or from behind the
+driver's shoulder, steadied so it turns with the car but never pitches or rolls; toggle_view (V,
+Select) switches between them, and the debug HUD and the Dev HUD draw over it. The headset's camera
+hears the car's sound. A standalone headset has no window, and no spectator.
 
 The world ticks at a fixed 60 Hz whatever the headset's refresh rate (commonly 72 to 144 Hz), and
 physics interpolation draws every body between ticks at the headset's own rate, so the world moves

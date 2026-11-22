@@ -32,6 +32,13 @@ var yaw := 0.0
 var pitch := 0.0
 ## True while the headset drives the view.
 var vr := false
+## In VR, the window shows the instructor's [SpectatorView] while the headset shows the driver's;
+## on a standalone headset there is no window, and no spectator.
+var spectator_enabled := true
+## The instructor's view on the window, in VR on a desktop; null otherwise.
+var spectator: SpectatorView
+## The viewport the headset renders, in VR with a spectator; else the window's own.
+var headset: SubViewport
 ## The steering wheel in the driver's hands, in VR.
 var wheel := WheelGrab.new()
 ## The motion controllers in VR, left then right; empty otherwise.
@@ -53,7 +60,11 @@ func _ready() -> void:
 	var xr := XRServer.find_interface("OpenXR")
 	vr = xr != null and xr.is_initialized()
 	if vr:
-		get_viewport().use_xr = true
+		if spectator_enabled and not OS.has_feature("android"):
+			_split_headset(xr)
+		else:
+			get_viewport().use_xr = true
+		xr_camera.cull_mask &= ~Layers.SPECTATOR_VISUAL
 		XRServer.center_on_hmd(XRServer.RESET_BUT_KEEP_TILT, true)
 		# Godot only reports the runtime's request to close the application (closing it from the
 		# headset's menu); OpenXR expects the process to end, and the game is VR only.
@@ -76,6 +87,8 @@ func set_active(value: bool) -> void:
 	if active:
 		if vr:
 			xr_camera.current = true
+			if spectator:
+				spectator.current = true
 		else:
 			flat_camera.current = true
 
@@ -121,6 +134,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	if headset:
+		# The headset's origin lives in its own viewport; it rides with the seat.
+		xr_origin.global_transform = get_global_transform_interpolated()
 	if not active:
 		return
 	if vr:
@@ -160,6 +176,30 @@ func grab_wheel(delta: float, frame: Transform3D, radius: float, current: float)
 func pulse(strength: float, seconds: float) -> void:
 	for hand in hands:
 		hand.trigger_haptic_pulse(&"haptic", 0.0, strength, seconds, 0.0)
+
+
+## Moves the headset into a viewport of its own sharing the world, as Godot's OpenXR spectator
+## demo does, so the window can show the instructor's view and the game's on-screen displays. The
+## window stops listening to 3D sound, which the headset's camera hears.
+func _split_headset(xr: XRInterface) -> void:
+	var window := get_viewport()
+	headset = SubViewport.new()
+	headset.name = "Headset"
+	headset.use_xr = true
+	headset.world_3d = window.find_world_3d()
+	headset.size = xr.get_render_target_size()
+	headset.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	headset.audio_listener_enable_3d = true
+	add_child(headset)
+	xr_origin.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	xr_origin.reparent(headset, false)
+	xr_origin.global_transform = global_transform
+	window.audio_listener_enable_3d = false
+	spectator = SpectatorView.new()
+	spectator.car = get_parent() as Node3D
+	spectator.eye = xr_camera
+	add_child(spectator)
+	spectator.current = true
 
 
 ## The controllers, each with a glove drawn on the hands' visual layer, which mirrors leave out.

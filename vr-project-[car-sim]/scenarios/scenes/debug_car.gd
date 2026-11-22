@@ -101,6 +101,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if side != VehicleProbe.Indicator.OFF:
 		_blink_clock = 0.0
 		probe.indicator = VehicleProbe.Indicator.OFF if probe.indicator == side else side
+	elif event.is_action_pressed(&"toggle_view") and driver_view.spectator:
+		driver_view.spectator.next_mode()
 	elif event.is_action_pressed(&"toggle_view") and not driver_view.vr:
 		driver_view.active = not driver_view.active
 		chase_camera.current = not driver_view.active
