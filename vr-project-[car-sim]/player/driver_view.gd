@@ -41,6 +41,11 @@ var spectator: SpectatorView
 var headset: SubViewport
 ## The steering wheel in the driver's hands, in VR.
 var wheel := WheelGrab.new()
+## The mirrors in the driver's hands, in VR.
+var mirror_grab := MirrorGrab.new()
+## While the driver sets a mirror with the controls, the look controls tilt it ([method mirror_look])
+## and leave the head where it is.
+var look_locked := false
 ## The motion controllers in VR, left then right; empty otherwise.
 var hands: Array[XRController3D] = []
 ## Whether this view is the one shown; a car may switch to another camera.
@@ -50,6 +55,7 @@ var active := true:
 var _flicked := 0
 var _buttons := {}
 var _both_grips := 0.0
+var _mouse_tilt := Vector2.ZERO
 
 @onready var flat_camera: Camera3D = $FlatCamera
 @onready var xr_origin: XROrigin3D = $XROrigin3D
@@ -130,7 +136,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	elif event is InputEventMouseMotion and not vr:
 		if not require_capture or Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-			turn(-event.relative.x * mouse_sensitivity, -event.relative.y * mouse_sensitivity)
+			if look_locked:
+				_mouse_tilt += Vector2(event.relative.x, -event.relative.y) * mouse_sensitivity * 0.5
+			else:
+				turn(-event.relative.x * mouse_sensitivity, -event.relative.y * mouse_sensitivity)
 
 
 func _process(delta: float) -> void:
@@ -143,7 +152,7 @@ func _process(delta: float) -> void:
 		_xr_controls(delta)
 		return
 	var stick := Input.get_vector(LOOK_LEFT, LOOK_RIGHT, LOOK_UP, LOOK_DOWN)
-	if stick != Vector2.ZERO:
+	if stick != Vector2.ZERO and not look_locked:
 		turn(-stick.x * stick_speed * delta, -stick.y * stick_speed * delta)
 
 
@@ -170,6 +179,45 @@ func grab_wheel(delta: float, frame: Transform3D, radius: float, current: float)
 			glove.global_position = WheelGrab.on_rim(frame, radius, at[i])
 		else:
 			glove.position = Vector3.ZERO
+
+
+## What the look controls give while [member look_locked]: [code]{stick, mouse}[/code], the stick
+## as [method Input.get_vector] gives it (x to the right, y down; in VR the right controller's), and
+## the tilt the mouse has moved since the last call, radians (x to the right, y up).
+func mirror_look() -> Dictionary:
+	var stick := Input.get_vector(LOOK_LEFT, LOOK_RIGHT, LOOK_UP, LOOK_DOWN)
+	if vr and hands.size() == 2:
+		var right := hands[1].get_vector2(&"primary")
+		stick = Vector2(right.x, -right.y)
+	var mouse := _mouse_tilt
+	_mouse_tilt = Vector2.ZERO
+	return {stick = stick, mouse = mouse}
+
+
+## Takes the mirrors' glass at [param glasses] (world frames, facing their +Z) in the hands, after
+## the steering wheel, a hand on the wheel taking no mirror: each mirror's tilt change (see
+## [method MirrorGrab.step]). Without controllers no mirror is held.
+func grab_mirrors(glasses: Array) -> Array[Vector2]:
+	var none: Array[Vector2] = []
+	none.resize(glasses.size())
+	none.fill(Vector2.ZERO)
+	if hands.size() < 2:
+		return none
+	var at: Array = []
+	var grips: Array = []
+	var on_wheel: Array = []
+	for i in hands.size():
+		at.append(hands[i].global_position)
+		grips.append(hands[i].get_float(&"grip") > GRIP_HOLD)
+		on_wheel.append(wheel.holds[i] != null)
+	var r := mirror_grab.step(glasses, at, grips, on_wheel)
+	for i in hands.size():
+		if mirror_grab.holds[i] != null:
+			var glove: Node3D = hands[i].get_node(^"Glove")
+			glove.global_position = MirrorGrab.on_glass(glasses[mirror_grab.holds[i].mirror], at[i])
+	if not (r.taken as Array).is_empty():
+		pulse(0.25, 0.04)
+	return r.tilts
 
 
 ## A buzz in both controllers of [param strength] (0 to 1) for [param seconds].
@@ -243,7 +291,8 @@ static func _glove(left: bool) -> Node3D:
 
 ## The controllers as the car's controls: the right trigger is the throttle, the left the brake,
 ## the right A the handbrake, the right B the headlights, a flick of the left stick an indicator,
-## and the right stick's click recentres; holding both grips away from the wheel recentres too.
+## the left stick's click the mirror switch ([MirrorAdjust]), and the right stick's click recentres;
+## holding both grips away from the wheel and the mirrors recentres too.
 func _xr_controls(delta: float) -> void:
 	if hands.size() < 2:
 		return
@@ -260,7 +309,9 @@ func _xr_controls(delta: float) -> void:
 	_flicked = flicked
 	_edge(&"headlights", right.is_button_pressed(&"by_button"), DriverInput.HEADLIGHTS)
 	_edge(&"recentre", right.is_button_pressed(&"primary_click"), LOOK_RESET)
-	var both := not wheel.held() and left.get_float(&"grip") > GRIP_HOLD \
+	_edge(&"mirror", left.is_button_pressed(&"primary_click"), MirrorAdjust.ACTION)
+	var both := not wheel.held() and not mirror_grab.held() \
+		and left.get_float(&"grip") > GRIP_HOLD \
 		and right.get_float(&"grip") > GRIP_HOLD
 	_both_grips = _both_grips + delta if both else 0.0
 	if _both_grips >= recentre_hold:

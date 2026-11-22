@@ -27,3 +27,6 @@ const SPECTATOR_VISUAL := 1 << 19
 ## The mirrors' glass, which no mirror shows: a mirror drawing its own picture would read the
 ## screen it draws into.
 const MIRROR_VISUAL := 1 << 17
+## The mirrors' housings, which their own pictures leave out: the glass is turned in its housing,
+## and the housing's edge would show at the picture's edge.
+const MIRROR_HOUSING_VISUAL := 1 << 16

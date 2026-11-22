@@ -17,7 +17,7 @@ func _has_event(action: StringName, type: String) -> bool:
 
 
 func _test_bindings() -> void:
-	for action in DriverInput.CAR_ACTIONS + [&"look_reset", &"toggle_view"]:
+	for action in DriverInput.CAR_ACTIONS + [&"look_reset", &"toggle_view", MirrorAdjust.ACTION]:
 		expect(InputMap.has_action(action) and _has_event(action, "InputEventKey")
 			and (_has_event(action, "InputEventJoypadMotion")
 				or _has_event(action, "InputEventJoypadButton")),

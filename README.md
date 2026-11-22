@@ -20,6 +20,7 @@ scripts read them through `DriverInput`.
 | Headlights on or off | L | X (Square) |
 | Look around | Mouse | Right stick |
 | Recentre the view | C | Right stick click |
+| Set a mirror: interior, left, right, then none; parked only | Tab, then the mouse | D-pad up, then the right stick |
 | Driver or chase view; in VR, the spectator's chase or shoulder view | V | Select |
 | Free the mouse, recapture it | Escape, click | |
 | Begin the attempt after the briefing | Enter | Start |
@@ -56,6 +57,7 @@ actions, so the car reads them as it reads a keyboard or a gamepad:
 | Indicators | Flick the left stick left or right |
 | Headlights on or off | Right B |
 | Recentre the seat | Right stick click, or hold both grips away from the wheel for 2 s |
+| Set a mirror | Grip its glass and move the hand across it, or the left stick click, then the right stick |
 
 A grip within 10 cm of the rim takes hold of the wheel there (`WheelGrab`), and the glove is drawn
 on the rim while it holds; the wheel turns as the holding hands move round it, the average of the
@@ -185,8 +187,21 @@ The car has an interior mirror and two door mirrors (`CarMirror`), their picture
 own glass: `PlayerCarModel` cuts each housing's face out of the model when the car is built, as it
 splits the blinkers, and gives it UVs across the face. Each shows what a mirror there would: a camera at the driver's eye reflected across the
 glass looks back through it, cut to the glass's edges, so the picture moves with the head as a real
-mirror's does. The door mirrors are small on this model, so they see wider than flat glass, as
-convex mirrors do. To save the frame, the interior mirror is drawn on one frame and the door mirrors
+mirror's does. The door mirrors see a little wider than flat glass, as convex mirrors do. The
+reflecting plane is turned within the glass, so the housing round it is cut out of the model too,
+onto a visual layer the mirrors leave out, and the picture begins past the glass's far corner:
+nothing of the housing comes into its own mirror.
+
+The driver sets the mirrors as in a real car. In VR a grip within 8 cm of a mirror's glass takes
+hold of it (`MirrorGrab`), and moving the hand across the glass tilts it, right to see more to the
+right, up to see higher. On the keyboard, the gamepad, or the controllers, the mirror switch
+(`MirrorAdjust`, the `mirror_adjust` action) picks the interior mirror, then the left, then the
+right; the picked mirror's glass lights up a little, and the look controls tilt it instead of
+turning the head. Like a car's mirror switch, it is for a car standing still: it lets go once the
+car passes 5 km/h, or after 6 s untouched. Each mirror tilts up to 20° either way from where the
+car sets it for the seat, and the tilts are kept between sessions in `user://car.cfg`.
+
+To save the frame, the interior mirror is drawn on one frame and the door mirrors
 on the next. The project setting `car/mirrors` sets them to `full`, to `low` (half the pixels, one
 mirror a frame, for standalone headsets), or `off`. The gaze check judges a mirror look by where the
 driver looks: held for a fifth of a second within 12° of the direction from the eye to the mirror, so

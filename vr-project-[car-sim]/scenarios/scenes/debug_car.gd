@@ -7,7 +7,9 @@ extends CharacterBody3D
 ## its wheels roll and steer, its steering wheel turns, its lights show the car's state, and the
 ## [InstrumentCluster] behind the steering wheel shows the speed, the revolutions and the gear, and
 ## the tell-tales. L (or the
-## gamepad's X) switches the headlights. Its gearbox and steering are the [CarDrivetrain]'s: an
+## gamepad's X) switches the headlights. The driver sets the mirrors with the mirror switch
+## ([MirrorAdjust]) or, in VR, by hand ([MirrorGrab]), and the tilts are kept in
+## [member settings_path]. Its gearbox and steering are the [CarDrivetrain]'s: an
 ## automatic gearbox with the engine's revolutions, and steering along the front wheels with less
 ## lock at speed.
 ##
@@ -54,6 +56,12 @@ var sound: CarSound
 ## The interior mirror and the left and right door mirrors, in that order; empty with the
 ## project setting [code]car/mirrors[/code] off.
 var mirrors: Array[CarMirror] = []
+## The names the mirrors' tilts are saved by, in the order of [member mirrors].
+var mirror_keys: Array[StringName] = []
+## The mirror switch, for setting the mirrors with the controls.
+var mirror_adjust := MirrorAdjust.new()
+## The settings file the driver's mirror tilts are kept in between sessions.
+var settings_path := "user://car.cfg"
 
 var _steer := 0.0
 var _braking := false
@@ -64,6 +72,7 @@ var _mirror_frame := 0
 var _on_kerb := false
 var _mirror_quality := "full"
 var _blink_clock := 0.0
+var _mirror_held := false
 
 @onready var probe: VehicleProbe = $VehicleProbe
 @onready var driver_view: DriverView = $DriverView
@@ -101,6 +110,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if side != VehicleProbe.Indicator.OFF:
 		_blink_clock = 0.0
 		probe.indicator = VehicleProbe.Indicator.OFF if probe.indicator == side else side
+	elif event.is_action_pressed(MirrorAdjust.ACTION) and not mirrors.is_empty():
+		switch_mirror()
 	elif event.is_action_pressed(&"toggle_view") and driver_view.spectator:
 		driver_view.spectator.next_mode()
 	elif event.is_action_pressed(&"toggle_view") and not driver_view.vr:
@@ -126,19 +137,81 @@ func _mount_mirrors() -> void:
 		var mirror := CarMirror.make(String(key).to_pascal_case() + "Mirror", spot.size, width,
 			spot.glass)
 		mirror.transform = at
-		mirror.pivot = at.affine_inverse() * (spot.aim as Transform3D)
+		mirror.rest_pivot = at.affine_inverse() * (spot.aim as Transform3D)
 		mirror.widen = spot.widen
 		mirror.eye = driver_view.eye()
 		model.cabin.add_child(mirror)
 		mirrors.append(mirror)
+		mirror_keys.append(key)
 	probe.mirrors = points
+	load_mirror_tilts()
+
+
+## Sets the mirrors as the driver last left them, from [member settings_path].
+func load_mirror_tilts() -> void:
+	var tilts := CarMirror.load_tilts(settings_path)
+	for i in mirrors.size():
+		mirrors[i].tilt = tilts.get(mirror_keys[i], Vector2.ZERO)
+
+
+## Keeps the mirrors as the driver has set them, in [member settings_path].
+func save_mirror_tilts() -> void:
+	if mirrors.is_empty():
+		return
+	var tilts := {}
+	for i in mirrors.size():
+		tilts[mirror_keys[i]] = mirrors[i].tilt
+	CarMirror.save_tilts(settings_path, tilts)
+
+
+## Moves the mirror switch on to the next mirror, or to none, lighting the mirror picked and
+## giving it the look controls.
+func switch_mirror() -> void:
+	mirror_adjust.cycle(mirrors.size())
+	_show_picked()
+
+
+func _show_picked() -> void:
+	for i in mirrors.size():
+		mirrors[i].selected = i == mirror_adjust.picked
+	driver_view.look_locked = mirror_adjust.active()
+
+
+## A step of the mirror switch: the picked mirror tilts with the look controls; once the switch
+## lets go, the mirrors are saved as they are.
+func _adjust_mirrors(delta: float) -> void:
+	if not mirror_adjust.active():
+		return
+	var look := driver_view.mirror_look()
+	var mouse: Vector2 = look.mouse
+	var tilt := mirror_adjust.step(delta, look.stick, current_speed, mouse != Vector2.ZERO)
+	if mirror_adjust.active():
+		mirrors[mirror_adjust.picked].nudge(tilt + mouse)
+	else:
+		_show_picked()
+		save_mirror_tilts()
+
+
+## The mirrors in the driver's hands: a held mirror tilts as the hand moves across it, and is
+## saved once let go.
+func _grab_mirrors() -> void:
+	var glasses: Array = mirrors.map(func(m: CarMirror) -> Transform3D: return m.global_transform)
+	var tilts := driver_view.grab_mirrors(glasses)
+	for i in mini(tilts.size(), mirrors.size()):
+		if tilts[i] != Vector2.ZERO:
+			mirrors[i].nudge(tilts[i])
+	var held := driver_view.mirror_grab.held()
+	if _mirror_held and not held:
+		save_mirror_tilts()
+	_mirror_held = held
 
 
 ## Draws the mirrors, spread over the frames: at full quality the interior mirror one frame and the
 ## door mirrors the next, at low quality one mirror a frame.
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if mirrors.is_empty():
 		return
+	_adjust_mirrors(delta)
 	_mirror_frame += 1
 	if _mirror_quality == "low":
 		mirrors[_mirror_frame % mirrors.size()].render()
@@ -153,6 +226,8 @@ func _physics_process(delta: float) -> void:
 	if model and input_enabled:
 		driver_view.grab_wheel(delta, global_transform * model.steering_frame(),
 			model.steering_radius, _steer)
+		if not mirrors.is_empty():
+			_grab_mirrors()
 	_drive(delta)
 	_show(delta)
 

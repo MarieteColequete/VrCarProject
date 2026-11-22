@@ -35,16 +35,20 @@ const LEAN_LIMIT := 0.06
 const LEAN_SPRING := 9.0
 ## The mirrors, in the car's space for a 2.6 m wheelbase: the part of the model that holds each
 ## one's glass, the box its glass lies in, how squarely the glass faces back (the least dot of its
-## triangles' normals with +Z), the point behind the car it is set up to show, how much wider than
-## flat glass it sees (as a convex mirror does: the model's door mirrors are small), and the pixels
-## its picture has across. The glass is the housing's own face, cut out of the model.
+## triangles' normals with +Z), the box its housing lies in, the point behind the car it is set up
+## to show, how much wider than flat glass it sees (as a convex mirror does), and the pixels its
+## picture has across. The glass is the housing's own face, cut out of the model, and the housing
+## is cut out too, for the mirror's own picture to leave out.
 const MIRRORS := {
 	rear = {part = "Interior", box = AABB(Vector3(-0.11, 1.26, -0.075), Vector3(0.22, 0.075, 0.025)),
-		facing = 0.95, target = Vector3(0.0, 1.1, 20.0), widen = 1.2, width = 512},
+		facing = 0.95, shell = AABB(Vector3(-0.13, 1.23, -0.15), Vector3(0.26, 0.15, 0.11)),
+		target = Vector3(0.0, 1.1, 20.0), widen = 1.2, width = 512},
 	left = {part = "Bottom", box = AABB(Vector3(-0.94, 0.9, -0.53), Vector3(0.21, 0.14, 0.05)),
-		facing = 0.95, target = Vector3(-2.4, 0.8, 20.0), widen = 3.0, width = 256},
+		facing = 0.95, shell = AABB(Vector3(-0.97, 0.86, -0.7), Vector3(0.27, 0.22, 0.24)),
+		target = Vector3(-2.4, 1.0, 20.0), widen = 1.4, width = 256},
 	right = {part = "Bottom", box = AABB(Vector3(0.73, 0.9, -0.53), Vector3(0.21, 0.14, 0.05)),
-		facing = 0.95, target = Vector3(2.6, 0.8, 20.0), widen = 4.5, width = 256},
+		facing = 0.95, shell = AABB(Vector3(0.7, 0.86, -0.7), Vector3(0.27, 0.22, 0.24)),
+		target = Vector3(2.6, 1.0, 20.0), widen = 1.6, width = 256},
 }
 
 ## The parts that never lean: the wheels and the suspension, which stay on the road. The rest of
@@ -81,6 +85,9 @@ var _roll := 0.0
 var _lights := {}
 ## The headlamps' beams, lit with the headlights.
 var beams: Array[SpotLight3D] = []
+## Each mirror's housing, cut out of the model round its glass, on a layer the mirrors leave out:
+## [code]rear[/code], [code]left[/code], and [code]right[/code].
+var mirror_housing := {}
 ## Each mirror's glass, cut out of its housing: [code]rear[/code], [code]left[/code], and
 ## [code]right[/code], each with its frame and size in the car's space as metadata.
 var mirror_glass := {}
@@ -382,6 +389,49 @@ static func _texture(file: String) -> Texture2D:
 	return load(path) as Texture2D if ResourceLoader.exists(path) else null
 
 
+## Takes the triangles [param picks] picks out of [param part], which keeps its materials.
+static func _cut_away(part: MeshInstance3D, picks: Callable) -> void:
+	var materials := _surface_materials(part)
+	var sources := []
+	part.mesh = cut_mesh(part.mesh, picks, false, sources)
+	for surface in sources.size():
+		part.set_surface_override_material(surface, materials[sources[surface]])
+
+
+## Each surface's material as [param part] draws it: its override, else the mesh's own.
+static func _surface_materials(part: MeshInstance3D) -> Array:
+	var materials := []
+	for surface in part.mesh.get_surface_count():
+		var material := part.get_surface_override_material(surface)
+		materials.append(material if material else part.mesh.surface_get_material(surface))
+	return materials
+
+
+## Cuts the housing of mirror [param key] out of [param part] (whose space [param to_car] turns
+## into the car's), the rest of what lies in its shell box, into a mesh of its own on
+## [constant Layers.MIRROR_HOUSING_VISUAL]: drawn for the driver, left out of the mirrors.
+func _cut_housing(key: StringName, part: MeshInstance3D, to_car: Transform3D) -> void:
+	var shell: AABB = MIRRORS[key].shell
+	shell = AABB(shell.position * fit, shell.size * fit)
+	var picks := func(a: Vector3, b: Vector3, c: Vector3) -> bool:
+		return shell.has_point(to_car * ((a + b + c) / 3.0))
+	var materials := _surface_materials(part)
+	var sources := []
+	var mesh := cut_mesh(part.mesh, picks, true, sources)
+	if mesh.get_surface_count() == 0:
+		return
+	_cut_away(part, picks)
+	var housing := MeshInstance3D.new()
+	housing.name = "MirrorHousing" + String(key).to_pascal_case()
+	housing.mesh = mesh
+	for surface in sources.size():
+		housing.set_surface_override_material(surface, materials[sources[surface]])
+	housing.transform = part.transform
+	housing.layers = Layers.MIRROR_HOUSING_VISUAL
+	part.get_parent().add_child(housing)
+	mirror_housing[key] = housing
+
+
 ## Cuts the glass of mirror [param key] out of [param part]: the triangles in its box facing back.
 ## The part keeps the rest, so the glass is not drawn twice, and the glass gets UVs across its face,
 ## U to the driver's right and V down, for the mirror's picture.
@@ -401,12 +451,8 @@ func _cut_glass(key: StringName, part: MeshInstance3D) -> void:
 	var glass_mesh := cut_mesh(part.mesh, picks, true)
 	if glass_mesh.get_surface_count() == 0:
 		return
-	var overrides := []
-	for surface in part.mesh.get_surface_count():
-		overrides.append(part.get_surface_override_material(surface))
-	part.mesh = cut_mesh(part.mesh, picks, false)
-	for surface in mini(part.mesh.get_surface_count(), overrides.size()):
-		part.set_surface_override_material(surface, overrides[surface])
+	_cut_away(part, picks)
+	_cut_housing(key, part, to_car)
 	# The glass's frame: its centre, facing the way its triangles do on average, upright.
 	var arrays := glass_mesh.surface_get_arrays(0)
 	var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
@@ -449,8 +495,9 @@ func _cut_glass(key: StringName, part: MeshInstance3D) -> void:
 
 
 ## The triangles of [param mesh] that [param picks] picks (given their three corners), or with
-## [param kept] false the ones it leaves, as a mesh of their own.
-static func cut_mesh(mesh: Mesh, picks: Callable, kept: bool) -> ArrayMesh:
+## [param kept] false the ones it leaves, as a mesh of their own. A surface left with no triangles
+## is dropped; [param sources] gets the source surface of each one made.
+static func cut_mesh(mesh: Mesh, picks: Callable, kept: bool, sources: Array = []) -> ArrayMesh:
 	var out := ArrayMesh.new()
 	for surface in mesh.get_surface_count():
 		var tool := SurfaceTool.new()
@@ -473,6 +520,7 @@ static func cut_mesh(mesh: Mesh, picks: Callable, kept: bool) -> ArrayMesh:
 		else:
 			arrays[Mesh.ARRAY_INDEX] = keep
 		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		sources.append(surface)
 	return out
 
 
