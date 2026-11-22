@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.4.0-alpha - 2026-11-22
+
+### Changed
+
+- Drive through a five speed automatic gearbox, with steering that eases with speed and a car that turns along its front wheels
+- Watch the whole car dip under braking, squat under acceleration, and roll out of a turn, cockpit included, while the head stays level
+- Be judged on mirror checks by where the driver looks, eyes or head, held for a moment within the mirror's cone, optionally with the interior mirror and too long a look away from the road
+- Read the engine's revolutions and the gear on the instrument panel, with needles that settle without overshooting
+
+### Added
+
+- Look in an interior mirror and two door mirrors that show what a real mirror there would, on the car's own glass
+- Set each mirror by gripping it in VR, or with the mirror switch, Tab or the gamepad's d-pad up, kept between sessions
+- Steer by gripping the steering wheel's rim with one or both hands in VR
+- Drive with the motion controllers: triggers, buttons, and sticks for the throttle, brake, handbrake, headlights, indicators, and recentring
+- Hear the engine, the indicator's tick, the tyres near their grip, and a thump on the kerbs
+- Feel the controllers buzz on the indicator, a gear change, and a kerb
+- Show an instructor a chase or shoulder view on the desktop while the driver is in the headset
+- Sit in a textured cabin: cloth seats, leather bolsters and steering wheel, carpet, a felt headliner, and grained plastic
+- See dipped beams cast on the road by the headlights
+
 ## v0.3.0-alpha - 2026-11-22
 
 ### Changed
