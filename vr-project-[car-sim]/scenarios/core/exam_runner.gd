@@ -89,6 +89,9 @@ func _start(loaded: Scenario) -> void:
 	assert(start != null, "The scenario needs a spawn point or a map with a MapSpawn")
 	var car_scene := car_scene_override if car_scene_override else scenario.definition.car_scene
 	car = car_scene.instantiate() as Node3D
+	# An exam attempt drives with the exam's aids; free drive with the player's setting.
+	if &"assist_preset" in car and scenario.definition != Scenario.FREE_DRIVE:
+		car.set(&"assist_preset", "exam")
 	car.transform = global_transform.affine_inverse() * start.global_transform
 	add_child(car)
 	car.reset_physics_interpolation()
@@ -121,7 +124,13 @@ func _wire(probe: VehicleProbe, bake: Bake) -> void:
 	for row in w.store(Schema.SOURCE).size():
 		capacity += w.store(Schema.SOURCE).column(&"count")[row]
 	_traffic_view = TrafficView.new(scenario, capacity)
+	if car is CollisionObject3D:
+		_traffic_view.ignore = (car as CollisionObject3D).get_rid()
 	world_runner.add_view(_traffic_view.draw)
+	# The knocks road users give the car ([Impacts]).
+	world_runner.add_view(func(world: World) -> void:
+		if is_instance_valid(car) and car.has_method(&"knock"):
+			car.call(&"knock", world.store(Schema.VEHICLE).get_value(vehicle, &"impulse")))
 	var authored := bake.nodes
 	world_runner.add_view(func(world: World) -> void: SceneViews.draw_lights(world, authored))
 	SceneViews.place_parked_cars(w, authored)

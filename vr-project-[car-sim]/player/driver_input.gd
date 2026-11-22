@@ -12,11 +12,14 @@ const HANDBRAKE := &"handbrake"
 const INDICATOR_LEFT := &"indicator_left"
 const INDICATOR_RIGHT := &"indicator_right"
 const HEADLIGHTS := &"toggle_headlights"
+## Gear changes, read in the manual gearbox only.
+const SHIFT_UP := &"shift_up"
+const SHIFT_DOWN := &"shift_down"
 
 ## Every action a car reads, for checks that the bindings exist.
 const CAR_ACTIONS: Array[StringName] = [
 	THROTTLE, BRAKE, STEER_LEFT, STEER_RIGHT, HANDBRAKE, INDICATOR_LEFT, INDICATOR_RIGHT,
-	HEADLIGHTS]
+	HEADLIGHTS, SHIFT_UP, SHIFT_DOWN]
 
 
 ## Accelerator, 0 to 1.
@@ -51,3 +54,12 @@ static func indicator_pressed(event: InputEvent) -> VehicleProbe.Indicator:
 	if event.is_action_pressed(INDICATOR_RIGHT):
 		return VehicleProbe.Indicator.RIGHT
 	return VehicleProbe.Indicator.OFF
+
+
+## The gear change [param event] asks for: +1 up, -1 down, 0 none.
+static func shift_pressed(event: InputEvent) -> int:
+	if event.is_action_pressed(SHIFT_UP):
+		return 1
+	if event.is_action_pressed(SHIFT_DOWN):
+		return -1
+	return 0

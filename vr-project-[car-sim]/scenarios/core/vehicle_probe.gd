@@ -21,6 +21,8 @@ const META_KEY := &"vehicle_probe"
 @export var hull_height := 0.75
 ## Below this speed, in metres per second, the car counts as stopped.
 @export var stop_speed := 0.3
+## The car's mass, kilograms; a car with a spec sets its own.
+@export var mass := 1250.0
 
 @export_group("Footprint")
 ## Body length and width, in metres, centred on the probe.
@@ -98,5 +100,5 @@ func spawn_values() -> Dictionary:
 	var values := reading()
 	values.merge({name = get_parent().name, body_length = body_length, body_width = body_width,
 		wheelbase = wheelbase, track = track, hull_size = hull_size, hull_height = hull_height,
-		stop_speed = stop_speed, mirrors = mirrors})
+		stop_speed = stop_speed, mirrors = mirrors, mass = mass})
 	return values

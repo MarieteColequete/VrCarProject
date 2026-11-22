@@ -111,6 +111,7 @@ func _test_bake(map: PackedScene) -> void:
 
 ## Driven straight at the kerb, the front tyres stop against it, and that is hitting the kerb.
 func _test_head_on(map: PackedScene) -> void:
+	var floor := ground()
 	var runner := _runner(map)
 	await process_frame
 	var car: Node3D = runner.car
@@ -122,12 +123,14 @@ func _test_head_on(map: PackedScene) -> void:
 	expect(car.global_position.x > LANE_X + 0.01 and front < KERB_X + 0.01,
 		"driven at the kerb, the car moves until its tyres meet it, and no further")
 	var r := _end(runner)
+	floor.queue_free()
 	expect(_count(r, &"kerb_mounted") == 1, _say("driving into the kerb is one kerb fault", r))
 	await process_frame
 
 
 ## Steered into the kerb while driving along the road, the right-hand tyres stop against it.
 func _test_along(map: PackedScene) -> void:
+	var floor := ground()
 	var runner := _runner(map)
 	await process_frame
 	var car: Node3D = runner.car
@@ -140,6 +143,7 @@ func _test_along(map: PackedScene) -> void:
 	expect(furthest > KERB_X - 0.1 and furthest < KERB_X + 0.02,
 		"steered into the kerb, the tyres reach it and stop against it")
 	var r := _end(runner)
+	floor.queue_free()
 	expect(_count(r, &"kerb_mounted") >= 1, _say("steering into the kerb is a kerb fault", r))
 	await process_frame
 
@@ -147,6 +151,7 @@ func _test_along(map: PackedScene) -> void:
 ## Driven down the lane, the car crosses the looks-only path and stops against the house, which is
 ## a contact.
 func _test_house(map: PackedScene) -> void:
+	var floor := ground()
 	var runner := _runner(map)
 	await process_frame
 	var car: Node3D = runner.car
@@ -157,6 +162,7 @@ func _test_house(map: PackedScene) -> void:
 	expect(car.global_position.z - 2.1 > house_front - 0.05,
 		"the house stops the car: its body goes no further than the house's front")
 	var r := _end(runner)
+	floor.queue_free()
 	expect(r.has_fault(&"contact_obstacle"), _say("driving into the house is a contact", r))
 	await process_frame
 

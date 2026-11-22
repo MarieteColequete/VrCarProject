@@ -12,6 +12,13 @@ extends RefCounted
 ## behind something that is not traffic for longer than its patience, it moves into a clear
 ## neighbour lane when no solid line or kerb lies in between.
 ##
+## A car drives its path on the shared vehicle core ([PlanarVehicle], its [CarSpec] from
+## [TrafficSpecs]): the model above gives the speed it wants, slowed ahead of bends to what it
+## takes them at, and the engine, the brakes and the tyres give what they can. It steers to keep
+## its lane, so it sits a little off the curve and at a small angle to it ([member lateral],
+## [member heading]), and a lane change is steering across to the next lane. Walkers and scripted
+## road users that do not react keep to their path exactly.
+##
 ## A tick takes a copy of the world's columns ([method copy_of]), thinks every row
 ## ([method think], on worker threads: it reads the table's own arrays and the snapshot and writes
 ## only its row of the decision columns), commits every row ([method commit], main thread), and
@@ -38,7 +45,8 @@ const DYNAMIC := {
 	upcoming = 0, rng_state = 0, committed = false, blocked_for = 0.0, shift = Vector3.ZERO,
 	shift_left = 0.0, armed = false, clock = 0.0, paused_for = 0.0, paused_this_lap = false,
 	braking_hard = false, position = Vector3.ZERO, facing = Vector3.FORWARD, jumped = false,
-	leader = 0,
+	leader = 0, lateral = 0.0, heading = 0.0, side_speed = 0.0, yaw_rate = 0.0, steer = 0.0,
+	crashed = false,
 }
 ## The columns of what a road user is and how it drives, set when it spawns and never changed.
 const CONFIG := {
@@ -47,7 +55,7 @@ const CONFIG := {
 	colour = Color(0.85, 0.75, 0.2), route = [], route_seed = 0, reactive = true,
 	max_accel = 2.0, comfort_decel = 3.0, max_decel = 8.0, hard_brake = 4.0, min_gap = 2.0,
 	time_headway = 1.5, patience = 4.0, change_time = 2.0, start_at = 0.0, goal_lane = 0,
-	goal_at = -1.0, model = "",
+	goal_at = -1.0, model = "", spec = -1, max_lateral = 3.5,
 }
 
 var ids := PackedInt64Array()
@@ -81,6 +89,16 @@ var facing := PackedVector3Array()
 var jumped := PackedByteArray()
 ## What its sensor saw ahead, the entity, or 0.
 var leader := PackedInt64Array()
+## How far left of its path it is, metres, and its heading's angle to the path, radians, left
+## positive.
+var lateral := PackedFloat64Array()
+var heading := PackedFloat64Array()
+## Its speed to its left, m/s, its yaw rate, rad/s, and its front wheels' angle, radians.
+var side_speed := PackedFloat64Array()
+var yaw_rate := PackedFloat64Array()
+var steer := PackedFloat64Array()
+## Knocked off its lane by the player's car ([Impacts]): it brakes to a halt where it is.
+var crashed := PackedByteArray()
 
 # The configuration columns.
 var name: Array = []
@@ -115,6 +133,10 @@ var model: Array = []
 ## when it drives its path to the end.
 var goal_lane := PackedInt64Array()
 var goal_at := PackedFloat64Array()
+## Its car, an index into [method TrafficSpecs.all].
+var spec := PackedInt64Array()
+## The sideways acceleration it takes a bend at, at most, m/s².
+var max_lateral := PackedFloat64Array()
 
 # The decision columns: what thinking decided, row by row, for commit.
 var d_decided := PackedByteArray()
@@ -124,6 +146,9 @@ var d_leader := PackedInt64Array()
 var d_braking_hard := PackedByteArray()
 var d_committed := PackedByteArray()
 var d_blocked_for := PackedFloat64Array()
+var d_side_speed := PackedFloat64Array()
+var d_yaw_rate := PackedFloat64Array()
+var d_steer := PackedFloat64Array()
 ## Per row, the neighbour lanes found clear; commit checks the markings.
 var d_sides: Array = []
 ## Per row, each [code][kind, data][/code].
@@ -150,6 +175,9 @@ var r_light_red := PackedByteArray()
 var r_light_amber := PackedByteArray()
 var r_way_clear := PackedByteArray()
 var r_crossing_busy := PackedByteArray()
+var r_curvature: Array = []
+## The road users' cars' specs, packed ([method TrafficSpecs.all]).
+var s_specs: Array = []
 
 var _rows := {}
 
@@ -204,6 +232,8 @@ static func spawn_values(config: Dictionary, lane: LaneData, lanes: Dictionary) 
 	var values := CONFIG.duplicate()
 	values.merge(config, true)
 	values.merge(DYNAMIC)
+	if values.spec < 0:
+		values.spec = TrafficSpecs.pick(values.body_size)
 	values.lane = lane.id
 	values.length = lane.length
 	values.progress = clampf(values.start_at, 0.0, lane.length)
@@ -321,13 +351,15 @@ func use_routes(routes: RouteTable, flags: Array[PackedByteArray]) -> void:
 	r_light_amber = flags[LaneRules.LIGHT_AMBER]
 	r_way_clear = flags[LaneRules.WAY_CLEAR]
 	r_crossing_busy = flags[LaneRules.CROSSING_BUSY]
+	r_curvature = routes.curvature
+	s_specs = TrafficSpecs.all()
 
 
 ## Makes room for this tick's decisions. Main thread, before thinking.
 func prepare_decisions() -> void:
 	var n := ids.size()
 	for array: Variant in [d_decided, d_speed, d_kind, d_leader, d_braking_hard, d_committed,
-			d_blocked_for]:
+			d_blocked_for, d_side_speed, d_yaw_rate, d_steer]:
 		array.resize(n)
 	d_decided.fill(0)
 	d_sides.resize(n)
@@ -339,6 +371,9 @@ func prepare_decisions() -> void:
 ## creates no object of a script class. In four parts: what is ahead, the speed it calls for,
 ## whether that is hard braking, and, when stuck, the neighbour lanes it could move into.
 func think(i: int, snapshot: TrafficSnapshot, dt: float) -> void:
+	if state[i] == State.MOVING and crashed[i] and not pedestrian[i]:
+		_drift(i, dt)
+		return
 	if state[i] != State.MOVING or not reactive[i]:
 		return
 	var slot: int = r_slots.get(lane[i], -1)
@@ -348,9 +383,14 @@ func think(i: int, snapshot: TrafficSnapshot, dt: float) -> void:
 	d_committed[i] = committed[i]
 	var events := []
 	var target := minf(speed[i], r_speed_limit[slot])
+	var drives := not pedestrian[i]
+	if drives:
+		target = minf(target, _bend_speed(i, slot))
 	var ahead := PackedFloat64Array([0.0, 0.0, INF, 0.0, 0.0])
 	var rule := _ahead(i, slot, snapshot, target, ahead)
 	var kind := _decide_speed(i, ahead, rule, target, dt)
+	if drives:
+		_drive(i, slot, kind, dt)
 	var body := int(ahead[AHEAD_ENTITY])
 	_decide_braking(i, ahead, events)
 	if kind != reaction[i]:
@@ -471,7 +511,10 @@ func commit(i: int, lanes: Dictionary, markings: MarkingIndex, armed_now: bool,
 			if paused_for[i] >= pause_time[i]:
 				state[i] = State.MOVING
 		State.MOVING:
-			if not reactive[i] or not d_decided[i]:
+			if crashed[i] and d_decided[i]:
+				current_speed[i] = d_speed[i]
+				reaction[i] = d_kind[i]
+			elif not reactive[i] or not d_decided[i]:
 				current_speed[i] = script_speed(i, lanes)
 			else:
 				current_speed[i] = d_speed[i]
@@ -487,7 +530,13 @@ func commit(i: int, lanes: Dictionary, markings: MarkingIndex, armed_now: bool,
 					if target and _markings_allow(i, target, markings):
 						_move_to(i, target, d_leader[i], events)
 						break
-			_advance(i, current_speed[i] * dt, lanes, events)
+			if d_decided[i] and not pedestrian[i] and (reactive[i] or crashed[i]):
+				side_speed[i] = d_side_speed[i]
+				yaw_rate[i] = d_yaw_rate[i]
+				steer[i] = d_steer[i]
+				_advance(i, _along_path(i, dt), lanes, events)
+			else:
+				_advance(i, current_speed[i] * dt, lanes, events)
 	return events
 
 
@@ -514,6 +563,10 @@ func _advance(i: int, step: float, lanes: Dictionary, events: Array) -> void:
 			paused_this_lap[i] = 0
 			# Jumped back to the path's start: drawn there, not sliding back across the world.
 			jumped[i] = 1
+			lateral[i] = 0.0
+			heading[i] = 0.0
+			side_speed[i] = 0.0
+			yaw_rate[i] = 0.0
 		else:
 			progress[i] = length[i]
 			state[i] = State.DONE
@@ -534,14 +587,11 @@ func _place(i: int, l: LaneData) -> void:
 	var behind := l.transform * curve.sample_baked(maxf(offset - 0.5, 0.0))
 	var tangent := ahead - behind
 	tangent.y = 0.0
-	if shift_left[i] > 0.0 and change_time[i] > 0.0:
-		# Mid lane change: it eases from where it was onto the lane, heading across.
-		var weight := smoothstep(0.0, 1.0, shift_left[i] / change_time[i])
-		here += shift[i] * weight
-		if tangent.length() > 0.001:
-			tangent = tangent.normalized() - shift[i].normalized() * 0.25 * weight
 	if tangent.length() > 0.001:
-		facing[i] = tangent.normalized()
+		tangent = tangent.normalized()
+		# Off the path by its lateral offset, at its heading's angle to it.
+		here += Vector3.UP.cross(tangent) * lateral[i]
+		facing[i] = tangent.rotated(Vector3.UP, heading[i])
 	position[i] = here
 
 
@@ -572,7 +622,12 @@ func _move_to(i: int, target: LaneData, blocker: int, events: Array) -> void:
 	progress[i] = at
 	var offset := from - target.point_at(at)
 	offset.y = 0.0
-	shift[i] = offset
+	var along := target.point_at(at + 0.5) - target.point_at(at - 0.5)
+	along.y = 0.0
+	# Where it is now, off the new lane: it steers across to it.
+	lateral[i] = offset.dot(Vector3.UP.cross(along.normalized())) if along.length() > 0.001 \
+		else 0.0
+	shift[i] = Vector3.ZERO
 	shift_left[i] = change_time[i]
 	blocked_for[i] = 0.0
 	reaction[i] = Kind.CHANGING_LANE
@@ -704,3 +759,122 @@ func _neighbour_clear(i: int, snapshot: TrafficSnapshot, slot: int, target: floa
 		points.append(_point_at(slot, at - behind + reach * k / TrafficSensor.SEGMENTS))
 	var hit := PackedFloat64Array([0.0, 0.0, INF, 0.0, 0.0])
 	return not TrafficSensor.sense(snapshot, points, body_size[i].x * 0.45, ids[i], hit)
+
+
+## The speed row [param i] takes the bends ahead on lane [param slot] at: through each, no faster
+## than turns it at its [member max_lateral], slowing to it from here at its comfortable
+## deceleration.
+func _bend_speed(i: int, slot: int) -> float:
+	var v := current_speed[i]
+	var comfort := comfort_decel[i]
+	var look := v * v / (2.0 * comfort) + 10.0
+	var here: PackedFloat64Array = r_curvature[slot]
+	var next: int = r_slots.get(upcoming[i], -1) if upcoming[i] else -1
+	var then: PackedFloat64Array = r_curvature[next] if next >= 0 else PackedFloat64Array()
+	var count := here.size()
+	var start := int(progress[i] / RouteTable.CURVATURE_STEP)
+	var steps := int(look / RouteTable.CURVATURE_STEP)
+	var most := 0.0
+	var best := INF
+	# Every third sample: a bend's curvature changes over metres, not over one.
+	for k in range(0, steps + 1, 3):
+		var at := start + k
+		var c := 0.0
+		if at < count:
+			c = here[at]
+		elif not then.is_empty():
+			c = then[mini(at - count, then.size() - 1)]
+		elif loop[i] and count > 0:
+			c = here[at % count]
+		c = absf(c)
+		if c > 0.002 and c > most * 0.5:
+			most = maxf(most, c)
+			var through := max_lateral[i] / c
+			best = minf(best, sqrt(through + 2.0 * comfort * k * RouteTable.CURVATURE_STEP))
+	return best
+
+
+## The curvature of row [param i]'s path [param ahead] metres on from it, on lane [param slot] and
+## the lane it continues onto.
+func _curvature_ahead(i: int, slot: int, ahead: float) -> float:
+	var offset := progress[i] + ahead
+	var total := r_length[slot]
+	if offset > total:
+		var next: int = r_slots.get(upcoming[i], -1) if upcoming[i] else -1
+		if next < 0:
+			if not loop[i] or total <= 0.0:
+				return 0.0
+			offset = fposmod(offset, total)
+		else:
+			slot = next
+			offset -= total
+	var samples: PackedFloat64Array = r_curvature[slot]
+	if samples.is_empty():
+		return 0.0
+	return samples[clampi(int(offset / RouteTable.CURVATURE_STEP), 0, samples.size() - 1)]
+
+
+## Drives row [param i]'s car one step toward the speed it decided ([member d_speed]): steers to
+## keep its lane, or across to it during a lane change, and steps the [PlanarVehicle]. Writes its
+## speeds and steering into its decision. Any thread.
+func _drive(i: int, slot: int, kind: Kind, dt: float) -> void:
+	var car: PackedFloat64Array = s_specs[spec[i]]
+	var v := current_speed[i]
+	var wanted := (d_speed[i] - v) / dt
+	if kind == Kind.NONE:
+		# Playing its script, it eases down to a lower limit rather than braking hard.
+		wanted = maxf(wanted, -comfort_decel[i])
+	var bend := _curvature_ahead(i, slot, v * 0.3)
+	var aim := atan(-lateral[i] * 2.0 / maxf(change_time[i], 0.5) / maxf(v, 2.0))
+	aim = clampf(aim, -0.15, 0.15)
+	var gain := car[CarSpec.WHEELBASE] / (maxf(v, 1.0) * 0.35)
+	var lock := car[CarSpec.STEER_LOCK]
+	var angle := clampf(PlanarVehicle.steer_for(car, bend, v) + gain * (aim - heading[i]),
+		-lock, lock)
+	var next := PlanarVehicle.step(car, Vector3(v, side_speed[i], yaw_rate[i]), angle, wanted,
+		1.0, dt)
+	d_speed[i] = next.x
+	d_side_speed[i] = next.y
+	d_yaw_rate[i] = next.z
+	d_steer[i] = angle
+
+
+## Moves row [param i] across and around its path for [param dt] seconds as its car's speeds take
+## it, and returns how far along the path that is. Main thread, in commit.
+func _along_path(i: int, dt: float) -> float:
+	var slot: int = r_slots.get(lane[i], -1)
+	var k := 0.0
+	if slot >= 0:
+		var samples: PackedFloat64Array = r_curvature[slot]
+		if not samples.is_empty():
+			k = samples[clampi(int(progress[i] / RouteTable.CURVATURE_STEP), 0,
+				samples.size() - 1)]
+	var vx := current_speed[i]
+	var vy := side_speed[i]
+	var psi := heading[i]
+	var along := (vx * cos(psi) - vy * sin(psi)) / maxf(1.0 - k * lateral[i], 0.2)
+	lateral[i] += (vx * sin(psi) + vy * cos(psi)) * dt
+	heading[i] = wrapf(psi + (yaw_rate[i] - k * along) * dt, -PI, PI)
+	return maxf(along * dt, 0.0)
+
+
+## A crashed row [param i]: no longer driving its lane, it brakes to a halt with the wheels
+## straight, sliding and turning as the knock left it. Any thread.
+func _drift(i: int, dt: float) -> void:
+	var car: PackedFloat64Array = s_specs[spec[i]]
+	var next := PlanarVehicle.step(car, Vector3(current_speed[i], side_speed[i], yaw_rate[i]),
+		0.0, -6.0, 1.0, dt)
+	if next.x <= 0.0 and absf(next.y) < 0.2:
+		next = Vector3.ZERO
+	d_decided[i] = 1
+	d_speed[i] = next.x
+	d_side_speed[i] = next.y
+	d_yaw_rate[i] = next.z
+	d_steer[i] = 0.0
+	d_kind[i] = Kind.STOPPED if next.x < 0.3 else reaction[i]
+	d_leader[i] = 0
+	d_braking_hard[i] = 0
+	d_committed[i] = committed[i]
+	d_blocked_for[i] = 0.0
+	d_sides[i] = PackedInt64Array()
+	d_events[i] = []

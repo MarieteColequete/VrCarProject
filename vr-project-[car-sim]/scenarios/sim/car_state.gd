@@ -33,6 +33,7 @@ var body_length := 4.2
 var body_width := 1.8
 var hull_size := Vector3(1.9, 1.5, 4.3)
 var hull_height := 0.75
+var mass := 1250.0
 var clock := 0.0
 var _indicator_seen := VehicleProbe.Indicator.UNKNOWN
 var _indicator_since := 0.0
@@ -78,6 +79,7 @@ static func _read(s: ComponentStore) -> CarState:
 	car.body_width = s.get_value(id, &"body_width")
 	car.hull_size = s.get_value(id, &"hull_size")
 	car.hull_height = s.get_value(id, &"hull_height")
+	car.mass = s.get_value(id, &"mass")
 	car.clock = s.get_value(id, &"clock")
 	car._indicator_seen = s.get_value(id, &"indicator_seen")
 	car._indicator_since = s.get_value(id, &"indicator_since")

@@ -105,7 +105,7 @@ static func snapshot_of(world: World, table: AgentTable, car: CarState) -> Traff
 		var flat := Vector2(f.x, f.z).normalized()
 		var at := table.position[i]
 		snapshot.add(table.ids[i], Vector2(at.x, at.z), flat, size.z * 0.5, size.x * 0.5,
-			flat * table.current_speed[i], true)
+			flat * table.current_speed[i], not table.crashed[i])
 	if car:
 		snapshot.add_box(car.entity, car.transform, car.hull_size, car.velocity, false)
 	var obstacles := world.store(Schema.OBSTACLE)

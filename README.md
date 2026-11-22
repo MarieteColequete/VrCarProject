@@ -16,6 +16,7 @@ scripts read them through `DriverInput`.
 | Brake, then reverse once stopped | S, Down | Left trigger |
 | Steer | A and D, Left and Right | Left stick |
 | Handbrake | Space | A (Cross) |
+| Change gear up, down, in the manual gearbox | Shift, Ctrl | B (Circle), D-pad down |
 | Indicators | Q and E | Left and right shoulder |
 | Headlights on or off | L | X (Square) |
 | Look around | Mouse | Right stick |
@@ -54,6 +55,7 @@ actions, so the car reads them as it reads a keyboard or a gamepad:
 | Throttle | Right trigger |
 | Brake, then reverse once stopped | Left trigger |
 | Handbrake | Right A |
+| Change gear up, down, in the manual gearbox | Flick the right stick up or down |
 | Indicators | Flick the left stick left or right |
 | Headlights on or off | Right B |
 | Recentre the seat | Right stick click, or hold both grips away from the wheel for 2 s |
@@ -101,7 +103,7 @@ fault, a reaction, a light changing, the car entering a zone.
 A `WorldRunner` runs a tick in a fixed order: it applies the traffic decided on worker threads
 during the last tick, reads the car's pose through its `VehicleProbe`, runs the systems in stages,
 applies their deltas in order, starts the next traffic work, publishes the tick's events, and runs
-the views. The stages (`Simulation`, `scenarios/sim/`) are the car's motion; zones and contacts;
+the views. The stages (`Simulation`, `scenarios/sim/`) are the car's motion; zones, contacts and crashes;
 lights and traffic sources; then the rules and the session. Within a stage every system reads the
 same world.
 
@@ -111,14 +113,15 @@ world, every node reference becoming an entity id. Detection is geometry, not ph
 a zone while its body box overlaps the zone's box, and touches a road user or obstacle while its
 contact hull overlaps that body, so the same drive scores the same way on every run. Views draw the
 world and touch nodes and servers only: the road users are one `MultiMesh`, interpolated between
-ticks, with a kinematic body each in the physics server so the player's car collides with them;
+ticks, with a kinematic body each in the physics server; the player's car meets walkers there, and
+road users' cars only through the crash system (`Impacts`);
 lights light their lamps; parked cars are placed once.
 
 Solid things collide by their kind, a `BodyType` (`scenarios/data/body_types/`), one per physics
 layer: the ground, pavements and kerbs, obstacles (houses, poles, fences, props), vehicles (parked
 cars and road users, on the traffic layer), pedestrians, and the player's car. A type sets the
-layer, what it collides with, and the surface's grip and bounce (kept for wheel physics; the arcade
-car does not read them). Whether it is judged follows its layer: the bake turns the boxes of
+layer, what it collides with, and the surface's grip and bounce; the player's car reads the grip
+under each wheel. Whether it is judged follows its layer: the bake turns the boxes of
 obstacles, vehicles, and pedestrians into obstacle entities, which road users see and
 `ContactCheck` judges, and leaves pavements out. The player's car is a box riding 0.25 m above the ground, so the bodywork clears a
 kerb and may overhang it, and a box for each tyre, which is what a kerb stops. A tyre touching or
@@ -187,15 +190,40 @@ read per map, light enough for a standalone headset. The materials are CC0 sets 
 headliner, and [Plastic012A](https://ambientcg.com/view?id=Plastic012A) for the dash and doors;
 each is tinted to the car's black cabin.
 
-The car drives as an arcade car with a real car's habits (`CarDrivetrain`). A five speed automatic
-gearbox changes up as the engine's revolutions rise, later the harder the throttle is pressed, and
-down as the car slows, with a short pause in the drive at each change. The car turns along its front
-wheels like a bicycle, so it turns only while it moves and more tightly the slower it goes: the lock
-eases with the speed, so a full turn never pushes the car sideways harder than a tyre grips. The
-steering eases to the controls rather than snapping. The car dips under braking, squats under
-acceleration, and rolls out of a turn, all of it as one, cockpit, instruments, and mirrors
-included, while the wheels stay on the road and the driver's head stays level, so the cabin moves a
-little round the driver as a real body does on its springs.
+The car drives on a vehicle model in the spirit of the open-world racing games, real enough to
+learn on and forgiving enough to enjoy (`scenarios/vehicle/`). The car is a rigid body of its
+spec's mass (`CarSpec`; the Kiri '86 is a rear-wheel drive coupé of 1250 kg) on four suspended
+wheels, each cast down to the road for its spring, damper and anti-roll bar. The engine's torque
+curve, a six speed gearbox, a limited slip differential, the brakes and the handbrake turn each
+wheel, and each tyre grips by a simplified Pacejka magic formula over its combined slip, so
+braking or pulling hard leaves less grip for turning, grip grows less than the load on the tyre,
+and a tyre past its peak slides (`TyreModel`, `Powertrain`, `CarDynamics`). The weight moves
+between the wheels as the car brakes, pulls and turns. The surface under each wheel gives its
+friction, from the body it lies on (`BodyType`). The body yaws and rides its springs but does not
+pitch or roll, so the driver's head stays level in a headset; the model dips under braking,
+squats under acceleration and rolls out of a turn as one, cockpit, instruments and mirrors
+included, so the cabin moves a little round the driver as a real body does on its springs.
+
+The driving aids (`Assists`) come in three presets, set by the project setting `car/assists`:
+`exam`, the default and always the one in an exam attempt, with anti-lock brakes, traction
+control, stability control, and steering help for keys and sticks (the lock shrinks with speed to
+what the tyres can use, and counter-steer catches a slide); `sport`, with anti-lock brakes, a late
+traction control and less steering help; and `sim`, with anti-lock brakes only. The steering wheel
+held in VR always steers the wheels directly. The automatic gearbox changes up later the harder the
+throttle is pressed, kicks down at full throttle, and reverses on the brake once the car stands
+still; with `car/gearbox` set to `manual`, the driver changes gear with `shift_up` and
+`shift_down`, and the rev limiter holds the engine at the redline. The tyres squeal as they near
+their grip, and the controllers buzz as the anti-lock brakes work.
+
+Road users drive on the same model, as two axles on flat ground (`PlanarVehicle`), each with the
+spec its size picks (`TrafficSpecs`: a hatchback, a saloon, a van or a lorry). The Intelligent
+Driver Model still decides the speed they want; they slow ahead of a bend to what they take it at,
+steer to keep their lane, and steer across to the next one to change lanes. Running into a road
+user's car trades an impulse between the two by their masses (`Impacts`); hit hard, the road user
+crashes and brakes to a halt where the knock leaves it, and the road users behind go round it. All
+of the road users' driving stays reproducible and runs on their worker threads; crashes are worked
+out on the main thread from the car's state, by geometry, so the same car state gives the same
+crash.
 
 The car has an interior mirror and two door mirrors (`CarMirror`), their picture on the model's
 own glass: `PlayerCarModel` cuts each housing's face out of the model when the car is built, as it

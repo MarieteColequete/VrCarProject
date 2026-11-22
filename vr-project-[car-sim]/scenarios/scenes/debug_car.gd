@@ -1,21 +1,25 @@
-extends CharacterBody3D
+extends RigidBody3D
 ## The player's car, driven in every scenario and in free drive, on the desktop or in a headset. It reads the
 ## controls through [DriverInput] (keyboard, gamepad), looks through a [DriverView] at the
 ## driver's seat, and toggle_view switches to a chase camera outside VR. The headless tests turn
-## input off and move it directly, or, to drive its physics, keep input on and set
-## [member held_controls]. Its body is the [PlayerCarModel], with a cockpit the driver sits in:
-## its wheels roll and steer, its steering wheel turns, its lights show the car's state, and the
-## [InstrumentCluster] behind the steering wheel shows the speed, the revolutions and the gear, and
-## the tell-tales. L (or the
-## gamepad's X) switches the headlights. The driver sets the mirrors with the mirror switch
-## ([MirrorAdjust]) or, in VR, by hand ([MirrorGrab]), and the tilts are kept in
-## [member settings_path]. Its gearbox and steering are the [CarDrivetrain]'s: an
-## automatic gearbox with the engine's revolutions, and steering along the front wheels with less
-## lock at speed.
+## input off and move it directly (the body is then frozen and placed), or, to drive its physics,
+## keep input on and set [member held_controls]. Its body is the [PlayerCarModel], with a cockpit
+## the driver sits in: its wheels roll and steer, its steering wheel turns, its lights show the
+## car's state, and the [InstrumentCluster] behind the steering wheel shows the speed, the
+## revolutions and the gear, and the tell-tales. L (or the gamepad's X) switches the headlights.
+## The driver sets the mirrors with the mirror switch ([MirrorAdjust]) or, in VR, by hand
+## ([MirrorGrab]), and the tilts are kept in [member settings_path].
+##
+## It drives on the shared vehicle core: a rigid body of the [member spec]'s mass on four
+## suspended wheels, each cast down to the road for its spring, damper and anti-roll bar, with
+## the engine, the gearbox, the brakes, the aids and the tyres of [CarDynamics] pushing on the road
+## at each contact patch, on the friction of the surface under it. The body yaws and heaves but
+## does not pitch or roll, so the driver's head stays level in a headset; the weight still moves
+## between the wheels as it brakes and corners, and the model leans to show it.
 ##
 ## Its collider is the player's [BodyType]: the body's box rides 0.25 m above the ground, so it
 ## clears a kerb and may overhang it, and a box for each tyre, at the [VehicleProbe]'s wheels,
-## meets the kerb. Kerbs and pavements are solid, so the tyres stop against them.
+## meets the kerb. Kerbs and pavements are solid, so a slow tyre stops against them.
 
 ## Seconds an indicator stays lit, and then dark, as it blinks.
 const BLINK := 0.35
@@ -26,28 +30,52 @@ const INSTRUMENTS_FROM_WHEEL := Vector3(0.0, 0.06, -0.15)
 ## The project setting for the mirrors: [code]full[/code], [code]low[/code] (half the pixels, one
 ## mirror a frame), or [code]off[/code].
 const MIRRORS_SETTING := "car/mirrors"
+## The project setting for the gearbox: [code]automatic[/code] or [code]manual[/code].
+const GEARBOX_SETTING := "car/gearbox"
+## Where each wheel's suspension is cast down from, above the car's base, metres, and how far:
+## the wheel's travel and its radius. At rest the car's base sits about on the road.
+const CAST_FROM := 0.38
+## How much faster the steering moves toward the keys and sticks, and back, in full locks per
+## second.
+const STEER_RATE := 3.0
+const RETURN_RATE := 4.0
+## How quickly the measured acceleration the model leans with settles, per second.
+const ACCEL_SMOOTHING := 30.0
 
-@export var input_enabled := true
-@export var acceleration := 6.0
-@export var braking := 12.0
-@export var max_speed := 25.0
-@export var reverse_speed := 5.0
-## Below this speed, in metres per second, the brake reverses instead.
-@export var reverse_threshold := 0.1
+@export var input_enabled := true:
+	set(value):
+		input_enabled = value
+		_apply_freeze()
+## The car's make-up: engine, gearbox, brakes, tyres, suspension.
+@export var spec: CarSpec = preload("res://scenarios/vehicle/specs/kiri86.tres")
+## The driving aids' preset ([Assists]); empty takes the project setting.
+@export var assist_preset := ""
+## Below this speed, in metres per second, the brake reverses instead (the automatic).
+@export var reverse_threshold := 0.3
 
+## The car's speed along its length, m/s, negative reversing.
 var current_speed := 0.0
-## The gearbox's gear: 1 to 5, -1 reversing, 0 in neutral; see [CarDrivetrain].
-var gear := 0
+## The engine, the gearbox, the brakes and the tyres.
+var dynamics: CarDynamics
+## The gearbox's gear: 1 and up, -1 reversing, 0 in neutral.
+var gear: int:
+	get:
+		return dynamics.gear if dynamics else 0
 ## The engine's revolutions per minute.
-var rpm := CarDrivetrain.IDLE_RPM
+var rpm: float:
+	get:
+		return dynamics.rpm if dynamics else 850.0
 ## The throttle held now, 0 to 1.
 var throttle := 0.0
 ## The front wheels' turn, radians, left positive.
 var wheel_angle := 0.0
-## Controls set from code instead of [DriverInput], for tests: [code]{throttle, brake, steer}[/code]
-## each from 0 to 1, steer from -1 (full right) to 1 (full left); empty to read the player's
-## controls.
+## Controls set from code instead of [DriverInput], for tests: [code]{throttle, brake, steer,
+## handbrake}[/code] each from 0 to 1, steer from -1 (full right) to 1 (full left); empty to read
+## the player's controls.
 var held_controls := {}
+## Whether each wheel touches the road, and how far its spring is compressed, metres.
+var grounded := PackedByteArray([0, 0, 0, 0])
+var compression := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
 ## The car as drawn; null when its model does not load.
 var model: PlayerCarModel
 var instruments: InstrumentCluster
@@ -63,16 +91,22 @@ var mirror_adjust := MirrorAdjust.new()
 ## The settings file the driver's mirror tilts are kept in between sessions.
 var settings_path := "user://car.cfg"
 
+var _packed: PackedFloat64Array
 var _steer := 0.0
 var _braking := false
-var _shifting := 0.0
-var _last_speed := 0.0
-var _yaw_rate := 0.0
+var _reversing := false
+var _accel := Vector2.ZERO
+var _last_velocity := Vector3.ZERO
 var _mirror_frame := 0
 var _on_kerb := false
 var _mirror_quality := "full"
 var _blink_clock := 0.0
 var _mirror_held := false
+var _abs_was := false
+var _settled := false
+var _shift := 0
+var _mu_mean := 1.0
+var _ray := PhysicsRayQueryParameters3D.new()
 
 @onready var probe: VehicleProbe = $VehicleProbe
 @onready var driver_view: DriverView = $DriverView
@@ -81,6 +115,10 @@ var _mirror_held := false
 
 func _ready() -> void:
 	BodyType.of(&"player").apply(self)
+	_setup_body()
+	probe.mass = spec.mass
+	probe.wheelbase = spec.wheelbase
+	probe.track = spec.track
 	model = PlayerCarModel.make(probe.wheelbase)
 	if model:
 		add_child(model)
@@ -105,6 +143,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if DriverInput.headlights_pressed(event):
 		probe.headlights = VehicleProbe.Toggle.OFF if probe.headlights == VehicleProbe.Toggle.ON \
 			else VehicleProbe.Toggle.ON
+		return
+	var shift := DriverInput.shift_pressed(event)
+	if shift != 0:
+		_shift = shift
 		return
 	var side := DriverInput.indicator_pressed(event)
 	if side != VehicleProbe.Indicator.OFF:
@@ -238,6 +280,58 @@ static func blink_on(clock: float) -> bool:
 	return fmod(clock, BLINK * 2.0) < BLINK
 
 
+## The body as the spec makes it: its mass, its centre of mass between the axles, its turn about
+## the vertical, and no pitch or roll.
+func _setup_body() -> void:
+	_packed = spec.packed()
+	dynamics = CarDynamics.new(_packed, _aids())
+	dynamics.manual = str(ProjectSettings.get_setting(GEARBOX_SETTING, "automatic")) == "manual"
+	mass = spec.mass
+	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
+	center_of_mass = Vector3(0.0, spec.cog_height, spec.wheelbase * (0.5 - spec.front_share))
+	inertia = Vector3(spec.yaw_inertia, spec.yaw_inertia, spec.yaw_inertia)
+	axis_lock_angular_x = true
+	axis_lock_angular_z = true
+	linear_damp_mode = RigidBody3D.DAMP_MODE_REPLACE
+	angular_damp_mode = RigidBody3D.DAMP_MODE_REPLACE
+	linear_damp = 0.0
+	angular_damp = 0.0
+	can_sleep = false
+	contact_monitor = true
+	max_contacts_reported = 8
+	_ray.collision_mask = Layers.WORLD | Layers.PAVEMENT
+	_ray.exclude = [get_rid()]
+	_apply_freeze()
+
+
+func _aids() -> PackedFloat64Array:
+	return Assists.from_settings() if assist_preset.is_empty() else Assists.preset(assist_preset)
+
+
+## Frozen and placed by hand while input is off, as the tests drive it; a body again with input.
+func _apply_freeze() -> void:
+	freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
+	freeze = not input_enabled
+	if not input_enabled:
+		linear_velocity = Vector3.ZERO
+		angular_velocity = Vector3.ZERO
+		_settled = false
+
+
+## Gives the body the impulse, N·s, the road users it ran into gave it ([Impacts]).
+func knock(impulse: Vector3) -> void:
+	if input_enabled and impulse != Vector3.ZERO:
+		apply_central_impulse(impulse)
+
+
+## Where wheel [param i] (front left, front right, rear left, rear right) is under the car, in its
+## own space, at the probe's footprint.
+func wheel_position(i: int) -> Vector3:
+	var x := probe.track * 0.5 * (-1.0 if i % 2 == 0 else 1.0)
+	var z := -probe.wheelbase * 0.5 if i < 2 else probe.wheelbase * 0.5
+	return Vector3(x, 0.0, z)
+
+
 ## Moves the live parts and the instruments to the car's state.
 func _show(delta: float) -> void:
 	_blink_clock += delta
@@ -247,83 +341,203 @@ func _show(delta: float) -> void:
 	var headlights := probe.headlights == VehicleProbe.Toggle.ON
 	var reversing := current_speed < -0.1
 	if model:
-		model.drive(delta, current_speed, wheel_angle / CarDrivetrain.LOCK, left, right, _braking,
-			reversing, headlights)
-		var along := (current_speed - _last_speed) / delta if delta > 0.0 else 0.0
-		model.lean(delta, along, current_speed * _yaw_rate)
+		model.drive(delta, current_speed, _steer, left, right, _braking, reversing, headlights)
+		model.lean(delta, _accel.x, _accel.y)
 	if sound:
 		var blinking := probe.indicator == VehicleProbe.Indicator.LEFT \
 			or probe.indicator == VehicleProbe.Indicator.RIGHT
-		sound.follow(rpm, throttle, _shifting > 0.0, blinking and lit,
-			current_speed * _yaw_rate, current_speed)
-	_last_speed = current_speed
+		var work := 0.0
+		for i in 4:
+			if grounded[i]:
+				work = maxf(work, dynamics.usage[i])
+		sound.follow(rpm, throttle, dynamics.shifting > 0.0, blinking and lit, work,
+			current_speed)
 	if instruments:
 		var parked := probe.handbrake == VehicleProbe.Toggle.ON
-		instruments.show_state(delta, current_speed * 3.6, rpm,
-			CarDrivetrain.gear_letter(gear, current_speed, parked), left, right, parked, headlights,
+		instruments.redline = spec.redline_rpm
+		instruments.show_state(delta, absf(current_speed) * 3.6, rpm,
+			Powertrain.gear_letter(gear, current_speed, parked), left, right, parked, headlights,
 			reversing)
 
 
+## The controls this step: the tests' held ones, or the player's.
+func _controls() -> Dictionary:
+	var shift := _shift
+	_shift = 0
+	if not held_controls.is_empty():
+		return {throttle = float(held_controls.get("throttle", 0.0)),
+			brake = float(held_controls.get("brake", 0.0)),
+			handbrake = float(held_controls.get("handbrake", 0.0)),
+			steer = float(held_controls.get("steer", 0.0)), shift = shift, held = true}
+	return {throttle = DriverInput.throttle(), brake = DriverInput.brake(),
+		handbrake = 1.0 if DriverInput.handbrake() else 0.0, steer = DriverInput.steer(),
+		shift = shift, held = false}
+
+
 func _drive(delta: float) -> void:
-	if not input_enabled:
+	if not input_enabled or delta <= 0.0:
 		_steer = 0.0
 		wheel_angle = 0.0
-		_yaw_rate = 0.0
 		_braking = false
+		_accel = Vector2.ZERO
 		return
-	var held := not held_controls.is_empty()
-	throttle = held_controls.get("throttle", 0.0) if held else DriverInput.throttle()
-	var brake: float = held_controls.get("brake", 0.0) if held else DriverInput.brake()
-	var handbrake := false if held else DriverInput.handbrake()
-	var steer: float = held_controls.get("steer", 0.0) if held else DriverInput.steer()
-	probe.handbrake = VehicleProbe.Toggle.ON if handbrake else VehicleProbe.Toggle.OFF
-	_braking = brake > 0.0 and current_speed > reverse_threshold
+	var forward := -global_basis.z
+	var up := global_basis.y
+	var velocity := linear_velocity
+	current_speed = velocity.dot(forward)
+	var c := _controls()
+	throttle = c.throttle
+	var brake: float = c.brake
+	probe.handbrake = VehicleProbe.Toggle.ON if c.handbrake > 0.5 else VehicleProbe.Toggle.OFF
 
-	var shifted := CarDrivetrain.next_gear(gear, current_speed, throttle)
-	if shifted != gear:
-		# Changing between forward gears drops the drive for a moment.
-		_shifting = CarDrivetrain.SHIFT_TIME if gear > 0 and shifted > 0 else 0.0
-		if _shifting > 0.0:
-			driver_view.pulse(0.15, 0.05)
-		gear = shifted
-	_shifting = maxf(_shifting - delta, 0.0)
-	var pull := 0.0 if _shifting > 0.0 else CarDrivetrain.pull(gear)
+	# The automatic reverses on the brake once stopped, and the throttle brakes a car rolling back.
+	if not dynamics.manual:
+		if _reversing and c.throttle > 0.0 and current_speed > -reverse_threshold:
+			_reversing = false
+		elif not _reversing and brake > 0.0 and c.throttle <= 0.0 \
+				and absf(current_speed) < reverse_threshold:
+			_reversing = true
+	var drive_pedal: float = brake if _reversing else c.throttle
+	var brake_pedal: float = c.throttle if _reversing else brake
+	if _reversing and current_speed > reverse_threshold:
+		drive_pedal = 0.0
+		brake_pedal = maxf(brake_pedal, brake)
+	_braking = brake_pedal > 0.0 and absf(current_speed) > 0.1
 
-	if handbrake:
-		current_speed = move_toward(current_speed, 0.0, braking * 1.5 * delta)
-	elif brake > 0.0 and current_speed > reverse_threshold:
-		current_speed = move_toward(current_speed, 0.0, braking * brake * delta)
-	elif brake > 0.0:
-		current_speed = move_toward(current_speed, -reverse_speed * brake, acceleration * delta)
-	elif throttle > 0.0 and current_speed < 0.0:
-		current_speed = move_toward(current_speed, 0.0, braking * delta)
-	elif throttle > 0.0:
-		current_speed = move_toward(current_speed, max_speed * throttle,
-			acceleration * pull * delta)
+	# Hands on the wheel steer it directly; the keys and sticks ease toward their steering, with
+	# the aids' lock at speed and their counter-steer.
+	var by_hand: bool = not c.held and driver_view.wheel.held()
+	var surface := _surface_under()
+	if by_hand:
+		_steer = driver_view.wheel.steer()
+		wheel_angle = _steer * spec.steer_lock
 	else:
-		current_speed = move_toward(current_speed, 0.0, acceleration * 0.25 * delta)
-	rpm = CarDrivetrain.rpm(current_speed, gear)
+		var outward: bool = absf(c.steer) > absf(_steer) and c.steer * _steer >= 0.0
+		_steer = move_toward(_steer, clampf(c.steer, -1.0, 1.0),
+			(STEER_RATE if outward else RETURN_RATE) * delta)
+		var rear_slide := (dynamics.angle[CarDynamics.RL] + dynamics.angle[CarDynamics.RR]) * 0.5
+		wheel_angle = _steer * Assists.steer_lock(dynamics.aids, _packed, current_speed, surface) \
+			+ Assists.counter_steer(dynamics.aids, _packed, rear_slide)
+		wheel_angle = clampf(wheel_angle, -spec.steer_lock, spec.steer_lock)
 
-	# Hands on the wheel steer it directly; the keys and sticks ease toward their steering.
-	var by_hand: bool = not held and driver_view.wheel.held()
-	_steer = driver_view.wheel.steer() if by_hand else CarDrivetrain.ease_steer(_steer, steer, delta)
-	wheel_angle = _steer * CarDrivetrain.lock_at(current_speed, probe.wheelbase)
-	_yaw_rate = CarDrivetrain.yaw_rate(current_speed, wheel_angle, probe.wheelbase)
-	rotate_y(_yaw_rate * delta)
-	velocity = -global_basis.z * current_speed
-	velocity.y = 0.0
-	move_and_slide()
-	var on_kerb := false
-	for i in get_slide_collision_count():
-		var other := get_slide_collision(i).get_collider() as CollisionObject3D
-		if other and other.collision_layer & Layers.PAVEMENT:
-			on_kerb = true
-	if on_kerb and not _on_kerb:
+	# The suspension: each wheel cast down to the road.
+	var space := get_world_3d().direct_space_state
+	var length := spec.travel + spec.wheel_radius
+	var loads := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
+	var along := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
+	var across := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
+	var mu := PackedFloat64Array([1.0, 1.0, 1.0, 1.0])
+	var contacts := PackedVector3Array([Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, Vector3.ZERO])
+	var squeezed := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
+	var kerb := false
+	for i in 4:
+		var top := global_transform * (wheel_position(i) + Vector3.UP * CAST_FROM)
+		_ray.from = top
+		_ray.to = top - up * length
+		var hit := space.intersect_ray(_ray)
+		grounded[i] = 1 if not hit.is_empty() else 0
+		if hit.is_empty():
+			squeezed[i] = 0.0
+			contacts[i] = top - up * length
+			continue
+		squeezed[i] = clampf(length - top.distance_to(hit.position), 0.0, spec.travel + 0.05)
+		contacts[i] = hit.position
+		var other := hit.collider as CollisionObject3D
+		if other:
+			if other.collision_layer & Layers.PAVEMENT:
+				kerb = true
+			var material: PhysicsMaterial = other.get(&"physics_material_override")
+			if material:
+				mu[i] = material.friction
+	var support := 0.0
+	for i in 4:
+		if not grounded[i]:
+			compression[i] = 0.0
+			continue
+		var partner := i ^ 1
+		var rate := (squeezed[i] - compression[i]) / delta if _settled else 0.0
+		var spring := CarDynamics.corner_load(_packed, squeezed[i], rate, squeezed[partner])
+		# Hitting the end of its travel, a bump stop takes the rest.
+		if squeezed[i] > spec.travel:
+			spring += (squeezed[i] - spec.travel) * spec.spring_rate * 20.0
+		compression[i] = squeezed[i]
+		support += spring
+	_settled = true
+	apply_central_force(up * support)
+
+	# The weight on each wheel: the springs' support, shared as the car's acceleration moves it.
+	var share := _weight_shares()
+	var weight := spec.mass * CarSpec.G
+	var shared := 0.0
+	for i in 4:
+		shared += share[i] if grounded[i] else 0.0
+	for i in 4:
+		if grounded[i] and shared > 0.0:
+			loads[i] = share[i] / shared * support
+	var centre := global_transform * center_of_mass
+	for i in 4:
+		var heading := forward.rotated(up, wheel_angle) if i < 2 else forward
+		var side := up.cross(heading)
+		var moving := velocity + angular_velocity.cross(contacts[i] - centre)
+		along[i] = moving.dot(heading)
+		across[i] = moving.dot(side)
+
+	_mu_mean = (mu[0] + mu[1] + mu[2] + mu[3]) * 0.25
+	dynamics.aids = _aids()
+	dynamics.step(delta, {throttle = drive_pedal, brake = brake_pedal, handbrake = c.handbrake,
+		steer = wheel_angle, reverse = _reversing, shift = c.shift}, loads, along, across, mu,
+		current_speed, angular_velocity.dot(up))
+	for i in 4:
+		if not grounded[i]:
+			continue
+		var heading := forward.rotated(up, wheel_angle) if i < 2 else forward
+		var side := up.cross(heading)
+		var f := dynamics.force[i]
+		apply_force(heading * f.x + side * f.y, contacts[i] - global_position)
+	var speed := velocity.length()
+	if speed > 0.01:
+		apply_central_force(-velocity * 0.5 * CarSpec.AIR * spec.drag_area * speed)
+		apply_central_force(-up * 0.5 * CarSpec.AIR * spec.downforce_area * speed * speed)
+	if absf(current_speed) > 0.3:
+		apply_central_force(-forward * signf(current_speed) * spec.rolling * weight)
+
+	if is_equal_approx(dynamics.shifting, spec.shift_time):
+		driver_view.pulse(0.15, 0.05)
+	if dynamics.abs_active and not _abs_was:
+		driver_view.pulse(0.3, 0.06)
+	_abs_was = dynamics.abs_active
+	for body in get_colliding_bodies():
+		var solid := body as CollisionObject3D
+		if solid and solid.collision_layer & Layers.PAVEMENT:
+			kerb = true
+	if kerb and not _on_kerb:
 		if sound:
 			sound.knock_kerb()
 		driver_view.pulse(0.6, 0.12)
-	_on_kerb = on_kerb
-	# Blocked by something solid, the car keeps only the speed it really made.
-	if get_slide_collision_count() > 0:
-		var made := get_real_velocity().dot(-global_basis.z)
-		current_speed = made if absf(made) < absf(current_speed) else current_speed
+	_on_kerb = kerb
+
+	# The acceleration felt in the car, along it and to its left, smoothed, for the model's lean
+	# and the weight's transfer.
+	var felt := (velocity - _last_velocity) / delta
+	_last_velocity = velocity
+	var target := Vector2(felt.dot(forward), felt.dot(up.cross(forward)))
+	_accel = _accel.lerp(target, clampf(ACCEL_SMOOTHING * delta, 0.0, 1.0))
+
+
+## Each wheel's share of the car's weight: its axle's share standing still, moved back as the car
+## pulls and forward as it brakes, and outward in a turn.
+func _weight_shares() -> PackedFloat64Array:
+	var l := spec.wheelbase
+	var h := spec.cog_height
+	var front := spec.front_share - _accel.x * h / (l * CarSpec.G)
+	front = clampf(front, 0.1, 0.9)
+	var rear := 1.0 - front
+	var side := clampf(_accel.y * h / (spec.track * CarSpec.G), -0.45, 0.45)
+	# Turning left (side positive) loads the right wheels.
+	return PackedFloat64Array([front * (0.5 - side), front * (0.5 + side), rear * (0.5 - side),
+		rear * (0.5 + side)])
+
+
+## The mean friction of the surface under the wheels in the last step.
+func _surface_under() -> float:
+	return _mu_mean

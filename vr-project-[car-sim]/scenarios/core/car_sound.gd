@@ -16,10 +16,11 @@ const HIGH_RPM := 4000.0
 const ENGINE_COAST_DB := -14.0
 const ENGINE_FULL_DB := -4.0
 const SHIFT_DIP_DB := -6.0
-## The sideways acceleration, metres per second squared, at which the tyres begin to squeal, and
-## the speed below which they never do.
-const SQUEAL_FROM := 4.5
-const SQUEAL_SPEED := 6.0
+## How hard the tyres work when they begin to squeal, and when at full voice, as a share of
+## their peak grip ([method TyreModel.usage]); and the speed below which they never do.
+const SQUEAL_FROM := 0.7
+const SQUEAL_FULL := 1.3
+const SQUEAL_SPEED := 4.0
 
 var engine_low: AudioStreamPlayer3D
 var engine_high: AudioStreamPlayer3D
@@ -59,8 +60,8 @@ func _ready() -> void:
 
 ## Follows the car for a step: the engine at [param rpm] with [param throttle] (0 to 1), dipped
 ## while [param shifting]; the indicator ticking as [param blink_lit] turns on and off; the tyres
-## at [param sideways] metres per second squared and [param speed] metres per second.
-func follow(rpm: float, throttle: float, shifting: bool, blink_lit: bool, sideways: float,
+## working [param work] (1 at their peak grip) at [param speed] metres per second.
+func follow(rpm: float, throttle: float, shifting: bool, blink_lit: bool, work: float,
 		speed: float) -> void:
 	var mix := engine_mix(rpm, throttle)
 	var dip := SHIFT_DIP_DB if shifting else 0.0
@@ -68,7 +69,7 @@ func follow(rpm: float, throttle: float, shifting: bool, blink_lit: bool, sidewa
 	engine_high.volume_db = mix.high_db + dip
 	engine_low.pitch_scale = mix.low_pitch
 	engine_high.pitch_scale = mix.high_pitch
-	squeal.volume_db = squeal_db(sideways, speed)
+	squeal.volume_db = squeal_db(work, speed)
 	if blink_lit != _lit:
 		_lit = blink_lit
 		tick.stream = _tick_on if blink_lit else _tick_off
@@ -92,12 +93,12 @@ static func engine_mix(rpm: float, throttle: float) -> Dictionary:
 		low_pitch = clampf(rpm / LOW_RPM, 0.5, 4.0), high_pitch = clampf(rpm / HIGH_RPM, 0.25, 2.0)}
 
 
-## How loud the tyres squeal, decibels, at [param sideways] metres per second squared and
-## [param speed]: silent below [constant SQUEAL_FROM] or [constant SQUEAL_SPEED].
-static func squeal_db(sideways: float, speed: float) -> float:
+## How loud the tyres squeal, decibels, working [param work] at [param speed]: silent below
+## [constant SQUEAL_FROM] or [constant SQUEAL_SPEED], loudest from [constant SQUEAL_FULL].
+static func squeal_db(work: float, speed: float) -> float:
 	if absf(speed) < SQUEAL_SPEED:
 		return -80.0
-	var over := (absf(sideways) - SQUEAL_FROM) / (CarDrivetrain.GRIP - SQUEAL_FROM)
+	var over := (absf(work) - SQUEAL_FROM) / (SQUEAL_FULL - SQUEAL_FROM)
 	if over <= 0.0:
 		return -80.0
 	return lerpf(-24.0, -8.0, clampf(over, 0.0, 1.0))

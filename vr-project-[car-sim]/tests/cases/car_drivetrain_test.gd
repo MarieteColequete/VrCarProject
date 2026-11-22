@@ -1,87 +1,18 @@
 extends TestCase
-## The player's car's drivetrain and steering ([CarDrivetrain]), the damped spring ([Damped]),
-## and the car driving with them: it changes up through the gears, turns along its wheels with
-## less lock at speed, and leans its body but not its cockpit.
+## The player's car driving on the vehicle core ([CarDynamics] on its rigid body), and the damped
+## spring ([Damped]): it pulls away through the gears, settles on its springs, brakes with the nose
+## dipping, turns along its wheels with less lock at speed, reverses on the brake, and swings round
+## on the handbrake.
 
 const CAR := preload("res://scenarios/scenes/debug_car.tscn")
-const WHEELBASE := 2.6
 
 
 func run() -> void:
-	_test_rpm()
-	_test_gears()
-	_test_steering()
 	_test_spring()
 	await _test_drive()
-
-
-func _test_rpm() -> void:
-	expect(is_equal_approx(CarDrivetrain.rpm(0.0, 1), CarDrivetrain.IDLE_RPM),
-		"standing still, the engine idles")
-	var first := CarDrivetrain.rpm(10.0, 1)
-	var fifth := CarDrivetrain.rpm(10.0, 5)
-	expect(first > fifth * 4.0, "a low gear turns the engine faster: %.0f, %.0f" % [first, fifth])
-	expect(CarDrivetrain.rpm(100.0, 1) <= CarDrivetrain.REDLINE_RPM, "never past the redline")
-	expect(is_equal_approx(CarDrivetrain.rpm(0.0, 0), CarDrivetrain.IDLE_RPM), "neutral idles")
-
-
-func _test_gears() -> void:
-	expect(CarDrivetrain.next_gear(0, 0.0, 0.0) == 1, "from a stop, first")
-	expect(CarDrivetrain.next_gear(2, -1.0, 0.0) == -1, "moving back, reverse")
-	# Climbing through the gears with a light and a full throttle.
-	for throttle in [0.3, 1.0]:
-		var gear := 1
-		var changes := []
-		for step in 260:
-			var speed := step * 0.1
-			var next := CarDrivetrain.next_gear(gear, speed, throttle)
-			if next != gear:
-				changes.append(speed)
-				gear = next
-		# At full throttle the top speed comes in fourth, as in a real car pushed hard.
-		var top := 5 if throttle < 0.5 else 4
-		expect(gear >= top and changes.size() >= top - 1,
-			"throttle %.1f changes up through the gears: %s" % [throttle, changes])
-	var gentle_up := _first_change(0.2)
-	var hard_up := _first_change(1.0)
-	expect(hard_up > gentle_up, "full throttle holds a gear longer: %.1f > %.1f m/s"
-		% [hard_up, gentle_up])
-	expect(CarDrivetrain.next_gear(4, 3.0, 0.0) == 3, "slowing, it changes down")
-	expect(CarDrivetrain.gear_letter(3, 0.0, true) == "P"
-		and CarDrivetrain.gear_letter(-1, -1.0, false) == "R"
-		and CarDrivetrain.gear_letter(1, 0.0, false) == "N"
-		and CarDrivetrain.gear_letter(3, 8.0, false) == "3", "the cluster's gear letters")
-
-
-func _first_change(throttle: float) -> float:
-	for step in 300:
-		var speed := step * 0.05
-		if CarDrivetrain.next_gear(1, speed, throttle) != 1:
-			return speed
-	return INF
-
-
-func _test_steering() -> void:
-	expect(is_equal_approx(CarDrivetrain.lock_at(2.0, WHEELBASE), CarDrivetrain.LOCK),
-		"at walking pace, full lock")
-	var fast := CarDrivetrain.lock_at(25.0, WHEELBASE)
-	expect(fast < CarDrivetrain.LOCK * 0.2, "at 90 km/h, little lock: %.1f°" % rad_to_deg(fast))
-	for speed in [5.0, 12.0, 25.0]:
-		var yaw := CarDrivetrain.yaw_rate(speed, CarDrivetrain.lock_at(speed, WHEELBASE), WHEELBASE)
-		expect(speed * yaw <= CarDrivetrain.GRIP + 0.01,
-			"a full turn at %.0f m/s stays within the grip: %.1f m/s²" % [speed, speed * yaw])
-	expect(CarDrivetrain.yaw_rate(-2.0, 0.3, WHEELBASE) < 0.0, "reversing turns the other way")
-	expect(is_zero_approx(CarDrivetrain.yaw_rate(0.0, 0.3, WHEELBASE)),
-		"standing still, it does not turn")
-	var steer := 0.0
-	steer = CarDrivetrain.ease_steer(steer, 1.0, 1.0 / 60.0)
-	expect(steer > 0.0 and steer < 0.1, "the steering eases toward the input: %.3f" % steer)
-	for i in 60:
-		steer = CarDrivetrain.ease_steer(steer, 1.0, 1.0 / 60.0)
-	expect(is_equal_approx(steer, 1.0), "and reaches it")
-	for i in 30:
-		steer = CarDrivetrain.ease_steer(steer, 0.0, 1.0 / 60.0)
-	expect(is_zero_approx(steer), "let go, it returns to centre")
+	await _test_reverse_and_handbrake()
+	await _test_manual()
+	await _test_surfaces()
 
 
 func _test_spring() -> void:
@@ -97,6 +28,7 @@ func _test_spring() -> void:
 
 
 func _test_drive() -> void:
+	var floor := ground()
 	var car: Node3D = CAR.instantiate()
 	root.add_child(car)
 	await physics_frame
@@ -110,12 +42,15 @@ func _test_drive() -> void:
 	for i in 360:
 		await physics_frame
 		gears[car.gear] = true
-	expect(gears.size() >= 3 and car.gear >= 3,
+	expect(gears.size() >= 2 and car.gear >= 2,
 		"full throttle changes up through the gears: %s, now %d" % [gears.keys(), car.gear])
-	expect(car.rpm > CarDrivetrain.IDLE_RPM and car.rpm < CarDrivetrain.REDLINE_RPM,
+	expect(car.rpm > car.spec.idle_rpm and car.rpm <= car.spec.redline_rpm,
 		"the engine turns: %.0f rpm" % car.rpm)
+	expect(car.current_speed > 15.0, "the car pulls away: %.1f m/s after 6 s" % car.current_speed)
+	expect(absf(car.global_position.y) < 0.08, "riding on its springs, about on the road: %.3f m"
+		% car.global_position.y)
 	car.held_controls = {brake = 1.0}
-	for i in 10:
+	for i in 20:
 		await physics_frame
 	if model:
 		expect(model.lean_angles.x < -0.01, "braking dips the nose: %.3f" % model.lean_angles.x)
@@ -134,7 +69,76 @@ func _test_drive() -> void:
 		await physics_frame
 	var turned := facing.signed_angle_to(-car.global_basis.z, Vector3.UP)
 	expect(turned > 0.05, "steering left turns the car left: %.2f rad" % turned)
-	expect(car.wheel_angle > 0.0 and car.wheel_angle <= CarDrivetrain.LOCK,
+	expect(car.wheel_angle > 0.0 and car.wheel_angle <= car.spec.steer_lock,
 		"the front wheels turn within the lock: %.2f" % car.wheel_angle)
 	car.queue_free()
+	floor.queue_free()
 	await process_frame
+
+
+func _test_reverse_and_handbrake() -> void:
+	var floor := ground()
+	var car: Node3D = CAR.instantiate()
+	car.assist_preset = "sim"
+	root.add_child(car)
+	await physics_frame
+	car.held_controls = {brake = 1.0}
+	await frames(120)
+	expect(car.current_speed < -0.5 and car.gear == -1,
+		"holding the brake stopped, the car reverses: %.1f m/s" % car.current_speed)
+	car.held_controls = {throttle = 1.0}
+	await frames(240)
+	car.held_controls = {throttle = 0.2, steer = 0.3}
+	await frames(20)
+	var facing: Vector3 = -car.global_basis.z
+	car.held_controls = {steer = 0.6, handbrake = 1.0}
+	await frames(60)
+	var turned := absf(facing.signed_angle_to(-car.global_basis.z, Vector3.UP))
+	expect(car.dynamics.spin[CarDynamics.RL] == 0.0 or car.current_speed < 1.0,
+		"the handbrake locks the rear wheels")
+	expect(turned > deg_to_rad(45.0), "and swings the car round: %.0f°" % rad_to_deg(turned))
+	car.queue_free()
+	floor.queue_free()
+	await process_frame
+
+
+func _test_manual() -> void:
+	var floor := ground()
+	var car: Node3D = CAR.instantiate()
+	root.add_child(car)
+	await physics_frame
+	car.dynamics.manual = true
+	car.held_controls = {throttle = 1.0}
+	await frames(240)
+	var first: int = car.gear
+	var up := InputEventAction.new()
+	up.action = DriverInput.SHIFT_UP
+	up.pressed = true
+	Input.parse_input_event(up)
+	await frames(30)
+	expect(first == 1 and car.gear == 2,
+		"in the manual the car holds its gear until the driver changes up: %d, then %d"
+		% [first, car.gear])
+	expect(car.rpm <= car.spec.redline_rpm, "the limiter holds the revolutions")
+	car.queue_free()
+	floor.queue_free()
+	await process_frame
+
+
+func _test_surfaces() -> void:
+	var speeds := {}
+	for type: StringName in [&"asphalt", &"ground"]:
+		var floor := ground(400.0, type)
+		var car: Node3D = CAR.instantiate()
+		car.assist_preset = "sim"
+		root.add_child(car)
+		await physics_frame
+		car.held_controls = {throttle = 1.0}
+		await frames(120)
+		speeds[type] = car.current_speed
+		car.queue_free()
+		floor.queue_free()
+		await process_frame
+	expect(speeds[&"asphalt"] > speeds[&"ground"] + 1.0,
+		"the car pulls away harder on asphalt than on grass: %.1f against %.1f m/s"
+		% [speeds[&"asphalt"], speeds[&"ground"]])

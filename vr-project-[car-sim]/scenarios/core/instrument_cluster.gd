@@ -25,6 +25,8 @@ const SPEED_CENTRE := Vector2(210.0, 118.0)
 const RPM_CENTRE := Vector2(430.0, 118.0)
 const RADIUS := 86.0
 
+## The revolutions past which the rev counter is red; the car sets its engine's.
+var redline := 7400.0
 ## What the instruments read: the car's speed, km/h, and its engine's revolutions.
 var speed_kmh := 0.0
 var rpm := 0.0
@@ -124,10 +126,10 @@ func _draw_face() -> void:
 		80, 16, Color(0.7, 0.72, 0.75))
 	# The rev counter: a mark every 1000, red past the redline.
 	_dial(RPM_CENTRE)
-	_face.draw_arc(RPM_CENTRE, RADIUS, rpm_angle(CarDrivetrain.REDLINE_RPM), START + SWEEP, 16,
+	_face.draw_arc(RPM_CENTRE, RADIUS, rpm_angle(redline), START + SWEEP, 16,
 		Color(0.85, 0.1, 0.08), 6.0, true)
 	for thousand in range(0, int(TOP_RPM / 1000.0) + 1):
-		var red := thousand * 1000.0 >= CarDrivetrain.REDLINE_RPM
+		var red := thousand * 1000.0 >= redline
 		_mark(RPM_CENTRE, rpm_angle(thousand * 1000.0), true,
 			Color(1.0, 0.3, 0.25) if red else ink, str(thousand))
 	_needle(RPM_CENTRE, rpm_angle(rpm_needle))

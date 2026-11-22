@@ -2,10 +2,10 @@
 class_name BodyType
 extends Resource
 ## What kind of solid thing a body is: its physics layer, what it collides with, its surface, and
-## whether touching it is judged. One per layer of [Layers], kept in [constant FOLDER]: the
-## ground, pavement, obstacle, vehicle, pedestrian, and the player's car. Bodies take their
-## settings from their type through [method apply], so a kind of thing collides the same
-## everywhere.
+## whether touching it is judged. Kept in [constant FOLDER], one per layer of [Layers] but for the
+## world layer, which has two surfaces: the ground (grass) and the roads' asphalt; then pavement,
+## obstacle, vehicle, pedestrian, and the player's car. Bodies take their settings from their type
+## through [method apply], so a kind of thing collides the same everywhere.
 
 const FOLDER := "res://scenarios/data/body_types/"
 
@@ -14,7 +14,8 @@ const FOLDER := "res://scenarios/data/body_types/"
 @export_flags_3d_physics var layer := 0
 ## The layers the body collides with; zero for bodies that never move.
 @export_flags_3d_physics var mask := 0
-## The surface's grip and bounce. The arcade car does not read them yet; wheel physics would.
+## The surface's grip and bounce. Wheel physics reads them from the body a wheel stands on, so a
+## road's asphalt grips better than the grass beside it.
 @export_range(0.0, 1.0) var friction := 1.0
 @export_range(0.0, 1.0) var bounce := 0.0
 

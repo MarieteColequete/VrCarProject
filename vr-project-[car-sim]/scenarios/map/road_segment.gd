@@ -58,6 +58,7 @@ const MARKINGS := &"markings"
 
 var _mesh_instance: MeshInstance3D
 var _pavement: StaticBody3D
+var _asphalt: StaticBody3D
 var _rebuild_queued := false
 
 
@@ -181,6 +182,8 @@ func rebuild() -> void:
 	if _mesh_instance == null:
 		return
 	_mesh_instance.mesh = _build_mesh()
+	_asphalt = _swap_body(_asphalt, RoadKit.surface_body(RoadKit.surface_shapes(frames(),
+		width() / 2.0)))
 	_set_pavement(RoadKit.pavement_body(RoadKit.pavement_shapes(frames(), width() / 2.0, pavement))
 		if kit_look() and kerbs else null)
 	for marking in generated(MARKINGS):
@@ -194,13 +197,24 @@ func pavement_body() -> StaticBody3D:
 	return _pavement
 
 
+## The asphalt's body, of the asphalt [BodyType], whose top is the drawn road; null without a
+## curve.
+func surface_body() -> StaticBody3D:
+	return _asphalt
+
+
 func _set_pavement(body: StaticBody3D) -> void:
-	if _pavement and is_instance_valid(_pavement):
-		remove_child(_pavement)
-		_pavement.queue_free()
-	_pavement = body
+	_pavement = _swap_body(_pavement, body)
+
+
+## Replaces the internal body [param old] with [param body], returning it.
+func _swap_body(old: StaticBody3D, body: StaticBody3D) -> StaticBody3D:
+	if old and is_instance_valid(old):
+		remove_child(old)
+		old.queue_free()
 	if body:
 		add_child(body, false, INTERNAL_MODE_BACK)
+	return body
 
 
 ## Whether the road is drawn in the kit's look, kerbs and pavement included.

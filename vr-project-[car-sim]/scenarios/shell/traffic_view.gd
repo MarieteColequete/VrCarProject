@@ -5,9 +5,9 @@ extends RefCounted
 ## [MultiMesh] per model, interpolated between physics ticks; an animated [PedestrianModel] per
 ## pedestrian, a survivor of the retro characters kit standing idle or walking, its node
 ## interpolated by the engine; and a kinematic box per road user in the physics server, on the
-## traffic or pedestrian layer,
-## so the player's car collides with them as with any car or walker. Neither takes part in the
-## simulation; with no view at all, traffic runs the same.
+## traffic or pedestrian layer. The player's car meets walkers there as any body; its own body
+## ([member ignore]) is exempt from road users' cars, which it meets through [Impacts]. Neither
+## takes part in the simulation; with no view at all, traffic runs the same.
 
 ## Floats per instance in the buffer: a 3x4 transform and a colour.
 const STRIDE := 16
@@ -20,6 +20,9 @@ const WALKER := "walker"
 var _parent: Node3D
 var _capacity: int
 var _space: RID
+## The player's car's body, which road users' cars do not meet in the physics engine: their
+## crashes are [Impacts]'.
+var ignore := RID()
 ## Model path (or [constant WALKER]) to its group: [code]{multimesh, instance, slots, drawn,
 ## current, previous}[/code], slots mapping a road user to its instance.
 var _groups := {}
@@ -289,6 +292,8 @@ func _body(id: int, size: Vector3, is_pedestrian: bool) -> void:
 	PhysicsServer3D.shape_set_data(shape, size * 0.5)
 	PhysicsServer3D.body_add_shape(body, shape, Transform3D(Basis(), Vector3(0, size.y * 0.5, 0)))
 	BodyType.of(&"pedestrian" if is_pedestrian else &"vehicle").apply_rid(body)
+	if not is_pedestrian and ignore.is_valid():
+		PhysicsServer3D.body_add_collision_exception(body, ignore)
 	PhysicsServer3D.body_set_space(body, _space)
 	_bodies[id] = [body, shape, Transform3D()]
 

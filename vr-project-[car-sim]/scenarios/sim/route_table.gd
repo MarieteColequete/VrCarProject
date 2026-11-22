@@ -8,6 +8,9 @@ extends RefCounted
 ## A lane's crossings and the lanes it gives way to are flattened: a lane's own run of them starts
 ## at its [code]*_first[/code] and holds [code]*_count[/code] entries.
 
+## Metres between the curvature's samples.
+const CURVATURE_STEP := 1.0
+
 ## Lane entity to its slot.
 var slots := {}
 var lane_ids := PackedInt64Array()
@@ -26,6 +29,9 @@ var light := PackedInt64Array()
 var curves: Array = []
 var transforms: Array = []
 var inverses: Array = []
+## Per slot, the lane's curvature (1/m, left positive) every [constant CURVATURE_STEP] metres
+## along it, as a [PackedFloat64Array]; empty for a lane without a curve.
+var curvature: Array = []
 ## Where traffic waits before each crossing.
 var crossing_first := PackedInt32Array()
 var crossing_count := PackedInt32Array()
@@ -60,6 +66,7 @@ static func of(lanes: Dictionary) -> RouteTable:
 		t.curves.append(lane.curve)
 		t.transforms.append(lane.transform)
 		t.inverses.append(lane.inverse)
+		t.curvature.append(curvature_of(lane))
 		t.crossing_first.append(t.crossing_stops.size())
 		for crossing in lane.crossings:
 			t.crossing_stops.append(crossing.stop)
@@ -77,6 +84,29 @@ static func of(lanes: Dictionary) -> RouteTable:
 				count += 1
 		t.give_way_count.append(count)
 	return t
+
+
+## The curvature of [param lane] every [constant CURVATURE_STEP] metres, 1/m, left positive: the
+## turn of its heading on the ground over the distance either side.
+static func curvature_of(lane: LaneData) -> PackedFloat64Array:
+	var out := PackedFloat64Array()
+	if lane.curve == null or lane.length <= 0.0:
+		return out
+	var count := int(ceil(lane.length / CURVATURE_STEP)) + 1
+	var headings := PackedFloat64Array()
+	for k in count + 2:
+		var at := (k - 1) * CURVATURE_STEP
+		var ahead := lane.point_at(at + 0.5) - lane.point_at(at - 0.5)
+		headings.append(atan2(-ahead.x, -ahead.z) if Vector2(ahead.x, ahead.z).length() > 0.001
+			else (headings[k - 1] if k > 0 else 0.0))
+	for k in count:
+		var turn := wrapf(headings[k + 2] - headings[k], -PI, PI)
+		out.append(turn / (2.0 * CURVATURE_STEP))
+	# At the ends the samples either side are clamped onto the lane, so take the neighbours'.
+	if count > 2:
+		out[0] = out[1]
+		out[count - 1] = out[count - 2]
+	return out
 
 
 func size() -> int:

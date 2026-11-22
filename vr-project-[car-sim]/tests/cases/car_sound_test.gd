@@ -23,9 +23,9 @@ func _test_mix() -> void:
 	expect(absf(half.low_db - half.high_db) < 0.01, "halfway, they play alike")
 	expect(CarSound.engine_mix(2000.0, 1.0).low_db > CarSound.engine_mix(2000.0, 0.0).low_db + 5.0,
 		"the throttle makes the engine louder")
-	expect(CarSound.squeal_db(3.0, 20.0) <= -80.0, "well within their grip, the tyres are quiet")
-	expect(CarSound.squeal_db(CarDrivetrain.GRIP, 3.0) <= -80.0, "and slowly, too")
-	expect(CarSound.squeal_db(CarDrivetrain.GRIP, 20.0) > -20.0, "at the grip, fast, they squeal")
+	expect(CarSound.squeal_db(0.4, 20.0) <= -80.0, "well within their grip, the tyres are quiet")
+	expect(CarSound.squeal_db(1.0, 3.0) <= -80.0, "and slowly, too")
+	expect(CarSound.squeal_db(1.0, 20.0) > -20.0, "at the grip, fast, they squeal")
 
 
 func _test_streams() -> void:
@@ -37,6 +37,7 @@ func _test_streams() -> void:
 
 
 func _test_on_car() -> void:
+	var floor := ground()
 	var car: Node3D = CAR.instantiate()
 	root.add_child(car)
 	await physics_frame
@@ -58,4 +59,5 @@ func _test_on_car() -> void:
 	# 1.5 s at 0.35 s lit and 0.35 s dark: four or five edges.
 	expect(ticks >= 4 and ticks <= 5, "the indicator ticks on and off as it blinks: %d" % ticks)
 	car.queue_free()
+	floor.queue_free()
 	await process_frame

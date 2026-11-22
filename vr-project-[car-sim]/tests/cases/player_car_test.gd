@@ -120,6 +120,7 @@ func _triangles(mesh: Mesh) -> int:
 
 
 func _test_live() -> void:
+	var floor := ground()
 	var car: Node3D = CAR.instantiate()
 	root.add_child(car)
 	var model: PlayerCarModel = car.model
@@ -152,7 +153,7 @@ func _test_live() -> void:
 		car.current_speed * 3.6), "the speedometer reads the car's speed: %.0f km/h"
 		% instruments.speed_kmh)
 	expect(instruments.headlights and not instruments.left_on, "the headlights tell-tale is lit")
-	expect(instruments.rpm > CarDrivetrain.IDLE_RPM and instruments.gear == str(car.gear),
+	expect(instruments.rpm > car.spec.idle_rpm - 1.0 and instruments.gear == str(car.gear),
 		"the rev counter and the gear follow the drivetrain: %.0f rpm, %s"
 		% [instruments.rpm, instruments.gear])
 	expect(absf(instruments.speed_needle - instruments.speed_kmh) < 3.0,
@@ -177,6 +178,7 @@ func _test_live() -> void:
 			seen_off = true
 	expect(seen_on and seen_off, "the right indicator arrow blinks")
 	car.queue_free()
+	floor.queue_free()
 	await process_frame
 
 

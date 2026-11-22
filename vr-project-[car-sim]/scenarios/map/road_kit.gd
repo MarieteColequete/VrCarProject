@@ -9,8 +9,11 @@ extends RefCounted
 ## high, so the road matches the lanes and the kerb lines that are judged. The kit's centre line
 ## is painted over with asphalt: the road's [RoadMarking]s draw the lines. The pavements are
 ## solid: [method pavement_shapes] and [method pad_shapes] give their colliders, kerb high, for one
-## body of the pavement [BodyType] per road, which stops the car's tyres at the kerb. Built on the
-## main thread.
+## body of the pavement [BodyType] per road, which stops the car's tyres at the kerb. The asphalt is
+## solid too: [method surface_shapes] and [method pad_surface_shapes] give thin colliders whose
+## top is the drawn asphalt, [constant LIFT] above the ground, for one body of the asphalt
+## [BodyType] per road, so a wheel reads the road's grip, not the grass's. Built on the main
+## thread.
 
 const FOLDER := "res://assets/kenney/city_kit_roads/"
 const STRAIGHT := FOLDER + "road-straight.glb"
@@ -150,13 +153,41 @@ static func pad_shapes(t: bool, half: float, pavement: float, arms: Array,
 	return out
 
 
+## The asphalt's colliders along [param frames] (as for [method road]): one slab per stretch
+## between frames, [param half] metres either side of the centre, its top the drawn asphalt, so
+## they follow the curve with no gaps and meet the pavements at the kerb. Local to the road.
+static func surface_shapes(frames: Array, half: float) -> Array[Shape3D]:
+	var out: Array[Shape3D] = []
+	for i in frames.size() - 1:
+		var a: Array = frames[i]
+		var b: Array = frames[i + 1]
+		out.append(prism([a[0] - a[1] * half, a[0] + a[1] * half, b[0] + b[1] * half,
+			b[0] - b[1] * half], LIFT))
+	return out
+
+
+## A junction pad's asphalt colliders, matching [method pad] and the plain pad alike: the square
+## [param half] metres either side of the centre, and each arm of [param arms] (outward
+## directions) reaching [param arm_length] metres beyond it, the asphalt's width.
+static func pad_surface_shapes(half: float, arms: Array, arm_length: float) -> Array[Shape3D]:
+	var out: Array[Shape3D] = []
+	out.append(prism([Vector3(-half, 0, -half), Vector3(half, 0, -half), Vector3(half, 0, half),
+		Vector3(-half, 0, half)], LIFT))
+	if arm_length > 0.01:
+		for out_dir: Vector3 in arms:
+			var right := out_dir.cross(Vector3.UP)
+			out.append_array(surface_shapes([[out_dir * half, right],
+				[out_dir * (half + arm_length), right]], half))
+	return out
+
+
 ## A collider standing on the ground outline [param corners] (local points, in order round it),
-## from just below the ground to kerb high.
-static func prism(corners: Array) -> ConvexPolygonShape3D:
+## from just below the ground to [param top] above it, kerb high unless given.
+static func prism(corners: Array, top := RoadMarking.KERB_HEIGHT) -> ConvexPolygonShape3D:
 	var points := PackedVector3Array()
 	for corner: Vector3 in corners:
 		points.append(Vector3(corner.x, corner.y - SINK, corner.z))
-		points.append(Vector3(corner.x, corner.y + RoadMarking.KERB_HEIGHT, corner.z))
+		points.append(Vector3(corner.x, corner.y + top, corner.z))
 	var shape := ConvexPolygonShape3D.new()
 	shape.points = points
 	return shape
@@ -164,11 +195,22 @@ static func prism(corners: Array) -> ConvexPolygonShape3D:
 
 ## One static body of the pavement [BodyType] holding [param shapes]; null when there are none.
 static func pavement_body(shapes: Array[Shape3D]) -> StaticBody3D:
+	return body_of(&"pavement", "Pavement", shapes)
+
+
+## One static body of the asphalt [BodyType] holding [param shapes]; null when there are none.
+static func surface_body(shapes: Array[Shape3D]) -> StaticBody3D:
+	return body_of(&"asphalt", "Asphalt", shapes)
+
+
+## One static body named [param body_name] of the [BodyType] [param kind] holding
+## [param shapes]; null when there are none.
+static func body_of(kind: StringName, body_name: String, shapes: Array[Shape3D]) -> StaticBody3D:
 	if shapes.is_empty():
 		return null
 	var body := StaticBody3D.new()
-	body.name = "Pavement"
-	BodyType.of(&"pavement").apply(body)
+	body.name = body_name
+	BodyType.of(kind).apply(body)
 	for shape in shapes:
 		var holder := CollisionShape3D.new()
 		holder.shape = shape

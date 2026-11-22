@@ -63,6 +63,22 @@ func at(z: float, x := LANE_X) -> Vector3:
 	return Vector3(x, 0.0, z)
 
 
+## A flat road under [member root] for a car driven without a map, its top at y = 0, of the
+## asphalt's [BodyType], or [param type]'s. The caller frees it.
+func ground(size := 400.0, type := &"asphalt") -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = "TestGround"
+	BodyType.of(type).apply(body)
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(size, 0.2, size)
+	shape.shape = box
+	shape.position.y = -0.1
+	body.add_child(shape)
+	root.add_child(body)
+	return body
+
+
 func frames(n: int) -> void:
 	for i in n:
 		await physics_frame

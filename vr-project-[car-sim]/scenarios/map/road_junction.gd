@@ -52,6 +52,7 @@ const TURN_POINTS := 8
 
 var _mesh_instance: MeshInstance3D
 var _pavement: StaticBody3D
+var _asphalt: StaticBody3D
 var _rebuild_queued := false
 
 
@@ -191,10 +192,12 @@ func rebuild() -> void:
 	if _mesh_instance == null:
 		return
 	var half := road_width / 2.0
+	var outward: Array = []
+	for arm in arms():
+		outward.append(DIRECTIONS[arm])
+	_asphalt = _swap_body(_asphalt, RoadKit.surface_body(RoadKit.pad_surface_shapes(half,
+		outward, arm_length)))
 	if surface == null and RoadKit.available():
-		var outward: Array = []
-		for arm in arms():
-			outward.append(DIRECTIONS[arm])
 		_mesh_instance.mesh = RoadKit.pad(shape == Shape.T, half, RoadKit.PAVEMENT, outward,
 			arm_length)
 		_set_pavement(RoadKit.pavement_body(RoadKit.pad_shapes(shape == Shape.T, half,
@@ -220,13 +223,23 @@ func pavement_body() -> StaticBody3D:
 	return _pavement
 
 
+## The pad's asphalt body, of the asphalt [BodyType], whose top is the road's drawn asphalt.
+func surface_body() -> StaticBody3D:
+	return _asphalt
+
+
 func _set_pavement(body: StaticBody3D) -> void:
-	if _pavement and is_instance_valid(_pavement):
-		remove_child(_pavement)
-		_pavement.queue_free()
-	_pavement = body
+	_pavement = _swap_body(_pavement, body)
+
+
+## Replaces the internal body [param old] with [param body], returning it.
+func _swap_body(old: StaticBody3D, body: StaticBody3D) -> StaticBody3D:
+	if old and is_instance_valid(old):
+		remove_child(old)
+		old.queue_free()
 	if body:
 		add_child(body, false, INTERNAL_MODE_BACK)
+	return body
 
 
 func _queue_rebuild() -> void:
