@@ -12,8 +12,9 @@ extends Node3D
 const REFLECTANCE := 0.85
 ## How far the mirror's view reaches, metres.
 const FAR := 150.0
-## The visual layers a mirror does not show: what only the headset or only the spectator sees.
-static var hidden_layers := Layers.HANDS_VISUAL | Layers.SPECTATOR_VISUAL
+## The visual layers a mirror does not show: the hands, what only the spectator sees, and the
+## mirrors' glass.
+static var hidden_layers := Layers.HANDS_VISUAL | Layers.SPECTATOR_VISUAL | Layers.MIRROR_VISUAL
 
 ## The glass's size, metres.
 var size := Vector2(0.1, 0.08)
@@ -108,6 +109,8 @@ func _build(width: int) -> void:
 	camera.keep_aspect = Camera3D.KEEP_HEIGHT
 	camera.cull_mask = 0xFFFFF & ~hidden_layers
 	camera.current = true
+	# Placed every frame it renders, from the eye as it is: not interpolated.
+	camera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	viewport.add_child(camera)
 	glass = MeshInstance3D.new()
 	glass.name = "Glass"
@@ -123,4 +126,5 @@ func _build(width: int) -> void:
 	material.uv1_offset = Vector3(1.0, 0.0, 0.0)
 	glass.material_override = material
 	glass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	glass.layers = Layers.MIRROR_VISUAL
 	add_child(glass)

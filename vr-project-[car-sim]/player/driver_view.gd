@@ -65,7 +65,7 @@ func _ready() -> void:
 		else:
 			get_viewport().use_xr = true
 		xr_camera.cull_mask &= ~Layers.SPECTATOR_VISUAL
-		XRServer.center_on_hmd(XRServer.RESET_BUT_KEEP_TILT, true)
+		XRServer.center_on_hmd(XRServer.RESET_BUT_KEEP_TILT, false)
 		# Godot only reports the runtime's request to close the application (closing it from the
 		# headset's menu); OpenXR expects the process to end, and the game is VR only.
 		if not xr.instance_exiting.is_connected(_on_instance_exiting):
@@ -105,7 +105,7 @@ func eye() -> Node3D:
 
 func reset_look() -> void:
 	if vr:
-		XRServer.center_on_hmd(XRServer.RESET_BUT_KEEP_TILT, true)
+		XRServer.center_on_hmd(XRServer.RESET_BUT_KEEP_TILT, false)
 	yaw = 0.0
 	pitch = 0.0
 	_apply()
@@ -209,6 +209,8 @@ func _add_hands() -> void:
 		hand.name = "LeftHand" if side == &"left_hand" else "RightHand"
 		hand.tracker = side
 		hand.pose = &"grip"
+		# A controller the runtime does not track draws nothing, rather than a glove at the seat.
+		hand.show_when_tracked = true
 		hand.add_child(_glove(side == &"left_hand"))
 		xr_origin.add_child(hand)
 		hands.append(hand)
