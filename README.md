@@ -173,6 +173,20 @@ and reverse tell-tales; its needles follow their readings without overshooting. 
 clear coat, and the number plates' letters, the badges, and the tyre walls stand out through normal
 maps made from the model's height maps by `tools/kiri86_normals.gd`.
 
+The cabin is the model's one interior mesh, cut by the game when the car is built into the seats,
+their leather bolsters, the carpet, the headliner, the door cards, and the dash, by where each
+triangle is and which way it faces (`PlayerCarModel.cabin_zone`), and the steering wheel is trimmed
+in leather. The model's texture coordinates for its cabin are a trim sheet, so each part gets its
+own, laid across it in the car's space along the axis each triangle faces, with one texture
+read per map, light enough for a standalone headset. The materials are CC0 sets from
+[ambientCG](https://ambientcg.com), in `vr-project-[car-sim]/assets/ambientcg/` with their credits:
+[Fabric030](https://ambientcg.com/view?id=Fabric030) for the seats,
+[Leather026](https://ambientcg.com/view?id=Leather026) for the bolsters and the wheel,
+[Carpet012](https://ambientcg.com/view?id=Carpet012) for the carpet, made grey by
+`tools/cabin_textures.gd`, [Fabric034](https://ambientcg.com/view?id=Fabric034) for the
+headliner, and [Plastic012A](https://ambientcg.com/view?id=Plastic012A) for the dash and doors;
+each is tinted to the car's black cabin.
+
 The car drives as an arcade car with a real car's habits (`CarDrivetrain`). A five speed automatic
 gearbox changes up as the engine's revolutions rise, later the harder the throttle is pressed, and
 down as the car slows, with a short pause in the drive at each change. The car turns along its front

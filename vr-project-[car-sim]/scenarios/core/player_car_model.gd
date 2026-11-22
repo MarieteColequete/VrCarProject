@@ -11,6 +11,9 @@ extends Node3D
 const FOLDER := "res://assets/sketchfab/kiri86/"
 const MODEL := FOLDER + "kiri86.fbx"
 const TEXTURES := FOLDER + "textures/"
+## The cabin's materials, CC0 sets from ambientCG, as downloaded but for the carpet's colour,
+## made grey by tools/cabin_textures.gd.
+const CABIN_FOLDER := "res://assets/ambientcg/"
 ## How far the front wheels turn at full steering, radians.
 const WHEEL_LOCK := deg_to_rad(32.0)
 ## How far the steering wheel turns at full steering, radians.
@@ -51,6 +54,20 @@ const MIRRORS := {
 		target = Vector3(2.6, 1.0, 20.0), widen = 1.6, width = 256},
 }
 
+## The cabin's parts, each its own mesh and material, cut out of the model's one interior mesh by
+## where each triangle is in the car's space for a 2.6 m wheelbase and which way it faces (see
+## [method cabin_zone]): each zone's material set, its tint, how many metres one repeat of the
+## texture covers, and its roughness when the set's own map is not used.
+const CABIN := {
+	seats = {set = "Fabric030", tint = Color(0.3, 0.3, 0.31), tile = 0.3},
+	bolsters = {set = "Leather026", tint = Color(1.0, 1.0, 1.0), tile = 0.3},
+	floor = {set = "Carpet012", tint = Color(0.32, 0.32, 0.33), tile = 0.35, colour = "Grey"},
+	headliner = {set = "Fabric034", tint = Color(0.9, 0.9, 0.9), tile = 0.5},
+	doors = {set = "Plastic012A", tint = Color(1.0, 1.0, 1.0), tile = 0.4},
+	dash = {set = "Plastic012A", tint = Color(1.0, 1.0, 1.0), tile = 0.4},
+	wheel = {set = "Leather026", tint = Color(1.0, 1.0, 1.0), tile = 0.12},
+}
+
 ## The parts that never lean: the wheels and the suspension, which stay on the road. The rest of
 ## the car, its cockpit included, leans as one.
 const STEADY: Array[String] = ["Wheel_FL", "Wheel_FR", "Wheel_RL", "Wheel_RR", "Suspension_front"]
@@ -85,6 +102,9 @@ var _roll := 0.0
 var _lights := {}
 ## The headlamps' beams, lit with the headlights.
 var beams: Array[SpotLight3D] = []
+## The cabin's parts, cut out of the model's interior: [code]seats[/code], [code]bolsters[/code],
+## [code]floor[/code], [code]headliner[/code], [code]doors[/code], and [code]dash[/code], the rest.
+var cabin_parts := {}
 ## Each mirror's housing, cut out of the model round its glass, on a layer the mirrors leave out:
 ## [code]rear[/code], [code]left[/code], and [code]right[/code].
 var mirror_housing := {}
@@ -263,6 +283,8 @@ func _build(model: Node3D, wheelbase: float) -> void:
 	_materials()
 	for key: StringName in MIRRORS:
 		_cut_glass(key, found.get(MIRRORS[key].part) as MeshInstance3D)
+	_split_cabin(found.get("Interior") as MeshInstance3D)
+	_dress_wheel(steering_wheel as MeshInstance3D)
 	_split_blinkers(found.get("Blinkers") as MeshInstance3D)
 	_glow(found.get("Brakelights001") as MeshInstance3D, &"brake", BRAKE)
 	_glow(found.get("Reverse") as MeshInstance3D, &"reverse", REVERSE)
@@ -386,6 +408,123 @@ static func _material(key: String, source: StandardMaterial3D) -> StandardMateri
 
 static func _texture(file: String) -> Texture2D:
 	var path := TEXTURES + file
+	return load(path) as Texture2D if ResourceLoader.exists(path) else null
+
+
+## Which part of the cabin a triangle of the interior is, at [param centre] facing [param normal]
+## in the car's space for a 2.6 m wheelbase: the headliner overhead, the carpet underfoot, the door
+## cards at the sides, the seats (their sides and edges the leather bolsters), or the dash and the
+## rest.
+static func cabin_zone(centre: Vector3, normal: Vector3) -> StringName:
+	var side := absf(centre.x)
+	if centre.y > 1.15 and normal.y < -0.3:
+		return &"headliner"
+	if side > 0.6 and centre.z > -0.55 and centre.z < 1.0 and centre.y < 1.15:
+		return &"doors"
+	if side > 0.08 and side < 0.6 and centre.z > -0.32 and centre.y > 0.42 and centre.y < 1.3:
+		return &"bolsters" if absf(normal.x) > 0.65 else &"seats"
+	if centre.y < 0.42 or (centre.y < 0.62 and normal.y > 0.25):
+		return &"floor"
+	return &"dash"
+
+
+## Cuts the interior [param part] into the cabin's parts ([constant CABIN]), each with its own
+## material and its texture laid across it in the car's space; the dash keeps the part itself.
+func _split_cabin(part: MeshInstance3D) -> void:
+	if part == null:
+		return
+	var to_car := body.transform * part.transform
+	var normal_to_car := to_car.basis.inverse().transposed()
+	var scale_back := 1.0 / fit
+	for key: StringName in [&"headliner", &"floor", &"doors", &"seats", &"bolsters"]:
+		var picks := func(a: Vector3, b: Vector3, c: Vector3) -> bool:
+			var centre := to_car * ((a + b + c) / 3.0) * scale_back
+			var facing := (normal_to_car * (c - a).cross(b - a)).normalized()
+			return cabin_zone(centre, facing) == key
+		var mesh := cut_mesh(part.mesh, picks, true)
+		if mesh.get_surface_count() == 0:
+			continue
+		_cut_away(part, picks)
+		var zone := MeshInstance3D.new()
+		zone.name = "Cabin" + String(key).to_pascal_case()
+		zone.mesh = box_mapped(mesh, to_car, CABIN[key].tile)
+		zone.material_override = _cabin_material(key)
+		zone.transform = part.transform
+		part.get_parent().add_child(zone)
+		cabin_parts[key] = zone
+	part.mesh = box_mapped(cut_mesh(part.mesh, func(_a, _b, _c) -> bool: return true, true),
+		to_car, CABIN.dash.tile)
+	part.material_override = _cabin_material(&"dash")
+	cabin_parts[&"dash"] = part
+
+
+## The steering wheel in leather, its texture laid across it in its own space, so it turns with it.
+func _dress_wheel(wheel_mesh: MeshInstance3D) -> void:
+	if wheel_mesh == null:
+		return
+	var to_car: Transform3D = body.transform * (wheel_mesh.get_parent() as Node3D).transform \
+		* wheel_mesh.transform
+	var scaled := Transform3D(Basis.from_scale(to_car.basis.get_scale()), Vector3.ZERO)
+	wheel_mesh.mesh = box_mapped(cut_mesh(wheel_mesh.mesh, func(_a, _b, _c) -> bool: return true,
+		true), scaled, CABIN.wheel.tile)
+	wheel_mesh.material_override = _cabin_material(&"wheel")
+
+
+## [param mesh] (unindexed triangles) with new texture coordinates laid across it: each triangle
+## projected along the axis it most faces, in the space [param to_space] turns it into, one repeat
+## each [param tile] metres; and tangents to match, for the normal maps.
+static func box_mapped(mesh: ArrayMesh, to_space: Transform3D, tile: float) -> ArrayMesh:
+	var out := ArrayMesh.new()
+	var normal_to := to_space.basis.inverse().transposed()
+	for surface in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(surface)
+		var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		arrays[Mesh.ARRAY_TEX_UV] = box_uvs(points, to_space, normal_to, tile)
+		arrays[Mesh.ARRAY_TANGENT] = null
+		var tool := SurfaceTool.new()
+		tool.create_from_arrays(arrays)
+		tool.generate_tangents()
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, tool.commit_to_arrays())
+	return out
+
+
+## The texture coordinates of the unindexed triangles [param points]: each corner of a triangle
+## projected along the axis the triangle most faces, after [param to_space] (its normals turned by
+## [param normal_to]), one unit each [param tile] metres.
+static func box_uvs(points: PackedVector3Array, to_space: Transform3D, normal_to: Basis,
+		tile: float) -> PackedVector2Array:
+	var uvs := PackedVector2Array()
+	uvs.resize(points.size())
+	for t in range(0, points.size() - 2, 3):
+		var a := to_space * points[t]
+		var b := to_space * points[t + 1]
+		var c := to_space * points[t + 2]
+		var n := (normal_to * (points[t + 2] - points[t]).cross(points[t + 1] - points[t])).abs()
+		for i in 3:
+			var p: Vector3 = [a, b, c][i]
+			var uv := Vector2(p.z, p.y) if n.x >= n.y and n.x >= n.z \
+				else (Vector2(p.x, p.z) if n.y >= n.z else Vector2(p.x, p.y))
+			uvs[t + i] = uv / tile
+	return uvs
+
+
+## The material of the cabin's part [param key], from its set in [constant CABIN].
+static func _cabin_material(key: StringName) -> StandardMaterial3D:
+	var spec: Dictionary = CABIN[key]
+	var folder: String = CABIN_FOLDER + spec.set + "/" + spec.set + "_1K-JPG_"
+	var m := StandardMaterial3D.new()
+	m.resource_name = "cabin_" + String(key)
+	m.albedo_texture = _load(folder + spec.get("colour", "Color") + ".jpg")
+	m.albedo_color = spec.tint
+	m.normal_enabled = true
+	m.normal_texture = _load(folder + "NormalGL.jpg")
+	m.roughness_texture = _load(folder + "Roughness.jpg")
+	m.metallic = 0.0
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	return m
+
+
+static func _load(path: String) -> Texture2D:
 	return load(path) as Texture2D if ResourceLoader.exists(path) else null
 
 

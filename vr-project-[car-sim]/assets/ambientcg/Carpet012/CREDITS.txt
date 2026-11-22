@@ -1,0 +1,8 @@
+Carpet012
+from ambientCG, https://ambientcg.com/view?id=Carpet012
+
+Licensed under Creative Commons CC0 1.0 Universal (public domain):
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Changes: Carpet012_1K-JPG_Grey.jpg is the colour map made grey by tools/cabin_textures.gd; the
+other files are as downloaded.
