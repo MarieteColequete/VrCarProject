@@ -6,7 +6,9 @@ extends CharacterBody3D
 ## [member held_controls]. Its body is the [PlayerCarModel], with a cockpit the driver sits in:
 ## its wheels roll and steer, its steering wheel turns, its lights show the car's state, and the
 ## [InstrumentCluster] behind the steering wheel shows the speed and the tell-tales. L (or the
-## gamepad's X) switches the headlights.
+## gamepad's X) switches the headlights. Its gearbox and steering are the [CarDrivetrain]'s: an
+## automatic gearbox with the engine's revolutions, and steering along the front wheels with less
+## lock at speed.
 ##
 ## Its collider is the player's [BodyType]: the body's box rides 0.25 m above the ground, so it
 ## clears a kerb and may overhang it, and a box for each tyre, at the [VehicleProbe]'s wheels,
@@ -24,11 +26,18 @@ const INSTRUMENTS_FROM_WHEEL := Vector3(0.0, 0.06, -0.15)
 @export var braking := 12.0
 @export var max_speed := 25.0
 @export var reverse_speed := 5.0
-@export var steering_speed := 1.2
 ## Below this speed, in metres per second, the brake reverses instead.
 @export var reverse_threshold := 0.1
 
 var current_speed := 0.0
+## The gearbox's gear: 1 to 5, -1 reversing, 0 in neutral; see [CarDrivetrain].
+var gear := 0
+## The engine's revolutions per minute.
+var rpm := CarDrivetrain.IDLE_RPM
+## The throttle held now, 0 to 1.
+var throttle := 0.0
+## The front wheels' turn, radians, left positive.
+var wheel_angle := 0.0
 ## Controls set from code instead of [DriverInput], for tests: [code]{throttle, brake, steer}[/code]
 ## each from 0 to 1, steer from -1 (full right) to 1 (full left); empty to read the player's
 ## controls.
@@ -39,6 +48,9 @@ var instruments: InstrumentCluster
 
 var _steer := 0.0
 var _braking := false
+var _shifting := 0.0
+var _last_speed := 0.0
+var _yaw_rate := 0.0
 var _blink_clock := 0.0
 
 @onready var probe: VehicleProbe = $VehicleProbe
@@ -99,7 +111,11 @@ func _show(delta: float) -> void:
 	var headlights := probe.headlights == VehicleProbe.Toggle.ON
 	var reversing := current_speed < -0.1
 	if model:
-		model.drive(delta, current_speed, _steer, left, right, _braking, reversing, headlights)
+		model.drive(delta, current_speed, wheel_angle / CarDrivetrain.LOCK, left, right, _braking,
+			reversing, headlights)
+		var along := (current_speed - _last_speed) / delta if delta > 0.0 else 0.0
+		model.lean(delta, along, current_speed * _yaw_rate)
+	_last_speed = current_speed
 	if instruments:
 		instruments.show_state(current_speed * 3.6, left, right,
 			probe.handbrake == VehicleProbe.Toggle.ON, headlights, reversing)
@@ -108,16 +124,25 @@ func _show(delta: float) -> void:
 func _drive(delta: float) -> void:
 	if not input_enabled:
 		_steer = 0.0
+		wheel_angle = 0.0
+		_yaw_rate = 0.0
 		_braking = false
 		return
 	var held := not held_controls.is_empty()
-	var throttle: float = held_controls.get("throttle", 0.0) if held else DriverInput.throttle()
+	throttle = held_controls.get("throttle", 0.0) if held else DriverInput.throttle()
 	var brake: float = held_controls.get("brake", 0.0) if held else DriverInput.brake()
 	var handbrake := false if held else DriverInput.handbrake()
 	var steer: float = held_controls.get("steer", 0.0) if held else DriverInput.steer()
 	probe.handbrake = VehicleProbe.Toggle.ON if handbrake else VehicleProbe.Toggle.OFF
-	_steer = steer
 	_braking = brake > 0.0 and current_speed > reverse_threshold
+
+	var shifted := CarDrivetrain.next_gear(gear, current_speed, throttle)
+	if shifted != gear:
+		# Changing between forward gears drops the drive for a moment.
+		_shifting = CarDrivetrain.SHIFT_TIME if gear > 0 and shifted > 0 else 0.0
+		gear = shifted
+	_shifting = maxf(_shifting - delta, 0.0)
+	var pull := 0.0 if _shifting > 0.0 else CarDrivetrain.pull(gear)
 
 	if handbrake:
 		current_speed = move_toward(current_speed, 0.0, braking * 1.5 * delta)
@@ -125,14 +150,19 @@ func _drive(delta: float) -> void:
 		current_speed = move_toward(current_speed, 0.0, braking * brake * delta)
 	elif brake > 0.0:
 		current_speed = move_toward(current_speed, -reverse_speed * brake, acceleration * delta)
+	elif throttle > 0.0 and current_speed < 0.0:
+		current_speed = move_toward(current_speed, 0.0, braking * delta)
 	elif throttle > 0.0:
-		var rate := braking if current_speed < 0.0 else acceleration
-		current_speed = move_toward(current_speed, max_speed * throttle, rate * delta)
+		current_speed = move_toward(current_speed, max_speed * throttle,
+			acceleration * pull * delta)
 	else:
 		current_speed = move_toward(current_speed, 0.0, acceleration * 0.25 * delta)
+	rpm = CarDrivetrain.rpm(current_speed, gear)
 
-	if absf(current_speed) > 0.1:
-		rotate_y(steer * steering_speed * delta * signf(current_speed))
+	_steer = CarDrivetrain.ease_steer(_steer, steer, delta)
+	wheel_angle = _steer * CarDrivetrain.lock_at(current_speed, probe.wheelbase)
+	_yaw_rate = CarDrivetrain.yaw_rate(current_speed, wheel_angle, probe.wheelbase)
+	rotate_y(_yaw_rate * delta)
 	velocity = -global_basis.z * current_speed
 	velocity.y = 0.0
 	move_and_slide()

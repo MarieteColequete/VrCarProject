@@ -145,6 +145,15 @@ lights, and headlights glow with the car's state, and the instrument panel in th
 (`InstrumentCluster`) shows the speed on a dial and in figures, the indicator arrows blinking, and
 the handbrake, headlights, and reverse tell-tales.
 
+The car drives as an arcade car with a real car's habits (`CarDrivetrain`). A five speed automatic
+gearbox changes up as the engine's revolutions rise, later the harder the throttle is pressed, and
+down as the car slows, with a short pause in the drive at each change. The car turns along its front
+wheels like a bicycle, so it turns only while it moves and more tightly the slower it goes: the lock
+eases with the speed, so a full turn never pushes the car sideways harder than a tyre grips. The
+steering eases to the controls rather than snapping. The bodywork dips under braking, squats under
+acceleration, and rolls out of a turn, while the cockpit the driver sits in, and the driver's view,
+stay level.
+
 The Map Kit's roads take the look of City Kit (Roads) (`RoadKit`). The kit's straight road tile is a
 cross-section (asphalt, a darker band by the kerb, the kerb, and the pavement) swept along each
 `RoadSegment`'s curve, and its crossroads and T tiles are fitted over each `RoadJunction`'s pad.

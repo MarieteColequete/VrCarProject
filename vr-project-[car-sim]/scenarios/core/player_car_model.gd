@@ -20,6 +20,17 @@ const BRAKE := Color(1.0, 0.05, 0.03)
 const REVERSE := Color(1.0, 1.0, 0.95)
 const HEADLIGHT := Color(1.0, 0.95, 0.8)
 const GLOW := 4.0
+## How far the body leans for each metre per second squared: pitching under acceleration and
+## braking, rolling out of a turn, radians; and the most it leans.
+const PITCH_PER := 0.004
+const ROLL_PER := 0.006
+const LEAN_LIMIT := 0.06
+## How quickly the body settles to its lean, per second.
+const LEAN_SPRING := 9.0
+## The parts that never lean: the wheels, the suspension, and the cockpit the driver sits in, so the
+## driver's view of the cabin stays steady.
+const STEADY: Array[String] = ["Wheel_FL", "Wheel_FR", "Wheel_RL", "Wheel_RR", "Suspension_front",
+	"Interior", "Steering"]
 
 ## The model's root, turned and scaled into the car's space.
 var body: Node3D
@@ -33,7 +44,14 @@ var steering_axis := Vector3.RIGHT
 var steering_centre := Vector3.ZERO
 var radius := 0.3
 
+## The body's lean now, radians: x pitches the nose up, y rolls to the right.
+var lean_angles := Vector2.ZERO
+
 var _steering_rest := Transform3D()
+var _lean_velocity := Vector2.ZERO
+## The parts that lean: [code]{node, rest}[/code] each, in the model's own space.
+var _leaning: Array[Dictionary] = []
+var _lean_pivot := Vector3.ZERO
 var _roll := 0.0
 var _lights := {}
 
@@ -70,6 +88,27 @@ func drive(delta: float, speed: float, steer: float, left_on: bool, right_on: bo
 	_light(&"brake", braking)
 	_light(&"reverse", reversing)
 	_light(&"headlights", headlights)
+
+
+## Leans the body for a step of [param delta] seconds with the car accelerating [param along] its
+## length and [param across] it (to the left positive), metres per second squared: the nose dips
+## under braking and the body rolls out of a turn. Only the bodywork leans; the cockpit and the
+## wheels stay as they are, and nothing simulated moves.
+func lean(delta: float, along: float, across: float) -> void:
+	if delta <= 0.0:
+		return
+	var target := Vector2(clampf(along * PITCH_PER, -LEAN_LIMIT, LEAN_LIMIT),
+		clampf(across * ROLL_PER, -LEAN_LIMIT, LEAN_LIMIT))
+	var pitch := Damped.step(lean_angles.x, _lean_velocity.x, target.x, LEAN_SPRING, delta)
+	var roll := Damped.step(lean_angles.y, _lean_velocity.y, target.y, LEAN_SPRING, delta)
+	lean_angles = Vector2(pitch.x, roll.x)
+	_lean_velocity = Vector2(pitch.y, roll.y)
+	# In the model, +X is ahead and +Z to the right: pitching turns about Z, rolling about X.
+	var turn := Basis(Vector3.BACK, lean_angles.x) * Basis(Vector3.RIGHT, lean_angles.y)
+	var about := Transform3D(Basis.IDENTITY, _lean_pivot) * Transform3D(turn, Vector3.ZERO) \
+		* Transform3D(Basis.IDENTITY, -_lean_pivot)
+	for part in _leaning:
+		(part.node as Node3D).transform = about * (part.rest as Transform3D)
 
 
 ## Whether the light [param group] glows: [code]blinkers_left[/code], [code]blinkers_right[/code],
@@ -147,6 +186,12 @@ func _build(model: Node3D, wheelbase: float) -> void:
 	_glow(found.get("Brakelights001") as MeshInstance3D, &"brake", BRAKE)
 	_glow(found.get("Reverse") as MeshInstance3D, &"reverse", REVERSE)
 	_glow(found.get("Headlights") as MeshInstance3D, &"headlights", HEADLIGHT)
+	var steady := STEADY.map(func(key: String) -> Node: return found.get(key))
+	for part: Node in body.get_children():
+		if part is Node3D and not steady.has(part):
+			_leaning.append({node = part, rest = (part as Node3D).transform})
+	# The body leans about the middle of its wheels, at their axles.
+	_lean_pivot = (front + rear) / 2.0
 	drive(0.0, 0.0, 0.0, false, false, false, false, false)
 
 
