@@ -33,23 +33,23 @@ const ROLL_PER := 0.006
 const LEAN_LIMIT := 0.06
 ## How quickly the body settles to its lean, per second.
 const LEAN_SPRING := 9.0
-## The mirrors' glass, in the car's space for a 2.6 m wheelbase: where each sits on its housing's
-## face and the way the face looks, its size, metres, the point behind the car it is set up to
-## show, how much wider than flat glass it sees (as a convex mirror does: the model's door mirrors
-## are small), and the pixels its picture has across. The interior mirror and the door mirrors'
-## housings are in the model; the glass goes on their faces.
+## The mirrors, in the car's space for a 2.6 m wheelbase: the part of the model that holds each
+## one's glass, the box its glass lies in, how squarely the glass faces back (the least dot of its
+## triangles' normals with +Z), the point behind the car it is set up to show, how much wider than
+## flat glass it sees (as a convex mirror does: the model's door mirrors are small), and the pixels
+## its picture has across. The glass is the housing's own face, cut out of the model.
 const MIRRORS := {
-	rear = {at = Vector3(-0.0015, 1.313, -0.055), face = Vector3(0.0, -0.13, 0.99),
-		size = Vector2(0.185, 0.06), target = Vector3(0.0, 1.1, 20.0), widen = 1.2, width = 512},
-	left = {at = Vector3(-0.866, 0.978, -0.452), face = Vector3(0.31, 0.12, 0.94),
-		size = Vector2(0.085, 0.075), target = Vector3(-2.4, 0.8, 20.0), widen = 3.0, width = 256},
-	right = {at = Vector3(0.866, 0.978, -0.452), face = Vector3(-0.31, 0.12, 0.94),
-		size = Vector2(0.085, 0.075), target = Vector3(2.6, 0.8, 20.0), widen = 4.5, width = 256},
+	rear = {part = "Interior", box = AABB(Vector3(-0.11, 1.26, -0.075), Vector3(0.22, 0.075, 0.025)),
+		facing = 0.95, target = Vector3(0.0, 1.1, 20.0), widen = 1.2, width = 512},
+	left = {part = "Bottom", box = AABB(Vector3(-0.94, 0.9, -0.53), Vector3(0.21, 0.14, 0.05)),
+		facing = 0.95, target = Vector3(-2.4, 0.8, 20.0), widen = 3.0, width = 256},
+	right = {part = "Bottom", box = AABB(Vector3(0.73, 0.9, -0.53), Vector3(0.21, 0.14, 0.05)),
+		facing = 0.95, target = Vector3(2.6, 0.8, 20.0), widen = 4.5, width = 256},
 }
-## The parts that never lean: the wheels, the suspension, and the cockpit the driver sits in, so the
-## driver's view of the cabin stays steady.
-const STEADY: Array[String] = ["Wheel_FL", "Wheel_FR", "Wheel_RL", "Wheel_RR", "Suspension_front",
-	"Interior", "Steering"]
+
+## The parts that never lean: the wheels and the suspension, which stay on the road. The rest of
+## the car, its cockpit included, leans as one.
+const STEADY: Array[String] = ["Wheel_FL", "Wheel_FR", "Wheel_RL", "Wheel_RR", "Suspension_front"]
 
 ## The model's root, turned and scaled into the car's space.
 var body: Node3D
@@ -81,6 +81,12 @@ var _roll := 0.0
 var _lights := {}
 ## The headlamps' beams, lit with the headlights.
 var beams: Array[SpotLight3D] = []
+## Each mirror's glass, cut out of its housing: [code]rear[/code], [code]left[/code], and
+## [code]right[/code], each with its frame and size in the car's space as metadata.
+var mirror_glass := {}
+## What the car adds to its body in the car's space, the instruments, the mirrors, and the beams:
+## it leans with the body, so they stay on it.
+var cabin: Node3D
 
 
 ## The car fitted to [param wheelbase] metres; null when the model does not load.
@@ -118,15 +124,18 @@ func drive(delta: float, speed: float, steer: float, left_on: bool, right_on: bo
 
 
 ## The mirror [param key] ([code]rear[/code], [code]left[/code], or [code]right[/code]) for an
-## eye at [param from], in the car's space: [code]{transform, aim, size, width}[/code], its glass on
-## the housing's face and the plane it reflects in, turned toward the eye and what it shows
-## behind, as a mirror's glass pivots in its housing.
+## eye at [param from], in the car's space: [code]{transform, aim, size, glass, widen, width}[/code],
+## the frame of its glass, the plane it reflects in, turned toward the eye and what it shows behind
+## as a mirror's glass pivots in its housing, the glass's size, and the glass itself, the model's
+## own face cut out with UVs across it; empty when the model has no glass there.
 func mirror_spot(key: StringName, from: Vector3) -> Dictionary:
+	var glass := mirror_glass.get(key) as MeshInstance3D
+	if glass == null:
+		return {}
 	var spot: Dictionary = MIRRORS[key]
-	var at: Vector3 = spot.at * fit
-	var face: Vector3 = (spot.face as Vector3).normalized()
-	return {transform = _facing(at, face), aim = _facing(at, CarMirror.aim(at, from,
-		spot.target * fit)), size = (spot.size as Vector2) * fit, widen = spot.widen,
+	var frame: Transform3D = glass.get_meta(&"frame")
+	return {transform = frame, aim = _facing(frame.origin, CarMirror.aim(frame.origin, from,
+		spot.target * fit)), size = glass.get_meta(&"size"), glass = glass, widen = spot.widen,
 		width = spot.width}
 
 
@@ -145,8 +154,9 @@ func steering_frame() -> Transform3D:
 
 ## Leans the body for a step of [param delta] seconds with the car accelerating [param along] its
 ## length and [param across] it (to the left positive), metres per second squared: the nose dips
-## under braking and the body rolls out of a turn. Only the bodywork leans; the cockpit and the
-## wheels stay as they are, and nothing simulated moves.
+## under braking and the body rolls out of a turn. The whole car leans as one, its cockpit and
+## [member cabin] included; the wheels stay on the road, the driver's head stays level, and nothing
+## simulated moves.
 func lean(delta: float, along: float, across: float) -> void:
 	if delta <= 0.0:
 		return
@@ -162,6 +172,7 @@ func lean(delta: float, along: float, across: float) -> void:
 		* Transform3D(Basis.IDENTITY, -_lean_pivot)
 	for part in _leaning:
 		(part.node as Node3D).transform = about * (part.rest as Transform3D)
+	cabin.transform = body.transform * about * body.transform.affine_inverse()
 
 
 ## Whether the light [param group] glows: [code]blinkers_left[/code], [code]blinkers_right[/code],
@@ -187,6 +198,9 @@ func _build(model: Node3D, wheelbase: float) -> void:
 	body = model
 	body.name = "Body"
 	add_child(body)
+	cabin = Node3D.new()
+	cabin.name = "Cabin"
+	add_child(cabin)
 	var front := Vector3.ZERO
 	var rear := Vector3.ZERO
 	var found := {}
@@ -240,6 +254,8 @@ func _build(model: Node3D, wheelbase: float) -> void:
 		var span := steering_mesh.get_aabb().size * scale_by
 		steering_radius = maxf(span.y, span.z) / 2.0 * 0.95
 	_materials()
+	for key: StringName in MIRRORS:
+		_cut_glass(key, found.get(MIRRORS[key].part) as MeshInstance3D)
 	_split_blinkers(found.get("Blinkers") as MeshInstance3D)
 	_glow(found.get("Brakelights001") as MeshInstance3D, &"brake", BRAKE)
 	_glow(found.get("Reverse") as MeshInstance3D, &"reverse", REVERSE)
@@ -366,6 +382,115 @@ static func _texture(file: String) -> Texture2D:
 	return load(path) as Texture2D if ResourceLoader.exists(path) else null
 
 
+## Cuts the glass of mirror [param key] out of [param part]: the triangles in its box facing back.
+## The part keeps the rest, so the glass is not drawn twice, and the glass gets UVs across its face,
+## U to the driver's right and V down, for the mirror's picture.
+func _cut_glass(key: StringName, part: MeshInstance3D) -> void:
+	if part == null:
+		return
+	var spot: Dictionary = MIRRORS[key]
+	var box: AABB = spot.box
+	box = AABB(box.position * fit, box.size * fit)
+	var to_car := body.transform * part.transform
+	var normal_to_car := to_car.basis.inverse().transposed()
+	var picks := func(a: Vector3, b: Vector3, c: Vector3) -> bool:
+		var centre := to_car * ((a + b + c) / 3.0)
+		# Godot's front faces wind clockwise: their outward normal is (c - a) x (b - a).
+		var normal := (normal_to_car * (c - a).cross(b - a)).normalized()
+		return box.has_point(centre) and normal.z >= spot.facing
+	var glass_mesh := cut_mesh(part.mesh, picks, true)
+	if glass_mesh.get_surface_count() == 0:
+		return
+	var overrides := []
+	for surface in part.mesh.get_surface_count():
+		overrides.append(part.get_surface_override_material(surface))
+	part.mesh = cut_mesh(part.mesh, picks, false)
+	for surface in mini(part.mesh.get_surface_count(), overrides.size()):
+		part.set_surface_override_material(surface, overrides[surface])
+	# The glass's frame: its centre, facing the way its triangles do on average, upright.
+	var arrays := glass_mesh.surface_get_arrays(0)
+	var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var facing := Vector3.ZERO
+	for t in range(0, points.size() - 2, 3):
+		facing += normal_to_car * (points[t + 2] - points[t]).cross(points[t + 1] - points[t])
+	var in_car := PackedVector3Array()
+	for p in points:
+		in_car.append(to_car * p)
+	var bounds := AABB(in_car[0], Vector3.ZERO)
+	for p in in_car:
+		bounds = bounds.expand(p)
+	var frame := _facing(bounds.get_center(), facing.normalized())
+	var to_frame := frame.affine_inverse()
+	var low := Vector2(INF, INF)
+	var high := Vector2(-INF, -INF)
+	for p in in_car:
+		var local := to_frame * p
+		low = Vector2(minf(low.x, local.x), minf(low.y, local.y))
+		high = Vector2(maxf(high.x, local.x), maxf(high.y, local.y))
+	var size := (high - low).max(Vector2(0.001, 0.001))
+	var uvs := PackedVector2Array()
+	for p in in_car:
+		var local := to_frame * p
+		uvs.append(Vector2((local.x - low.x) / size.x, 1.0 - (local.y - low.y) / size.y))
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var glass := MeshInstance3D.new()
+	glass.name = "Mirror" + String(key).to_pascal_case()
+	glass.mesh = mesh
+	glass.transform = part.transform
+	glass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# The centre of the glass, not of the box round it: centred, the frame sits on the face.
+	frame.origin += frame.basis * Vector3((low.x + high.x) / 2.0, (low.y + high.y) / 2.0, 0.0)
+	glass.set_meta(&"frame", frame)
+	glass.set_meta(&"size", size)
+	part.get_parent().add_child(glass)
+	mirror_glass[key] = glass
+
+
+## The triangles of [param mesh] that [param picks] picks (given their three corners), or with
+## [param kept] false the ones it leaves, as a mesh of their own.
+static func cut_mesh(mesh: Mesh, picks: Callable, kept: bool) -> ArrayMesh:
+	var out := ArrayMesh.new()
+	for surface in mesh.get_surface_count():
+		var tool := SurfaceTool.new()
+		tool.create_from(mesh, surface)
+		tool.deindex()
+		var arrays := tool.commit_to_arrays()
+		var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var keep := PackedInt32Array()
+		for t in range(0, points.size() - 2, 3):
+			if picks.call(points[t], points[t + 1], points[t + 2]) == kept:
+				keep.append_array([t, t + 1, t + 2])
+		if keep.is_empty():
+			continue
+		if kept:
+			# The glass on its own: only its own corners, unindexed.
+			for column in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_TANGENT,
+					Mesh.ARRAY_TEX_UV, Mesh.ARRAY_TEX_UV2, Mesh.ARRAY_COLOR]:
+				arrays[column] = _pick(arrays[column], keep, column == Mesh.ARRAY_TANGENT)
+			arrays[Mesh.ARRAY_INDEX] = null
+		else:
+			arrays[Mesh.ARRAY_INDEX] = keep
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return out
+
+
+static func _pick(column: Variant, rows: PackedInt32Array, tangent: bool) -> Variant:
+	if column == null:
+		return null
+	if tangent:
+		var out := PackedFloat32Array()
+		for r in rows:
+			out.append_array((column as PackedFloat32Array).slice(r * 4, r * 4 + 4))
+		return out
+	var picked: Variant = column.duplicate()
+	picked.resize(rows.size())
+	for i in rows.size():
+		picked[i] = column[rows[i]]
+	return picked
+
+
 ## Splits the blinkers, one mesh for both sides, into the left and the right, each its own light.
 func _split_blinkers(mesh: MeshInstance3D) -> void:
 	if mesh == null:
@@ -445,5 +570,5 @@ func _beams(mesh: MeshInstance3D) -> void:
 		beam.position = body.transform * mesh.transform * half.get_aabb().get_center()
 		beam.rotation = Vector3(deg_to_rad(-BEAM_DIP), 0.0, 0.0)
 		beam.visible = false
-		add_child(beam)
+		cabin.add_child(beam)
 		beams.append(beam)

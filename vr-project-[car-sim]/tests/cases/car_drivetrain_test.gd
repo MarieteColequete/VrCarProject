@@ -120,7 +120,14 @@ func _test_drive() -> void:
 	if model:
 		expect(model.lean_angles.x < -0.01, "braking dips the nose: %.3f" % model.lean_angles.x)
 		expect(not hood.transform.is_equal_approx(hood_rest), "the bodywork leans")
-		expect(interior.transform.is_equal_approx(interior_rest), "the cockpit does not")
+		var apart := interior.transform.affine_inverse() * hood.transform
+		expect(apart.is_equal_approx(interior_rest.affine_inverse() * hood_rest),
+			"and the cockpit with it, as one")
+		var cluster: Node3D = car.instruments
+		var to_cluster := (model.body.global_transform * interior.transform).affine_inverse() \
+			* cluster.global_transform
+		expect(cluster.get_parent() == model.cabin and not model.cabin.transform.is_equal_approx(
+			Transform3D.IDENTITY), "the instruments lean with it: %s" % to_cluster.origin)
 	car.held_controls = {throttle = 0.5, steer = 1.0}
 	var facing: Vector3 = -car.global_basis.z
 	for i in 60:

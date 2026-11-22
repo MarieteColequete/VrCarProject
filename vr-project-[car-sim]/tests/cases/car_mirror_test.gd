@@ -55,6 +55,21 @@ func _test_on_car() -> void:
 			"%s shows what is behind the car: %s" % [mirror.name, back])
 	expect(probe.mirrors[1].x < 0.0 and probe.mirrors[2].x > 0.0 and absf(probe.mirrors[0].x) < 0.1,
 		"the left mirror is on the left, the right on the right, the interior one in the middle")
+	var model: PlayerCarModel = car.model
+	for key: StringName in [&"rear", &"left", &"right"]:
+		var glass := model.mirror_glass.get(key) as MeshInstance3D
+		var mirror: CarMirror = mirrors[[&"rear", &"left", &"right"].find(key)]
+		expect(glass != null and mirror.glass == glass and glass.get_parent() == model.body
+			and glass.layers == Layers.MIRROR_VISUAL
+			and (glass.material_override as StandardMaterial3D).albedo_texture
+			== mirror.viewport.get_texture(),
+			"the %s mirror's picture is on the model's own glass" % key)
+		var arrays := glass.mesh.surface_get_arrays(0) if glass else []
+		var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV] if glass else PackedVector2Array()
+		var spans := uvs.size() > 0
+		for uv in uvs:
+			spans = spans and uv.x >= -0.001 and uv.x <= 1.001 and uv.y >= -0.001 and uv.y <= 1.001
+		expect(spans, "its UVs span the glass")
 	var viewport: SubViewport = mirrors[0].viewport
 	expect(viewport.size.x == 512 and viewport.size.y < 200, "the interior mirror's picture is %s"
 		% viewport.size)

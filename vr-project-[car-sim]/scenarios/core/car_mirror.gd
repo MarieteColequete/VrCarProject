@@ -5,7 +5,8 @@ extends Node3D
 ## view cut to the glass's edges (an off-axis frustum whose near plane is the glass), so the
 ## picture moves as the driver's head does, as a real mirror's would. The picture is rendered into
 ## a small screen of its own, flipped as a reflection is, and only when [method render] asks for
-## it, so the car can spread its mirrors over the frames. Its glass faces +Z and reflects in the
+## it, so the car can spread its mirrors over the frames. The picture is shown on the model's own
+## glass, or on a pane of its own when the model has none. Its glass faces +Z and reflects in the
 ## plane [member pivot], turned within it; nothing here takes part in the simulation.
 
 ## How much of the light a mirror gives back.
@@ -30,12 +31,15 @@ var camera: Camera3D
 var glass: MeshInstance3D
 
 
-## A mirror named [param p_name] of [param p_size] metres, rendering [param width] pixels across.
-static func make(p_name: String, p_size: Vector2, width: int) -> CarMirror:
+## A mirror named [param p_name] of [param p_size] metres, rendering [param width] pixels across,
+## its picture shown on [param on_glass], the model's own glass with UVs across its face; with
+## none, on a pane of its own.
+static func make(p_name: String, p_size: Vector2, width: int,
+		on_glass: MeshInstance3D = null) -> CarMirror:
 	var mirror := CarMirror.new()
 	mirror.name = p_name
 	mirror.size = p_size
-	mirror._build(width)
+	mirror._build(width, on_glass)
 	return mirror
 
 
@@ -83,9 +87,12 @@ static func aim_size(from: Vector3, glass: Transform3D, plane: Transform3D,
 func render() -> void:
 	if eye == null or not is_instance_valid(eye):
 		return
-	var from := eye.global_position
-	var plane := global_transform * pivot
-	var v := view(from, plane, aim_size(from, global_transform, plane, size) * widen)
+	# Where the glass and the eye are drawn this frame, between the physics ticks: placed from the
+	# ticks' own poses, a moving car's mirror would look out from inside its housing.
+	var from := eye.get_global_transform_interpolated().origin
+	var at := get_global_transform_interpolated()
+	var plane := at * pivot
+	var v := view(from, plane, aim_size(from, at, plane, size) * widen)
 	if v.is_empty():
 		return
 	camera.global_transform = v.transform
@@ -93,7 +100,7 @@ func render() -> void:
 	viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
 
 
-func _build(width: int) -> void:
+func _build(width: int, on_glass: MeshInstance3D) -> void:
 	viewport = SubViewport.new()
 	viewport.name = "View"
 	viewport.size = Vector2i(width, maxi(roundi(width * size.y / size.x), 8))
@@ -112,11 +119,15 @@ func _build(width: int) -> void:
 	# Placed every frame it renders, from the eye as it is: not interpolated.
 	camera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	viewport.add_child(camera)
-	glass = MeshInstance3D.new()
-	glass.name = "Glass"
-	var quad := QuadMesh.new()
-	quad.size = size
-	glass.mesh = quad
+	if on_glass:
+		glass = on_glass
+	else:
+		glass = MeshInstance3D.new()
+		glass.name = "Glass"
+		var quad := QuadMesh.new()
+		quad.size = size
+		glass.mesh = quad
+		add_child(glass)
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.albedo_texture = viewport.get_texture()
@@ -127,4 +138,3 @@ func _build(width: int) -> void:
 	glass.material_override = material
 	glass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	glass.layers = Layers.MIRROR_VISUAL
-	add_child(glass)

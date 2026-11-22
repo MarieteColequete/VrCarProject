@@ -176,12 +176,14 @@ gearbox changes up as the engine's revolutions rise, later the harder the thrott
 down as the car slows, with a short pause in the drive at each change. The car turns along its front
 wheels like a bicycle, so it turns only while it moves and more tightly the slower it goes: the lock
 eases with the speed, so a full turn never pushes the car sideways harder than a tyre grips. The
-steering eases to the controls rather than snapping. The bodywork dips under braking, squats under
-acceleration, and rolls out of a turn, while the cockpit the driver sits in, and the driver's view,
-stay level.
+steering eases to the controls rather than snapping. The car dips under braking, squats under
+acceleration, and rolls out of a turn, all of it as one, cockpit, instruments, and mirrors
+included, while the wheels stay on the road and the driver's head stays level, so the cabin moves a
+little round the driver as a real body does on its springs.
 
-The car has an interior mirror and two door mirrors (`CarMirror`), glass on the model's own
-housings. Each shows what a mirror there would: a camera at the driver's eye reflected across the
+The car has an interior mirror and two door mirrors (`CarMirror`), their picture on the model's
+own glass: `PlayerCarModel` cuts each housing's face out of the model when the car is built, as it
+splits the blinkers, and gives it UVs across the face. Each shows what a mirror there would: a camera at the driver's eye reflected across the
 glass looks back through it, cut to the glass's edges, so the picture moves with the head as a real
 mirror's does. The door mirrors are small on this model, so they see wider than flat glass, as
 convex mirrors do. To save the frame, the interior mirror is drawn on one frame and the door mirrors

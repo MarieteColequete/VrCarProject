@@ -80,7 +80,7 @@ func _ready() -> void:
 		instruments.position = model.steering_centre + INSTRUMENTS_FROM_WHEEL
 		# In the binnacle, facing the driver, leaning back.
 		instruments.rotation = Vector3(deg_to_rad(-20.0), 0.0, 0.0)
-		add_child(instruments)
+		model.cabin.add_child(instruments)
 		_mount_mirrors()
 	sound = CarSound.new()
 	add_child(sound)
@@ -116,17 +116,20 @@ func _mount_mirrors() -> void:
 	var seat := driver_view.position
 	for key: StringName in [&"rear", &"left", &"right"]:
 		var spot := model.mirror_spot(key, seat)
+		if spot.is_empty():
+			continue
 		var at: Transform3D = spot.transform
 		points.append(at.origin)
 		if _mirror_quality == "off":
 			continue
 		var width: int = spot.width / 2 if _mirror_quality == "low" else spot.width
-		var mirror := CarMirror.make(String(key).to_pascal_case() + "Mirror", spot.size, width)
+		var mirror := CarMirror.make(String(key).to_pascal_case() + "Mirror", spot.size, width,
+			spot.glass)
 		mirror.transform = at
 		mirror.pivot = at.affine_inverse() * (spot.aim as Transform3D)
 		mirror.widen = spot.widen
 		mirror.eye = driver_view.eye()
-		add_child(mirror)
+		model.cabin.add_child(mirror)
 		mirrors.append(mirror)
 	probe.mirrors = points
 
