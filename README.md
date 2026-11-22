@@ -157,6 +157,17 @@ steering eases to the controls rather than snapping. The bodywork dips under bra
 acceleration, and rolls out of a turn, while the cockpit the driver sits in, and the driver's view,
 stay level.
 
+The car has an interior mirror and two door mirrors (`CarMirror`), glass on the model's own
+housings. Each shows what a mirror there would: a camera at the driver's eye reflected across the
+glass looks back through it, cut to the glass's edges, so the picture moves with the head as a real
+mirror's does. The door mirrors are small on this model, so they see wider than flat glass, as
+convex mirrors do. To save the frame, the interior mirror is drawn on one frame and the door mirrors
+on the next. The project setting `car/mirrors` sets them to `full`, to `low` (half the pixels, one
+mirror a frame, for standalone headsets), or `off`. The gaze check judges a mirror look by where the
+driver looks: held for a fifth of a second within 12° of the direction from the eye to the mirror, so
+a glance with the eyes counts as well as a turn of the head; a car without mirrors is still judged
+on the head's turn.
+
 The Map Kit's roads take the look of City Kit (Roads) (`RoadKit`). The kit's straight road tile is a
 cross-section (asphalt, a darker band by the kerb, the kerb, and the pavement) swept along each
 `RoadSegment`'s curve, and its crossroads and T tiles are fitted over each `RoadJunction`'s pad.
@@ -198,7 +209,7 @@ a rule entity judged by the rule's pure functions (`scenarios/rules/`):
 | `ParkingCheck` | Once settled in a `ParkingBay`: overhanging it, facing the wrong way, too many direction changes, taking too long |
 | `TrafficLightCheck` | Crossing the stop line on red, or on amber when the car could have stopped as it changed |
 | `CrossingCheck` | Driving onto a pedestrian crossing while someone is on it or about to cross, stopping on it |
-| `GazeCheck` | Changing lanes (or moving off) without first looking in the mirror and over the shoulder on that side |
+| `GazeCheck` | Changing lanes (or moving off) without first looking in the mirror and over the shoulder on that side; optionally the interior mirror too, and the eyes off the road too long |
 | `FollowingDistanceCheck` | Staying under a two second time gap behind a road user in the same lane |
 | `YieldCheck` | Entering a conflict zone while a road user with priority is in it or due within a safe gap, and waiting too long when the way is clear |
 | `JunctionCheck` | Leaving a junction or roundabout by a `JunctionExit` the route does not take, or without indicating that way, read on approach or, at a roundabout, on leaving |

@@ -68,8 +68,12 @@ func set_active(value: bool) -> void:
 
 ## The direction the driver is looking, in world space, in either mode.
 func look_direction() -> Vector3:
-	var camera: Node3D = xr_camera if vr else flat_camera
-	return -camera.global_basis.z
+	return -eye().global_basis.z
+
+
+## The driver's eye: the headset's camera in VR, else the flat camera.
+func eye() -> Node3D:
+	return xr_camera if vr else flat_camera
 
 
 func reset_look() -> void:

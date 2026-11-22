@@ -21,6 +21,9 @@ const BLINK := 0.35
 const EYE_FROM_WHEEL := Vector3(0.0, 0.4, 0.5)
 ## Where the instruments are from the steering wheel's centre, metres: above it and ahead.
 const INSTRUMENTS_FROM_WHEEL := Vector3(0.0, 0.06, -0.15)
+## The project setting for the mirrors: [code]full[/code], [code]low[/code] (half the pixels, one
+## mirror a frame), or [code]off[/code].
+const MIRRORS_SETTING := "car/mirrors"
 
 @export var input_enabled := true
 @export var acceleration := 6.0
@@ -46,12 +49,17 @@ var held_controls := {}
 ## The car as drawn; null when its model does not load.
 var model: PlayerCarModel
 var instruments: InstrumentCluster
+## The interior mirror and the left and right door mirrors, in that order; empty with the
+## project setting [code]car/mirrors[/code] off.
+var mirrors: Array[CarMirror] = []
 
 var _steer := 0.0
 var _braking := false
 var _shifting := 0.0
 var _last_speed := 0.0
 var _yaw_rate := 0.0
+var _mirror_frame := 0
+var _mirror_quality := "full"
 var _blink_clock := 0.0
 
 @onready var probe: VehicleProbe = $VehicleProbe
@@ -70,6 +78,7 @@ func _ready() -> void:
 		# In the binnacle, facing the driver, leaning back.
 		instruments.rotation = Vector3(deg_to_rad(-20.0), 0.0, 0.0)
 		add_child(instruments)
+		_mount_mirrors()
 	probe.indicator = VehicleProbe.Indicator.OFF
 	probe.handbrake = VehicleProbe.Toggle.OFF
 	probe.headlights = VehicleProbe.Toggle.OFF
@@ -90,6 +99,44 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed(&"toggle_view") and not driver_view.vr:
 		driver_view.active = not driver_view.active
 		chase_camera.current = not driver_view.active
+
+
+## Puts the glass on the model's mirrors, set up for the driver's seat, and tells the probe where
+## they are, for the gaze checks.
+func _mount_mirrors() -> void:
+	_mirror_quality = str(ProjectSettings.get_setting(MIRRORS_SETTING, "full"))
+	var points := PackedVector3Array()
+	var seat := driver_view.position
+	for key: StringName in [&"rear", &"left", &"right"]:
+		var spot := model.mirror_spot(key, seat)
+		var at: Transform3D = spot.transform
+		points.append(at.origin)
+		if _mirror_quality == "off":
+			continue
+		var width: int = spot.width / 2 if _mirror_quality == "low" else spot.width
+		var mirror := CarMirror.make(String(key).to_pascal_case() + "Mirror", spot.size, width)
+		mirror.transform = at
+		mirror.pivot = at.affine_inverse() * (spot.aim as Transform3D)
+		mirror.widen = spot.widen
+		mirror.eye = driver_view.eye()
+		add_child(mirror)
+		mirrors.append(mirror)
+	probe.mirrors = points
+
+
+## Draws the mirrors, spread over the frames: at full quality the interior mirror one frame and the
+## door mirrors the next, at low quality one mirror a frame.
+func _process(_delta: float) -> void:
+	if mirrors.is_empty():
+		return
+	_mirror_frame += 1
+	if _mirror_quality == "low":
+		mirrors[_mirror_frame % mirrors.size()].render()
+	elif _mirror_frame % 2 == 0:
+		mirrors[0].render()
+	else:
+		for i in range(1, mirrors.size()):
+			mirrors[i].render()
 
 
 func _physics_process(delta: float) -> void:

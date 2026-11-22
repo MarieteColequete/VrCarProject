@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="FaultDef" format=3]
+
+[ext_resource type="Script" path="res://scenarios/data/fault_def.gd" id="1_fault"]
+
+[resource]
+script = ExtResource("1_fault")
+id = &"eyes_off_road"
+title = "Looked away from the road"
+description = "The driver looked away from the road and the mirrors for too long while the car was moving."
+tier = &"minor"

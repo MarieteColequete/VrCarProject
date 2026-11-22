@@ -33,6 +33,19 @@ const ROLL_PER := 0.006
 const LEAN_LIMIT := 0.06
 ## How quickly the body settles to its lean, per second.
 const LEAN_SPRING := 9.0
+## The mirrors' glass, in the car's space for a 2.6 m wheelbase: where each sits on its housing's
+## face and the way the face looks, its size, metres, the point behind the car it is set up to
+## show, how much wider than flat glass it sees (as a convex mirror does: the model's door mirrors
+## are small), and the pixels its picture has across. The interior mirror and the door mirrors'
+## housings are in the model; the glass goes on their faces.
+const MIRRORS := {
+	rear = {at = Vector3(-0.0015, 1.313, -0.055), face = Vector3(0.0, -0.13, 0.99),
+		size = Vector2(0.185, 0.06), target = Vector3(0.0, 1.1, 20.0), widen = 1.2, width = 512},
+	left = {at = Vector3(-0.866, 0.978, -0.452), face = Vector3(0.31, 0.12, 0.94),
+		size = Vector2(0.085, 0.075), target = Vector3(-2.4, 0.8, 20.0), widen = 3.0, width = 256},
+	right = {at = Vector3(0.866, 0.978, -0.452), face = Vector3(-0.31, 0.12, 0.94),
+		size = Vector2(0.085, 0.075), target = Vector3(2.6, 0.8, 20.0), widen = 4.5, width = 256},
+}
 ## The parts that never lean: the wheels, the suspension, and the cockpit the driver sits in, so the
 ## driver's view of the cabin stays steady.
 const STEADY: Array[String] = ["Wheel_FL", "Wheel_FR", "Wheel_RL", "Wheel_RR", "Suspension_front",
@@ -49,6 +62,8 @@ var steering_axis := Vector3.RIGHT
 ## pointing at the driver.
 var steering_centre := Vector3.ZERO
 var radius := 0.3
+## How much larger than the model's own size it is drawn, against a 2.6 m wheelbase.
+var fit := 1.0
 
 ## The body's lean now, radians: x pitches the nose up, y rolls to the right.
 var lean_angles := Vector2.ZERO
@@ -96,6 +111,24 @@ func drive(delta: float, speed: float, steer: float, left_on: bool, right_on: bo
 	_light(&"brake", braking)
 	_light(&"reverse", reversing)
 	_light(&"headlights", headlights)
+
+
+## The mirror [param key] ([code]rear[/code], [code]left[/code], or [code]right[/code]) for an
+## eye at [param from], in the car's space: [code]{transform, aim, size, width}[/code], its glass on
+## the housing's face and the plane it reflects in, turned toward the eye and what it shows
+## behind, as a mirror's glass pivots in its housing.
+func mirror_spot(key: StringName, from: Vector3) -> Dictionary:
+	var spot: Dictionary = MIRRORS[key]
+	var at: Vector3 = spot.at * fit
+	var face: Vector3 = (spot.face as Vector3).normalized()
+	return {transform = _facing(at, face), aim = _facing(at, CarMirror.aim(at, from,
+		spot.target * fit)), size = (spot.size as Vector2) * fit, widen = spot.widen,
+		width = spot.width}
+
+
+static func _facing(at: Vector3, normal: Vector3) -> Transform3D:
+	var up := (Vector3.UP - normal * Vector3.UP.dot(normal)).normalized()
+	return Transform3D(Basis(up.cross(normal).normalized(), up, normal), at)
 
 
 ## Leans the body for a step of [param delta] seconds with the car accelerating [param along] its
@@ -167,6 +200,7 @@ func _build(model: Node3D, wheelbase: float) -> void:
 	# origin, standing where it stands.
 	var natural := maxf(front.x - rear.x, 0.01)
 	var scale_by := wheelbase / natural
+	fit = wheelbase / 2.6
 	var turned := Basis(Vector3.UP, PI / 2.0).scaled(Vector3.ONE * scale_by)
 	var middle := (front + rear) / 2.0
 	middle.y = 0.0

@@ -96,6 +96,9 @@ func drive(legs: Array, scenario: PackedScene = null, on_spawn := Callable(),
 			car.driver_view.reset_look()
 			car.driver_view.turn(deg_to_rad(leg.look), 0.0)
 			continue
+		if leg.has("look_at"):
+			look_at_mirror(car, leg.look_at)
+			continue
 		if leg.has("turn"):
 			car.rotate_y(deg_to_rad(leg.turn))
 			await physics_frame
@@ -245,3 +248,15 @@ func car_state(runner: ExamRunner) -> CarState:
 
 func _with(what: String, r: ScenarioResult) -> String:
 	return "%s: %s" % [what, r.summary() if r else "no result"]
+
+
+## Turns the car's flat view from its eye to its mirror [param index] (0 interior, 1 left,
+## 2 right), as a driver checking it would.
+func look_at_mirror(car: Node3D, index: int) -> void:
+	var probe := VehicleProbe.of(car)
+	var view: DriverView = car.driver_view
+	view.reset_look()
+	var to := probe.global_transform * probe.mirrors[index] - probe.eye_position()
+	var local := car.global_basis.inverse() * to
+	var flat := Vector2(local.x, local.z).length()
+	view.turn(atan2(-local.x, -local.z), atan2(local.y, flat))
