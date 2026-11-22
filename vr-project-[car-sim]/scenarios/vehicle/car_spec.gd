@@ -69,8 +69,11 @@ const G := 9.81
 @export_group("Body")
 ## Kilograms, driver included.
 @export var mass := 1250.0
-## Kilogram square metres about the vertical axis.
+## Kilogram square metres about the vertical axis, about the car's width (pitching) and about its
+## length (rolling).
 @export var yaw_inertia := 1900.0
+@export var pitch_inertia := 1700.0
+@export var roll_inertia := 450.0
 @export var wheelbase := 2.6
 @export var track := 1.55
 ## The centre of mass's height above the ground, metres.

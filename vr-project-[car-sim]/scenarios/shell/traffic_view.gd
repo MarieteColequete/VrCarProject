@@ -68,6 +68,7 @@ func draw(world: World) -> void:
 	var colours: PackedColorArray = store.column(&"colour")
 	var positions: PackedVector3Array = store.column(&"position")
 	var facings: PackedVector3Array = store.column(&"facing")
+	var grades: PackedFloat64Array = store.column(&"grade")
 	var jumps: PackedByteArray = store.column(&"jumped")
 	var walkers: PackedByteArray = store.column(&"pedestrian")
 	var models: Array = store.column(&"model")
@@ -106,26 +107,21 @@ func draw(world: World) -> void:
 			var slot: int = slots[id]
 			var size := sizes[i]
 			var at := positions[i]
-			var f := facings[i]
-			# Facing on the ground, as Basis.looking_at would give it: z behind, x to the right.
-			var z := Vector3(-f.x, 0.0, -f.z)
-			var x := Vector3(-f.z, 0.0, f.x)
-			if f.length_squared() < 0.000001:
-				z = Vector3.BACK
-				x = Vector3.RIGHT
+			var place := pitched(facings[i], grades[i], at)
 			var k := slot * STRIDE
-			var cx := x * size.x
-			var cz := z * size.z
+			var cx := place.basis.x * size.x
+			var cy := place.basis.y * size.y
+			var cz := place.basis.z * size.z
 			current[k] = cx.x
-			current[k + 1] = 0.0
+			current[k + 1] = cy.x
 			current[k + 2] = cz.x
 			current[k + 3] = at.x
-			current[k + 4] = 0.0
-			current[k + 5] = size.y
-			current[k + 6] = 0.0
+			current[k + 4] = cx.y
+			current[k + 5] = cy.y
+			current[k + 6] = cz.y
 			current[k + 7] = at.y
 			current[k + 8] = cx.z
-			current[k + 9] = 0.0
+			current[k + 9] = cy.z
 			current[k + 10] = cz.z
 			current[k + 11] = at.z
 			if not drawn.has(id):
@@ -136,7 +132,6 @@ func draw(world: World) -> void:
 				for c in 12:
 					previous[k + c] = current[k + c]
 				drawn[id] = true
-			var place := Transform3D(Basis(x, Vector3.UP, z), at)
 			var pair: Array = _bodies[id]
 			if pair[2] != place:
 				pair[2] = place
@@ -147,6 +142,23 @@ func draw(world: World) -> void:
 		multimesh.visible_instance_count = slots.size()
 		group.current = previous
 		group.previous = current
+
+
+## A car's place at [param at], facing [param facing] on the ground and pitched up by
+## [param grade] (the sine of its slope) about its own right axis, as [method Basis.looking_at]
+## would give it: z behind, x to the right, y up off the road.
+static func pitched(facing: Vector3, grade: float, at: Vector3) -> Transform3D:
+	var flat := Vector2(facing.x, facing.z)
+	if flat.length_squared() < 0.000001:
+		return Transform3D(Basis.IDENTITY, at)
+	# Normalised, so the grade's share never shortens the car along the ground.
+	flat = flat.normalized()
+	var s := clampf(grade, -1.0, 1.0)
+	var c := sqrt(1.0 - s * s)
+	var x := Vector3(-flat.y, 0.0, flat.x)
+	var z := Vector3(-flat.x * c, -s, -flat.y * c)
+	var y := Vector3(-flat.x * s, c, -flat.y * s)
+	return Transform3D(Basis(x, y, z), at)
 
 
 ## How many road users each model draws, by model path, and the pedestrians under

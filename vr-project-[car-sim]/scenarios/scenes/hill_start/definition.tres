@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ScenarioDefinition" format=3]
+
+[ext_resource type="PackedScene" path="res://scenarios/scenes/debug_car.tscn" id="1_esos6"]
+[ext_resource type="Script" path="res://scenarios/vehicle/car_start.gd" id="2_v1eck"]
+[ext_resource type="Resource" path="res://scenarios/data/default_policy.tres" id="3_ey0a1"]
+[ext_resource type="Script" path="res://scenarios/data/scenario_definition.gd" id="4_hwygr"]
+
+[sub_resource type="Resource" id="Resource_d8jr0"]
+script = ExtResource("2_v1eck")
+engine_running = true
+
+[resource]
+script = ExtResource("4_hwygr")
+id = &"hill_start"
+title = "Hill start"
+category = "Hills"
+difficulty = 2
+briefing = "Drive up the hill. Come to a complete stop at the stop line halfway up, then pull away without rolling back, and continue over the crossroads to the end of the climb."
+time_limit = 120.0
+scene_path = "res://scenarios/scenes/hill_start/hill_start.tscn"
+car_start = SubResource("Resource_d8jr0")

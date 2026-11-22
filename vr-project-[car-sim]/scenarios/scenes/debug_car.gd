@@ -13,9 +13,11 @@ extends RigidBody3D
 ## It drives on the shared vehicle core: a rigid body of the [member spec]'s mass on four
 ## suspended wheels, each cast down to the road for its spring, damper and anti-roll bar, with
 ## the engine, the gearbox, the brakes, the aids and the tyres of [CarDynamics] pushing on the road
-## at each contact patch, on the friction of the surface under it. The body yaws and heaves but
-## does not pitch or roll, so the driver's head stays level in a headset; the weight still moves
-## between the wheels as it brakes and corners, and the model leans to show it.
+## at each contact patch, on the friction of the surface under it. The body is free: each spring
+## pushes at its own wheel, so it pitches as it brakes and pulls away, rolls in a turn, follows a
+## slope, and can roll over. The driver's view is fixed to the car and turns with it, so in a
+## headset the world tilts around the driver. The tyres grip along the ground under them, so a slope
+## pulls the car down it.
 ##
 ## Its collider is the player's [BodyType]: the body's box rides 0.25 m above the ground, so it
 ## clears a kerb and may overhang it, and a box for each tyre, at the [VehicleProbe]'s wheels,
@@ -294,8 +296,8 @@ static func blink_on(clock: float) -> bool:
 	return fmod(clock, BLINK * 2.0) < BLINK
 
 
-## The body as the spec makes it: its mass, its centre of mass between the axles, its turn about
-## the vertical, and no pitch or roll.
+## The body as the spec makes it: its mass, its centre of mass between the axles, and its turn
+## about the vertical, its width (pitch) and its length (roll), all free.
 func _setup_body() -> void:
 	_packed = spec.packed()
 	dynamics = CarDynamics.new(_packed, _aids())
@@ -309,9 +311,7 @@ func _setup_body() -> void:
 	mass = spec.mass
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
 	center_of_mass = Vector3(0.0, spec.cog_height, spec.wheelbase * (0.5 - spec.front_share))
-	inertia = Vector3(spec.yaw_inertia, spec.yaw_inertia, spec.yaw_inertia)
-	axis_lock_angular_x = true
-	axis_lock_angular_z = true
+	inertia = Vector3(spec.pitch_inertia, spec.yaw_inertia, spec.roll_inertia)
 	linear_damp_mode = RigidBody3D.DAMP_MODE_REPLACE
 	angular_damp_mode = RigidBody3D.DAMP_MODE_REPLACE
 	linear_damp = 0.0
@@ -452,6 +452,7 @@ func _drive(delta: float) -> void:
 	var across := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
 	var mu := PackedFloat64Array([1.0, 1.0, 1.0, 1.0])
 	var contacts := PackedVector3Array([Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, Vector3.ZERO])
+	var normals := PackedVector3Array([up, up, up, up])
 	var squeezed := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
 	var kerb := false
 	for i in 4:
@@ -466,6 +467,7 @@ func _drive(delta: float) -> void:
 			continue
 		squeezed[i] = clampf(length - top.distance_to(hit.position), 0.0, spec.travel + 0.05)
 		contacts[i] = hit.position
+		normals[i] = hit.normal
 		var other := hit.collider as CollisionObject3D
 		if other:
 			if other.collision_layer & Layers.PAVEMENT:
@@ -473,7 +475,6 @@ func _drive(delta: float) -> void:
 			var material: PhysicsMaterial = other.get(&"physics_material_override")
 			if material:
 				mu[i] = material.friction
-	var support := 0.0
 	for i in 4:
 		if not grounded[i]:
 			compression[i] = 0.0
@@ -485,23 +486,26 @@ func _drive(delta: float) -> void:
 		if squeezed[i] > spec.travel:
 			spring += (squeezed[i] - spec.travel) * spec.spring_rate * 20.0
 		compression[i] = squeezed[i]
-		support += spring
+		# Each spring pushes its own corner up, so the body pitches and rolls on them, and the
+		# weight on each wheel is what its spring carries.
+		apply_force(up * spring, contacts[i] - global_position)
+		loads[i] = spring
 	_settled = true
-	apply_central_force(up * support)
-
-	# The weight on each wheel: the springs' support, shared as the car's acceleration moves it.
-	var share := _weight_shares()
 	var weight := spec.mass * CarSpec.G
-	var shared := 0.0
+
+	# Each tyre works on the ground's plane under it: its heading and side, along the slope.
+	var headings := PackedVector3Array([forward, forward, forward, forward])
+	var sides := PackedVector3Array([forward, forward, forward, forward])
 	for i in 4:
-		shared += share[i] if grounded[i] else 0.0
-	for i in 4:
-		if grounded[i] and shared > 0.0:
-			loads[i] = share[i] / shared * support
+		var n := normals[i]
+		var aim := forward.rotated(up, wheel_angle) if i < 2 else forward
+		var flat := aim - n * aim.dot(n)
+		headings[i] = flat.normalized() if flat.length_squared() > 0.0001 else aim
+		sides[i] = n.cross(headings[i])
 	var centre := global_transform * center_of_mass
 	for i in 4:
-		var heading := forward.rotated(up, wheel_angle) if i < 2 else forward
-		var side := up.cross(heading)
+		var heading := headings[i]
+		var side := sides[i]
 		var moving := velocity + angular_velocity.cross(contacts[i] - centre)
 		along[i] = moving.dot(heading)
 		across[i] = moving.dot(side)
@@ -516,15 +520,13 @@ func _drive(delta: float) -> void:
 	for i in 4:
 		if not grounded[i]:
 			continue
-		var heading := forward.rotated(up, wheel_angle) if i < 2 else forward
-		var side := up.cross(heading)
 		var f := dynamics.force[i]
-		apply_force(heading * f.x + side * f.y, contacts[i] - global_position)
+		apply_force(headings[i] * f.x + sides[i] * f.y, contacts[i] - global_position)
 	var speed := velocity.length()
 	if speed > 0.01:
 		apply_central_force(-velocity * 0.5 * CarSpec.AIR * spec.drag_area * speed)
 		apply_central_force(-up * 0.5 * CarSpec.AIR * spec.downforce_area * speed * speed)
-	if absf(current_speed) > 0.3:
+	if absf(current_speed) > 0.3 and grounded.count(1) > 0:
 		apply_central_force(-forward * signf(current_speed) * spec.rolling * weight)
 
 	if is_equal_approx(dynamics.shifting, spec.shift_time) or dynamics.shifted:
@@ -550,26 +552,11 @@ func _drive(delta: float) -> void:
 		driver_view.pulse(0.6, 0.12)
 	_on_kerb = kerb
 
-	# The acceleration felt in the car, along it and to its left, smoothed, for the model's lean
-	# and the weight's transfer.
+	# The acceleration felt in the car, along it and to its left, smoothed, for the model's lean.
 	var felt := (velocity - _last_velocity) / delta
 	_last_velocity = velocity
 	var target := Vector2(felt.dot(forward), felt.dot(up.cross(forward)))
 	_accel = _accel.lerp(target, clampf(ACCEL_SMOOTHING * delta, 0.0, 1.0))
-
-
-## Each wheel's share of the car's weight: its axle's share standing still, moved back as the car
-## pulls and forward as it brakes, and outward in a turn.
-func _weight_shares() -> PackedFloat64Array:
-	var l := spec.wheelbase
-	var h := spec.cog_height
-	var front := spec.front_share - _accel.x * h / (l * CarSpec.G)
-	front = clampf(front, 0.1, 0.9)
-	var rear := 1.0 - front
-	var side := clampf(_accel.y * h / (spec.track * CarSpec.G), -0.45, 0.45)
-	# Turning left (side positive) loads the right wheels.
-	return PackedFloat64Array([front * (0.5 - side), front * (0.5 + side), rear * (0.5 - side),
-		rear * (0.5 + side)])
 
 
 ## The mean friction of the surface under the wheels in the last step.

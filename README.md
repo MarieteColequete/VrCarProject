@@ -201,10 +201,13 @@ wheel, and each tyre grips by a simplified Pacejka magic formula over its combin
 braking or pulling hard leaves less grip for turning, grip grows less than the load on the tyre,
 and a tyre past its peak slides (`TyreModel`, `Powertrain`, `CarDynamics`). The weight moves
 between the wheels as the car brakes, pulls and turns. The surface under each wheel gives its
-friction, from the body it lies on (`BodyType`). The body yaws and rides its springs but does not
-pitch or roll, so the driver's head stays level in a headset; the model dips under braking,
-squats under acceleration and rolls out of a turn as one, cockpit, instruments and mirrors
-included, so the cabin moves a little round the driver as a real body does on its springs.
+friction, from the body it lies on (`BodyType`). The body is free: each spring pushes at its own
+wheel, so it pitches as it brakes and pulls away, rolls in a turn, follows hills and crests, and
+can roll over (the attempt's restart is the way back). The driver's view is fixed to the car, so
+in a headset the world tilts around the driver as in a real car. Each tyre grips along the ground
+under it, so a slope pulls the car down it, and a wheel held still by the brake or the park pawl
+holds it there. The model also dips under braking, squats under acceleration and rolls out of a
+turn, cockpit, instruments and mirrors included.
 
 The driving aids (`Assists`) come in three presets, set by the project setting `car/assists`:
 `exam`, the default and always the one in an exam attempt, with anti-lock brakes, traction
@@ -235,7 +238,7 @@ own, held at the redline by the limiter, and off the ground they climb or fall a
 pace. The tyres squeal as they near
 their grip, and the controllers buzz as the anti-lock brakes work.
 
-Road users drive on the same model, as two axles on flat ground (`PlanarVehicle`), each with the
+Road users drive on the same model, as two axles on the lane's grade (`PlanarVehicle`), each with the
 spec its size picks (`TrafficSpecs`: a hatchback, a saloon, a van or a lorry). The Intelligent
 Driver Model still decides the speed they want; they slow ahead of a bend to what they take it at,
 steer to keep their lane, and steer across to the next one to change lanes. Running into a road
@@ -297,8 +300,8 @@ scene under `vr-project-[car-sim]/scenarios/scenes/<name>/` that inherits
 the zones only checks use, and any steps. The base gives the `Scenario` root and a `Checks` node
 already holding `ContactCheck`, `LineCheck`, and `TrafficConflictCheck`. The car starts at the
 scenario's `spawn_point`, or else at the map's first `MapSpawn`. Scenarios are laid out with the car
-driving towards -Z on the right-hand side of the road, in the lane centred on x = 1.75. Each of the
-nine scenarios is set on the map of the same name in `maps/`.
+driving towards -Z on the right-hand side of the road, in the lane centred on x = 1.75. Nine of the
+ten scenarios are set on the map of the same name in `maps/`; `hill_start` is set on `hill_road`.
 
 Its `ScenarioDefinition`, `definition.tres` beside the scene, gives the id, the title, the menu
 category and difficulty, the briefing, the time limit, the scoring policy, and the car scene to
@@ -311,6 +314,7 @@ a rule entity judged by the rule's pure functions (`scenarios/rules/`):
 | Check | Rule |
 |---|---|
 | `StopCheck` | A complete stop inside the approach zone before the line zone is entered |
+| `RollBackCheck` | Once stopped inside its zone on a hill, rolling back more than `max_roll` (0.5 m) before moving on |
 | `SpeedLimitCheck` | The speed limit over a zone, with a grace time and a serious margin |
 | `RouteCheck` | Staying in the lane of a `Path3D` centreline, on the road, and not against traffic |
 | `LineCheck` | Crossing a solid line, crossing a dashed line without indicating that way, riding on a line, hitting a kerb (a tyre touching or crossing it) |
@@ -427,6 +431,20 @@ The authoring nodes in `scenarios/map/` build the usual parts of a map from a fe
 What the buttons generate is ordinary children, saved with the map and editable like any other;
 generating again replaces only what the node generated before.
 
+#### Terrain
+
+A map whose land is not flat has a `Terrain` (`scenarios/map/terrain.gd`) and its environment's
+`ground` turned off. The land is a height grid of `cell` metres over `size`: a heightmap image first
+(white stands `heightmap_height` metres up), then each `TerrainShape` of the map in tree order: a
+hill, a valley, a ramp, or a plateau, each with a height, a radius or a size, and a falloff over
+which it eases into the land. Under every road and junction the land lies 5 cm below the asphalt,
+across the pavements and a 1 m shoulder, and eases back to its own height over `road_blend`. The
+land is drawn in chunks and is solid ground. A road climbs and falls with its curve's height and
+never banks; a junction is a flat pad at its own height. In the Map Kit, **Add terrain** adds the
+node, the palette's Terrain section places the shapes, and **Drape on terrain** sets the selected
+roads, lanes, markings, spawns, props, and assets (or the whole map's) on the land in one undoable
+step, the roads no steeper than 12%.
+
 The Map Kit editor plugin (`addons/map_kit/`, enabled in `project.godot`) puts all of this in a
 dock beside the inspector, in folding sections that stay as they were left:
 
@@ -444,8 +462,8 @@ dock beside the inspector, in folding sections that stay as they were left:
   leading nowhere, a spawn off the road, and spawns on top of each other are notices. Selecting one
   selects its node; **Fix all** applies every fix at once.
 - **Selection** sets the selected meshes as road (the asphalt material), gives them a solid body on
-  the obstacle layer, links the lanes whose ends meet (the selected ones, or all of the map's), or
-  snaps them to the grid. **Next look** steps the selected map assets to the next model of their
+  the obstacle layer, links the lanes whose ends meet (the selected ones, or all of the map's),
+  snaps them to the grid, adds terrain, or drapes them on it (see Terrain). **Next look** steps the selected map assets to the next model of their
   category, and props and scenery to their next look.
 - **Road users** turns the selected cars into road users that drive to a checkpoint: select the
   cars (map assets from the Asset Library, props, or road users already) and the checkpoint (or
@@ -456,7 +474,8 @@ dock beside the inspector, in folding sections that stay as they were left:
   it keeps the rules and reacts to traffic, and there is nothing to script.
 - **The palette** holds a road, one-way road, crossroads, T junction, lane, any marking but a bay
   edge (a `ParkingBay` draws its own), traffic light, traffic source, checkpoint, any sign, a spawn,
-  a trigger zone, a no-parking zone, a crossing area, and a parking bay, with a search box; cars,
+  a trigger zone, a no-parking zone, a crossing area, a parking bay, and the terrain shapes, with a
+  search box; cars,
   houses, trees, and other models are in the Asset Library. Pick a piece and click in the 3D view to
   place it under the map's matching node, on the grid; a road or junction placed near an open road
   end joins it. Shift and click keeps placing, R turns the piece a quarter (Shift and R by 15
@@ -517,7 +536,9 @@ next spawn; a check box on its panel draws the world's trigger zones and lanes i
 Every change the dock makes to the open map is one undo step; creating, renaming, duplicating,
 and deleting maps, and the save before playing, are not. The work behind it is `MapKitTools`,
 which runs without the editor. `maps/sample_town/` is built with the kit alone: a main road
-crossed by two side roads that give way, oncoming traffic, signs, parked cars, buildings, and trees.
+crossed by two side roads that give way, oncoming traffic, signs, parked cars, buildings, and trees. `maps/hill_road/` is the same town on a hill: its main road climbs about 12% from the south onto
+a plateau, where the side roads cross it and fall away east and west; the `hill_start` scenario
+stops the car halfway up and judges it on rolling back.
 
 To build a map (in more detail in [docs/map-guide.md](docs/map-guide.md)):
 

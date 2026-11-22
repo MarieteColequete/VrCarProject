@@ -182,8 +182,8 @@ func steering_frame() -> Transform3D:
 ## Leans the body for a step of [param delta] seconds with the car accelerating [param along] its
 ## length and [param across] it (to the left positive), metres per second squared: the nose dips
 ## under braking and the body rolls out of a turn. The whole car leans as one, its cockpit and
-## [member cabin] included; the wheels stay on the road, the driver's head stays level, and nothing
-## simulated moves.
+## [member cabin] included, on top of the body's own pitch and roll; the wheels stay on the road,
+## and nothing simulated moves.
 func lean(delta: float, along: float, across: float) -> void:
 	if delta <= 0.0:
 		return

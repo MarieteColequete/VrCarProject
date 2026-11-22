@@ -29,6 +29,8 @@ const RR := 3
 const SOLVE_STEPS := 18
 ## The park pawl's hold on each driven wheel, Nm.
 const PAWL_TORQUE := 30000.0
+## How fast a held wheel draws back what it has crept, per second.
+const HOLD_PULL := 6.0
 ## The speed, m/s, above which the park pawl ratchets past its notches instead of holding.
 const PAWL_SPEED := 0.4
 ## The idle governor's most torque, Nm, given in full 150 rpm below idle.
@@ -61,6 +63,8 @@ var gear: int:
 var shifting: float:
 	get:
 		return gearbox.shifting
+## How far each wheel's contact has crept since the wheel was held still, metres.
+var held_drift := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
 ## Each wheel's spin, rad/s, forward positive.
 var spin := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
 ## Each wheel's slip ratio and slip angle in the last step.
@@ -498,9 +502,14 @@ func _solve_wheel(i: int, dt: float, drive: float, brake: float, load: float, gr
 	f.y = clampf(f.y, -most, most)
 	if solved == 0.0 and absf(ground) < 1.5:
 		# A wheel held still at a crawl grips as static friction: as hard as stops the car's share
-		# within the step, up to the tyre's grip.
+		# within the step and draws back what it has crept since it was held, so a slope cannot
+		# ease it down a little every step; up to the tyre's grip.
+		held_drift[i] += ground * dt
 		var top := TyreModel.peak(spec, load, mu)
-		f.x = clampf(-spec[CarSpec.MASS] * 0.25 * ground / dt, -top, top)
+		f.x = clampf(-spec[CarSpec.MASS] * 0.25 * (ground + held_drift[i] * HOLD_PULL) / dt,
+			-top, top)
+	else:
+		held_drift[i] = 0.0
 	force[i] = f
 	usage[i] = TyreModel.usage(spec, ratio[i], slip_angle)
 

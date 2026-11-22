@@ -202,8 +202,10 @@ func rebuild() -> void:
 			arm_length)
 		_set_pavement(RoadKit.pavement_body(RoadKit.pad_shapes(shape == Shape.T, half,
 			RoadKit.PAVEMENT, outward, arm_length)))
+		Terrain.notify_changed(self)
 		return
 	_set_pavement(null)
+	Terrain.notify_changed(self)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	_quad(st, Vector3(-half, 0, -half), Vector3(half, 0, half))

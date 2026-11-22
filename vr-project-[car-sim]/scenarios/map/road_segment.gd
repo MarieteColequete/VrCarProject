@@ -152,8 +152,10 @@ func make_markings() -> Array[RoadMarking]:
 	return made
 
 
-## Points along the curve, local space, with the horizontal direction to their right:
-## [code][position, right][/code] every [constant STEP] metres and at the end.
+## Points along the curve, local space, with the horizontal direction to their right and the
+## road's up, square to the right and to the curve's slope: [code][position, right, up][/code]
+## every [constant STEP] metres and at the end. The right stays level, so a road climbs and falls
+## with its curve's height but never banks.
 func frames() -> Array:
 	var out: Array = []
 	if curve == null or curve.point_count < 2:
@@ -171,9 +173,11 @@ func frames() -> Array:
 		var ahead := curve.sample_baked(minf(offset + 0.25, total))
 		var behind := curve.sample_baked(maxf(offset - 0.25, 0.0))
 		var dir := ahead - behind
-		dir.y = 0.0
-		var right := dir.normalized().cross(Vector3.UP) if dir.length() > 0.0001 else Vector3.RIGHT
-		out.append([curve.sample_baked(offset), right])
+		var flat := Vector3(dir.x, 0.0, dir.z)
+		var right := flat.normalized().cross(Vector3.UP) if flat.length() > 0.0001 \
+			else Vector3.RIGHT
+		var up := right.cross(dir).normalized() if flat.length() > 0.0001 else Vector3.UP
+		out.append([curve.sample_baked(offset), right, up])
 	return out
 
 
@@ -189,6 +193,7 @@ func rebuild() -> void:
 	for marking in generated(MARKINGS):
 		if marking is RoadMarking and marking.kind == RoadMarking.Kind.KERB:
 			marking.paint = not kit_look()
+	Terrain.notify_changed(self)
 
 
 ## The pavements' body, which stops the car's tyres at the kerbs; null without kerbs or in a
@@ -245,12 +250,13 @@ func _build_mesh() -> ArrayMesh:
 		var step: float = (b[0] - a[0]).length()
 		var quad := [a[0] - a[1] * half, a[0] + a[1] * half,
 			b[0] + b[1] * half, b[0] - b[1] * half]
+		var ups := [a[2], a[2], b[2], b[2]]
 		var uvs := [Vector2(0, travelled), Vector2(1, travelled), Vector2(1, travelled + step),
 			Vector2(0, travelled + step)]
 		for k in [0, 2, 1, 0, 3, 2]:
-			st.set_normal(Vector3.UP)
+			st.set_normal(ups[k])
 			st.set_uv(uvs[k] / maxf(width(), 0.01))
-			st.add_vertex(quad[k] + Vector3.UP * LIFT)
+			st.add_vertex(quad[k] + ups[k] * LIFT)
 		travelled += step
 	var mesh := st.commit()
 	mesh.surface_set_material(0, surface if surface else ASPHALT)

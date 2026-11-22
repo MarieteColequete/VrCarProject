@@ -7,7 +7,8 @@ extends EditorDock
 ## delete one (also from its right-click menu).
 ## [br]- Problems: the open map's problems, kept current as it is edited, each with its fix where
 ## one is known; selecting one selects its node.
-## [br]- Selection: set meshes as road, give them a solid body, link lanes, snap to the grid.
+## [br]- Selection: set meshes as road, give them a solid body, link lanes, snap to the grid, add
+## terrain, and drape roads and places on it.
 ## [br]- Palette: pieces to place by clicking in the 3D view, with a search box.
 ## [br]- View: the overlay, the Dev HUD when playing, and the grid step.
 ## [br]The work is the [MapKitPlugin]'s and [MapKitTools]'.
@@ -15,6 +16,8 @@ extends EditorDock
 const SANDBOX := "res://scenarios/debug/map_sandbox.tscn"
 ## Seconds a message stays in the status line.
 const STATUS_TIME := 6.0
+## The steepest a draped road climbs, rise over run.
+const MAX_GRADE := 0.12
 const MAP_ICON := preload("res://addons/map_kit/icons/map_kit.svg")
 
 var plugin: MapKitPlugin
@@ -288,6 +291,13 @@ func _build_selection(column: VBoxContainer) -> void:
 		+ "map's."))
 	flow.add_child(_button("Snap to grid", _snap, "Moves the selected nodes onto the grid.",
 		&"Snap"))
+	flow.add_child(_button("Drape on terrain", _drape,
+		"Sets the selected roads, lanes, markings, spawns, props, and assets (or the whole map's) "
+		+ "on the terrain's land, the roads no steeper than %d%%." % roundi(MAX_GRADE * 100.0),
+		&"CurveTexture"))
+	flow.add_child(_button("Add terrain", _add_terrain,
+		"Adds land that is not flat, shaped by a heightmap and the Terrain pieces, and turns the "
+		+ "flat ground off."))
 	flow.add_child(_button("Next look", _next_look,
 		"Shows the next car, van, or house on the selected props, the next kind of the selected "
 		+ "scenery, and the next model of the selected map assets' category."))
@@ -651,6 +661,25 @@ func _drive_to() -> void:
 			checkpoint.name])
 	else:
 		_say("Select cars standing on or beside a lane that runs their way.")
+
+
+func _drape() -> void:
+	var road_map := _need_map()
+	if road_map == null:
+		return
+	if Terrain.of(road_map) == null:
+		_say("The map has no terrain: press Add terrain first.")
+		return
+	if not plugin.apply(MapKitTools.drape(road_map, _selected(), MAX_GRADE), "Drape on terrain"):
+		_say("Nothing to drape: select roads, lanes, markings, or places.")
+
+
+func _add_terrain() -> void:
+	var road_map := _need_map()
+	if road_map == null:
+		return
+	if not plugin.apply(MapKitTools.add_terrain(road_map), "Add terrain", true):
+		_say("The map has a terrain already.")
 
 
 func _next_look() -> void:

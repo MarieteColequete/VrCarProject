@@ -185,6 +185,10 @@ with **Check now**. The problems and their fixes:
 - **Snap to grid** moves nodes onto the grid.
 - **Next look** steps map assets to the next model of their category, and props and scenery to
   their next look.
+- **Add terrain** gives the map a `Terrain`, sized to its ground, and turns the flat ground off.
+- **Drape on terrain** sets the heights of the selected nodes, or all of the map's, from the
+  terrain: roads follow the land no steeper than 12%, junctions stand on it, and lanes, markings,
+  spawns, signs and props lie on the road or the land under them.
 
 **Road users.** **Drive to checkpoint** turns the selected cars into road users that drive to the
 selected checkpoint (see [Traffic and people](#traffic-and-people)).
@@ -198,6 +202,7 @@ selected checkpoint (see [Traffic and people](#traffic-and-people)).
 | Traffic | Traffic light, Traffic source, Checkpoint |
 | Signs | Stop, Give way, Speed limit, No entry, Pedestrian crossing, Roundabout, No parking, One way |
 | Zones and places | Spawn, Trigger zone, No-parking zone, Crossing area, Parking bay |
+| Terrain | Hill, Valley, Ramp, Plateau |
 
 Each piece goes under the map's node of its kind (`Roads`, `Lanes`, `Markings`, `Traffic`,
 `Signs`, `Zones`), which keeps the scene tree in order.
@@ -409,7 +414,9 @@ is not.
 
 `maps/sample_town/` is built with the Map Kit alone: a main road crossed by two side roads that
 give way, oncoming traffic, signs, parked cars, buildings, and trees, so it shows the kit's
-roads, junctions, and generated lanes together.
+roads, junctions, and generated lanes together. `maps/hill_road/` is the same town on a
+`Terrain`: a plateau the main road climbs onto at about 12%, two hills and a valley, with every
+road draped on the land.
 
 The other maps were drawn by hand, lane by lane, before the kit:
 

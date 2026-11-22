@@ -1,6 +1,6 @@
 class_name PlanarVehicle
 extends RefCounted
-## A car on flat ground as two axles (the single-track model), for road users: the same spec,
+## A car on the ground as two axles (the single-track model), for road users: the same spec,
 ## tyres and engine as the player's car ([CarSpec], [TyreModel], [Powertrain]), without the
 ## wheels' spin or the suspension. Its driver asks for an acceleration and a steering angle; the
 ## engine, the brakes and the tyres give what they can, the load moving between the axles as it
@@ -8,8 +8,10 @@ extends RefCounted
 ## its wheels point (the kinematic bicycle), since tyres at a crawl are too stiff to step.
 ##
 ## The state is the car's speed forward and to its left (m/s) and its yaw rate (rad/s, left
-## positive), returned as a [Vector3] [code](forward, left, yaw)[/code]. Pure, allocation free
-## and deterministic: road users step it on worker threads.
+## positive), returned as a [Vector3] [code](forward, left, yaw)[/code]. The ground may climb or
+## fall along the car: its grade (the sine of the slope, positive uphill) pulls the car back by
+## gravity's share along it and lightens the axles by the cosine. Pure, allocation free and
+## deterministic: road users step it on worker threads.
 
 ## Speeds, m/s, between which the kinematic model hands over to the tyres.
 const KINEMATIC_BELOW := 2.0
@@ -17,10 +19,10 @@ const DYNAMIC_ABOVE := 5.0
 
 
 ## One step of [param dt] seconds from [param state] with the front wheels at [param steer]
-## radians, asking for [param wanted] m/s² forward (negative brakes), on friction [param mu].
-## Never drives backward: braking stops it.
+## radians, asking for [param wanted] m/s² forward (negative brakes), on friction [param mu], on
+## ground of [param grade] along the car. Never drives backward: braking stops it.
 static func step(spec: PackedFloat64Array, state: Vector3, steer: float, wanted: float,
-		mu: float, dt: float) -> Vector3:
+		mu: float, dt: float, grade := 0.0) -> Vector3:
 	var m := spec[CarSpec.MASS]
 	var a := CarSpec.to_front(spec)
 	var b := CarSpec.to_rear(spec)
@@ -28,14 +30,16 @@ static func step(spec: PackedFloat64Array, state: Vector3, steer: float, wanted:
 	var vx := state.x
 	var vy := state.y
 	var r := state.z
+	# Gravity across the ground's normal, and along it, back down the slope.
+	var level := sqrt(maxf(1.0 - grade * grade, 0.0))
 	var resist := 0.5 * CarSpec.AIR * spec[CarSpec.DRAG_AREA] * vx * absf(vx) \
-		+ spec[CarSpec.ROLLING] * m * CarSpec.G * signf(vx)
+		+ spec[CarSpec.ROLLING] * m * CarSpec.G * level * signf(vx) + m * CarSpec.G * grade
 
 	# The force asked for along the car, within what the engine gives and the brakes hold.
 	var fx := m * wanted + resist
 	if fx > 0.0:
 		fx = minf(fx, Powertrain.drive_force_max(spec, vx))
-	var down := m * CarSpec.G + 0.5 * CarSpec.AIR * spec[CarSpec.DOWNFORCE_AREA] * vx * vx
+	var down := m * CarSpec.G * level + 0.5 * CarSpec.AIR * spec[CarSpec.DOWNFORCE_AREA] * vx * vx
 	var front_load := down * b / l - fx * spec[CarSpec.COG_HEIGHT] / l
 	var rear_load := down - front_load
 	var layout := int(spec[CarSpec.DRIVE])
@@ -61,7 +65,8 @@ static func step(spec: PackedFloat64Array, state: Vector3, steer: float, wanted:
 	var w := clampf((absf(vx) - KINEMATIC_BELOW) / (DYNAMIC_ABOVE - KINEMATIC_BELOW), 0.0, 1.0)
 	var along := fxf * cos_s - fyf * sin_s * w + fxr - resist
 	var next_vx := vx + (along / m) * dt
-	if vx >= 0.0 and next_vx < 0.0 and fx <= 0.0:
+	# Nor rolls back down a climb its engine cannot take: it stalls there, held.
+	if vx >= 0.0 and next_vx < 0.0 and (fx <= 0.0 or grade > 0.0):
 		next_vx = 0.0
 	var side := fxf * sin_s + fyf * cos_s + fyr
 	var dyn_vy := vy + (side / m - vx * r) * dt

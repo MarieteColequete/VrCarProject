@@ -44,7 +44,8 @@ const DYNAMIC := {
 	state = 0, progress = 0.0, current_speed = 0.0, reaction = 0, lane = 0, length = 0.0,
 	upcoming = 0, rng_state = 0, committed = false, blocked_for = 0.0, shift = Vector3.ZERO,
 	shift_left = 0.0, armed = false, clock = 0.0, paused_for = 0.0, paused_this_lap = false,
-	braking_hard = false, position = Vector3.ZERO, facing = Vector3.FORWARD, jumped = false,
+	braking_hard = false, position = Vector3.ZERO, facing = Vector3.FORWARD, grade = 0.0,
+	jumped = false,
 	leader = 0, lateral = 0.0, heading = 0.0, side_speed = 0.0, yaw_rate = 0.0, steer = 0.0,
 	crashed = false,
 }
@@ -85,6 +86,8 @@ var braking_hard := PackedByteArray()
 ## Where it stands, and its facing on the ground.
 var position := PackedVector3Array()
 var facing := PackedVector3Array()
+## The sine of its lane's slope where it stands, along its facing: positive uphill.
+var grade := PackedFloat64Array()
 ## It jumped this tick (spawned, or wrapped round a loop), so a view draws it there at once.
 var jumped := PackedByteArray()
 ## What its sensor saw ahead, the entity, or 0.
@@ -586,12 +589,17 @@ func _place(i: int, l: LaneData) -> void:
 	var ahead := l.transform * curve.sample_baked(minf(offset + 0.5, total))
 	var behind := l.transform * curve.sample_baked(maxf(offset - 0.5, 0.0))
 	var tangent := ahead - behind
+	var run := tangent.length()
+	var slope := tangent.y / run if run > 0.001 else 0.0
 	tangent.y = 0.0
 	if tangent.length() > 0.001:
 		tangent = tangent.normalized()
 		# Off the path by its lateral offset, at its heading's angle to it.
 		here += Vector3.UP.cross(tangent) * lateral[i]
 		facing[i] = tangent.rotated(Vector3.UP, heading[i])
+		# The slope it climbs is the lane's along its facing, the heading's cosine of it.
+		slope *= cos(heading[i])
+	grade[i] = slope
 	position[i] = here
 
 
@@ -832,7 +840,7 @@ func _drive(i: int, slot: int, kind: Kind, dt: float) -> void:
 	var angle := clampf(PlanarVehicle.steer_for(car, bend, v) + gain * (aim - heading[i]),
 		-lock, lock)
 	var next := PlanarVehicle.step(car, Vector3(v, side_speed[i], yaw_rate[i]), angle, wanted,
-		1.0, dt)
+		1.0, dt, grade[i])
 	d_speed[i] = next.x
 	d_side_speed[i] = next.y
 	d_yaw_rate[i] = next.z
@@ -863,7 +871,7 @@ func _along_path(i: int, dt: float) -> float:
 func _drift(i: int, dt: float) -> void:
 	var car: PackedFloat64Array = s_specs[spec[i]]
 	var next := PlanarVehicle.step(car, Vector3(current_speed[i], side_speed[i], yaw_rate[i]),
-		0.0, -6.0, 1.0, dt)
+		0.0, -6.0, 1.0, dt, grade[i])
 	if next.x <= 0.0 and absf(next.y) < 0.2:
 		next = Vector3.ZERO
 	d_decided[i] = 1

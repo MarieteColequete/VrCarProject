@@ -2,8 +2,9 @@
 class_name MapKitPlacer
 extends RefCounted
 ## Places palette pieces and models by clicking in the 3D view. Arming a piece shows a ghost of it
-## that follows the mouse over the ground, snapped to the grid across, or onto an open road end
-## when a road or junction comes near one; a model stands on whatever solid is under the mouse
+## that follows the mouse over the ground (the map's [Terrain] where it has one), snapped to the
+## grid across, or onto an open road end when a road or junction comes near one; a terrain shape
+## goes under the terrain; a model stands on whatever solid is under the mouse
 ## (a road tile, a pavement, another model's body), or else on the ground. A model's ghost is see-through and solid to nothing. A left click
 ## places it, Shift and click places it and keeps it armed, R turns it a quarter, Shift and R by
 ## 15 degrees, Shift and E straightens it, and Escape or a right click stops. With nothing armed,
@@ -140,6 +141,8 @@ func place(road_map: RoadMap, point: Vector3) -> void:
 		else road_map
 	if parent == null:
 		parent = road_map
+	if node is TerrainShape and Terrain.of(road_map):
+		parent = Terrain.of(road_map)
 	node.transform = MapKitTools.to_map(parent, road_map).affine_inverse() \
 		* _placement(road_map, node, point)
 	plugin.apply(MapKitTools.Edit.new().add(parent, node), "Add %s" % piece.label.to_lower(), true)
@@ -162,9 +165,16 @@ func follow(camera: Camera3D, mouse: Vector2) -> void:
 	_mouse = mouse
 	var from := camera.project_ray_origin(mouse)
 	var normal := camera.project_ray_normal(mouse)
-	var hit: Variant = Plane.PLANE_XZ.intersects_ray(from, normal)
+	var into := road_map.global_transform.affine_inverse()
+	var terrain := Terrain.of(road_map)
+	var hit: Variant = terrain.intersect_ray(into * from, into.basis * normal, REACH) \
+		if terrain else null
+	if hit == null:
+		hit = Plane.PLANE_XZ.intersects_ray(from, normal)
+		if hit != null:
+			hit = into * (hit as Vector3)
 	if hit != null:
-		_at = road_map.global_transform.affine_inverse() * (hit as Vector3)
+		_at = hit
 		_show_ghost(road_map, _at)
 	if _ghost is MapAsset and camera.get_world_3d():
 		# The physics space answers queries only in a physics frame, as the physics runs on a
