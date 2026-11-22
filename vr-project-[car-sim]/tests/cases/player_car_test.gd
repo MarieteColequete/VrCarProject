@@ -41,6 +41,18 @@ func _test_fit() -> void:
 			expect(m.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA and m.albedo_color.a < 0.5,
 				"%s is see-through" % mesh.name)
 	expect(glass >= 5, "the windows and lamp covers are glass: %d" % glass)
+	var paint: StandardMaterial3D = null
+	var plates: StandardMaterial3D = null
+	for mesh: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		for surface in mesh.mesh.get_surface_count():
+			var m := mesh.get_surface_override_material(surface) as StandardMaterial3D
+			if m and m.resource_name == "kiri86_Bodymat":
+				paint = m
+			elif m and m.resource_name == "Numberplates_Misk_U":
+				plates = m
+	expect(paint != null and paint.clearcoat_enabled, "the paint has a clear coat")
+	expect(plates != null and plates.normal_enabled and plates.normal_texture != null,
+		"the number plates' letters stand out, from their height map")
 	model.free()
 
 
@@ -77,6 +89,21 @@ func _test_live() -> void:
 		car.current_speed * 3.6), "the speedometer reads the car's speed: %.0f km/h"
 		% instruments.speed_kmh)
 	expect(instruments.headlights and not instruments.left_on, "the headlights tell-tale is lit")
+	expect(instruments.rpm > CarDrivetrain.IDLE_RPM and instruments.gear == str(car.gear),
+		"the rev counter and the gear follow the drivetrain: %.0f rpm, %s"
+		% [instruments.rpm, instruments.gear])
+	expect(absf(instruments.speed_needle - instruments.speed_kmh) < 3.0,
+		"the speed needle follows the speed: %.1f, %.1f"
+		% [instruments.speed_needle, instruments.speed_kmh])
+	var beams: Array = model.beams.filter(func(b: SpotLight3D) -> bool: return b.visible)
+	expect(model.beams.size() == 2 and beams.size() == 2
+		and model.beams.all(func(b: SpotLight3D) -> bool: return b.position.z < -1.5),
+		"the headlamps cast their beams, from the front of the car")
+	car.probe.headlights = VehicleProbe.Toggle.OFF
+	await physics_frame
+	expect(model.beams.all(func(b: SpotLight3D) -> bool: return not b.visible),
+		"and go dark with the headlights")
+	car.probe.headlights = VehicleProbe.Toggle.ON
 	var seen_on := false
 	var seen_off := false
 	for i in 50:
@@ -97,5 +124,14 @@ func _test_instruments() -> void:
 		and is_equal_approx(InstrumentCluster.needle_angle(999.0),
 		InstrumentCluster.START + InstrumentCluster.SWEEP),
 		"the needle sweeps from nought to the top speed and stops there")
+	var cluster := InstrumentCluster.new()
+	var highest := 0.0
+	for i in 120:
+		cluster.show_state(1.0 / 60.0, 100.0, 3000.0, "3", false, false, false, false, false)
+		highest = maxf(highest, cluster.speed_needle)
+	expect(absf(cluster.speed_needle - 100.0) < 0.1 and highest <= 100.0001
+		and absf(cluster.rpm_needle - 3000.0) < 1.0,
+		"the needles settle on their readings without overshooting: %.2f" % highest)
+	cluster.free()
 	expect(CAR_SCRIPT.blink_on(0.0) and CAR_SCRIPT.blink_on(0.3) and not CAR_SCRIPT.blink_on(0.4)
 		and CAR_SCRIPT.blink_on(0.75), "an indicator is lit, then dark, in turn")

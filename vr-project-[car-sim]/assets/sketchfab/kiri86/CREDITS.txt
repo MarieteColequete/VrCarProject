@@ -7,4 +7,5 @@ https://creativecommons.org/licenses/by/4.0/
 
 Changes: the game builds the model's materials from these textures, splits the blinkers into
 left and right, and scales the model to the player car's wheelbase. The files here are as
-downloaded.
+downloaded, except the three textures/*_normal.png, made from the model's height maps by
+tools/kiri86_normals.gd.

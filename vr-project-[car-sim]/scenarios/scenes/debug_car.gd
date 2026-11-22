@@ -5,7 +5,8 @@ extends CharacterBody3D
 ## input off and move it directly, or, to drive its physics, keep input on and set
 ## [member held_controls]. Its body is the [PlayerCarModel], with a cockpit the driver sits in:
 ## its wheels roll and steer, its steering wheel turns, its lights show the car's state, and the
-## [InstrumentCluster] behind the steering wheel shows the speed and the tell-tales. L (or the
+## [InstrumentCluster] behind the steering wheel shows the speed, the revolutions and the gear, and
+## the tell-tales. L (or the
 ## gamepad's X) switches the headlights. Its gearbox and steering are the [CarDrivetrain]'s: an
 ## automatic gearbox with the engine's revolutions, and steering along the front wheels with less
 ## lock at speed.
@@ -117,8 +118,10 @@ func _show(delta: float) -> void:
 		model.lean(delta, along, current_speed * _yaw_rate)
 	_last_speed = current_speed
 	if instruments:
-		instruments.show_state(current_speed * 3.6, left, right,
-			probe.handbrake == VehicleProbe.Toggle.ON, headlights, reversing)
+		var parked := probe.handbrake == VehicleProbe.Toggle.ON
+		instruments.show_state(delta, current_speed * 3.6, rpm,
+			CarDrivetrain.gear_letter(gear, current_speed, parked), left, right, parked, headlights,
+			reversing)
 
 
 func _drive(delta: float) -> void:

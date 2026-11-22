@@ -20,6 +20,12 @@ const BRAKE := Color(1.0, 0.05, 0.03)
 const REVERSE := Color(1.0, 1.0, 0.95)
 const HEADLIGHT := Color(1.0, 0.95, 0.8)
 const GLOW := 4.0
+## The headlamps' beams: how far they reach, metres, their half-angle, degrees, their brightness,
+## and how far they dip below level, degrees.
+const BEAM_RANGE := 40.0
+const BEAM_ANGLE := 25.0
+const BEAM_ENERGY := 3.0
+const BEAM_DIP := 3.0
 ## How far the body leans for each metre per second squared: pitching under acceleration and
 ## braking, rolling out of a turn, radians; and the most it leans.
 const PITCH_PER := 0.004
@@ -54,6 +60,8 @@ var _leaning: Array[Dictionary] = []
 var _lean_pivot := Vector3.ZERO
 var _roll := 0.0
 var _lights := {}
+## The headlamps' beams, lit with the headlights.
+var beams: Array[SpotLight3D] = []
 
 
 ## The car fitted to [param wheelbase] metres; null when the model does not load.
@@ -186,6 +194,7 @@ func _build(model: Node3D, wheelbase: float) -> void:
 	_glow(found.get("Brakelights001") as MeshInstance3D, &"brake", BRAKE)
 	_glow(found.get("Reverse") as MeshInstance3D, &"reverse", REVERSE)
 	_glow(found.get("Headlights") as MeshInstance3D, &"headlights", HEADLIGHT)
+	_beams(found.get("Headlights") as MeshInstance3D)
 	var steady := STEADY.map(func(key: String) -> Node: return found.get(key))
 	for part: Node in body.get_children():
 		if part is Node3D and not steady.has(part):
@@ -259,6 +268,10 @@ static func _material(key: String, source: StandardMaterial3D) -> StandardMateri
 			m.albedo_texture = _texture("Generic_bodymat_dif.jpeg")
 			m.metallic = 0.35
 			m.roughness = 0.35
+			# A lacquer over the paint: its sharp highlight is what reads as a car's finish.
+			m.clearcoat_enabled = true
+			m.clearcoat = 0.6
+			m.clearcoat_roughness = 0.1
 		"UCB_BOTTOM_GT":
 			m.albedo_texture = _texture("UCB_BOTTOM_GT_Dif.png")
 			m.normal_enabled = true
@@ -283,9 +296,14 @@ static func _material(key: String, source: StandardMaterial3D) -> StandardMateri
 			m.roughness_texture = _texture("RB1c_Tire_1k_Rough.jpeg")
 			m.metallic_texture = _texture("RB1c_Tire_1k_Met.jpeg")
 			m.metallic = 1.0
+			m.normal_enabled = true
+			m.normal_texture = _texture("RB1c_Tire_1k_normal.png")
 		"Numberplates_Misk_U", "Carbadges_misc_U":
 			m.albedo_texture = source.albedo_texture if source else null
 			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+			# The letters and badges stand out of the plate, from the kit's height maps.
+			m.normal_enabled = true
+			m.normal_texture = _texture(key + "_normal.png")
 		_:
 			if source:
 				m.albedo_color = source.albedo_color
@@ -351,3 +369,31 @@ func _light(group: StringName, on: bool) -> void:
 	var material := _lights.get(group) as StandardMaterial3D
 	if material:
 		material.emission_energy_multiplier = GLOW if on else 0.0
+	if group == &"headlights":
+		for beam in beams:
+			beam.visible = on
+
+
+## A dipped beam from each headlamp, ahead and a little down, without shadows; dark until the
+## headlights are on.
+func _beams(mesh: MeshInstance3D) -> void:
+	if mesh == null:
+		return
+	# In the model, +Z is to the right: one lamp each side.
+	for left in [true, false]:
+		var half := split_mesh(mesh.mesh, func(centroid: Vector3) -> bool:
+			return (centroid.z < 0.0) == left)
+		if half.get_surface_count() == 0:
+			continue
+		var beam := SpotLight3D.new()
+		beam.name = "BeamLeft" if left else "BeamRight"
+		beam.light_color = HEADLIGHT
+		beam.light_energy = BEAM_ENERGY
+		beam.spot_range = BEAM_RANGE
+		beam.spot_angle = BEAM_ANGLE
+		beam.shadow_enabled = false
+		beam.position = body.transform * mesh.transform * half.get_aabb().get_center()
+		beam.rotation = Vector3(deg_to_rad(-BEAM_DIP), 0.0, 0.0)
+		beam.visible = false
+		add_child(beam)
+		beams.append(beam)

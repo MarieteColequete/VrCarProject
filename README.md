@@ -141,9 +141,12 @@ its materials made by the game from the model's textures (`PlayerCarModel`). It 
 car's wheelbase, left-hand drive, and the driver's eyes sit behind its steering wheel. Everything
 the car reports is in the car, as in a real one, since the view is VR: the wheels roll and the
 front ones steer, the steering wheel turns with the steering, the blinkers, brake lights, reversing
-lights, and headlights glow with the car's state, and the instrument panel in the binnacle
-(`InstrumentCluster`) shows the speed on a dial and in figures, the indicator arrows blinking, and
-the handbrake, headlights, and reverse tell-tales.
+lights, and headlights glow with the car's state, the headlamps cast dipped beams on the road, and
+the instrument panel in the binnacle (`InstrumentCluster`) shows the speed on a dial and in figures,
+the engine's revolutions and the gear, the indicator arrows blinking, and the handbrake, headlights,
+and reverse tell-tales; its needles follow their readings without overshooting. The paint has a
+clear coat, and the number plates' letters, the badges, and the tyre walls stand out through normal
+maps made from the model's height maps by `tools/kiri86_normals.gd`.
 
 The car drives as an arcade car with a real car's habits (`CarDrivetrain`). A five speed automatic
 gearbox changes up as the engine's revolutions rise, later the harder the throttle is pressed, and
