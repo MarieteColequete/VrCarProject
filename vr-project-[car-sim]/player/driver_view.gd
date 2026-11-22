@@ -292,7 +292,7 @@ static func _glove(left: bool) -> Node3D:
 ## The controllers as the car's controls: the right trigger is the throttle, the left the brake,
 ## the right A the handbrake, the right B the headlights, a flick of the left stick an indicator,
 ## the left stick's click the mirror switch ([MirrorAdjust]), a flick of the right stick up or down
-## a gear change in the manual, and the right stick's click recentres;
+## the gear lever, the left X held the key, and the right stick's click recentres;
 ## holding both grips away from the wheel and the mirrors recentres too.
 func _xr_controls(delta: float) -> void:
 	if hands.size() < 2:
@@ -302,6 +302,7 @@ func _xr_controls(delta: float) -> void:
 	_hold(DriverInput.THROTTLE, right.get_float(&"trigger"))
 	_hold(DriverInput.BRAKE, left.get_float(&"trigger"))
 	_hold(DriverInput.HANDBRAKE, 1.0 if right.is_button_pressed(&"ax_button") else 0.0)
+	_hold(DriverInput.IGNITION, 1.0 if left.is_button_pressed(&"ax_button") else 0.0)
 	var flick := left.get_vector2(&"primary").x
 	var flicked := 0 if absf(flick) < FLICK else int(signf(flick))
 	if flicked != 0 and flicked != _flicked:

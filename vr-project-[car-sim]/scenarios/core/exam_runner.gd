@@ -92,6 +92,12 @@ func _start(loaded: Scenario) -> void:
 	# An exam attempt drives with the exam's aids; free drive with the player's setting.
 	if &"assist_preset" in car and scenario.definition != Scenario.FREE_DRIVE:
 		car.set(&"assist_preset", "exam")
+	if &"start" in car and scenario.definition.car_start:
+		car.set(&"start", scenario.definition.car_start)
+	if &"key_live" in car:
+		# The key that begins the attempt is not the car's until it is let go.
+		car.set(&"key_live", false)
+		session.started.connect(car.set.bind(&"key_live", true), CONNECT_ONE_SHOT)
 	car.transform = global_transform.affine_inverse() * start.global_transform
 	add_child(car)
 	car.reset_physics_interpolation()

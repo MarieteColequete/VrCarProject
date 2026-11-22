@@ -16,6 +16,8 @@ const HIGH_RPM := 4000.0
 const ENGINE_COAST_DB := -14.0
 const ENGINE_FULL_DB := -4.0
 const SHIFT_DIP_DB := -6.0
+## How much quieter the engine is while the starter turns it over, dB.
+const CRANK_DB := -12.0
 ## How hard the tyres work when they begin to squeal, and when at full voice, as a share of
 ## their peak grip ([method TyreModel.usage]); and the speed below which they never do.
 const SQUEAL_FROM := 0.7
@@ -60,11 +62,18 @@ func _ready() -> void:
 
 ## Follows the car for a step: the engine at [param rpm] with [param throttle] (0 to 1), dipped
 ## while [param shifting]; the indicator ticking as [param blink_lit] turns on and off; the tyres
-## working [param work] (1 at their peak grip) at [param speed] metres per second.
+## working [param work] (1 at their peak grip) at [param speed] metres per second. The
+## [param engine] ([enum CarDynamics.EngineState]) off is silent, and turned over by the starter it
+## chugs low and quiet.
 func follow(rpm: float, throttle: float, shifting: bool, blink_lit: bool, work: float,
-		speed: float) -> void:
+		speed: float, engine := CarDynamics.EngineState.RUNNING) -> void:
 	var mix := engine_mix(rpm, throttle)
 	var dip := SHIFT_DIP_DB if shifting else 0.0
+	match engine:
+		CarDynamics.EngineState.OFF:
+			dip = -80.0
+		CarDynamics.EngineState.CRANKING:
+			dip = CRANK_DB
 	engine_low.volume_db = mix.low_db + dip
 	engine_high.volume_db = mix.high_db + dip
 	engine_low.pitch_scale = mix.low_pitch

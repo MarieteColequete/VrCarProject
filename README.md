@@ -16,6 +16,7 @@ scripts read them through `DriverInput`.
 | Brake | S, Down | Left trigger |
 | Steer | A and D, Left and Right | Left stick |
 | Handbrake | Space | A (Cross) |
+| Engine: hold to start, press to switch off | Enter | Start |
 | Gear lever toward D, toward P (the automatic's P, R, N, D; the manual's R, N, 1 to 6) | Shift, Ctrl | B (Circle), D-pad down |
 | Indicators | Q and E | Left and right shoulder |
 | Headlights on or off | L | X (Square) |
@@ -55,6 +56,7 @@ actions, so the car reads them as it reads a keyboard or a gamepad:
 | Throttle | Right trigger |
 | Brake | Left trigger |
 | Handbrake | Right A |
+| Engine: hold to start, press to switch off | Left X |
 | Gear lever toward D, toward P (the automatic's P, R, N, D; the manual's R, N, 1 to 6) | Flick the right stick up or down |
 | Indicators | Flick the left stick left or right |
 | Headlights on or off | Right B |
@@ -64,7 +66,7 @@ actions, so the car reads them as it reads a keyboard or a gamepad:
 A grip within 10 cm of the rim takes hold of the wheel there (`WheelGrab`), and the glove is drawn
 on the rim while it holds; the wheel turns as the holding hands move round it, the average of the
 two with both, and centres itself once let go. The controllers buzz on the indicator, a gear
-change, and a tyre meeting a kerb. The gloves are simple shapes made by the game, on a visual layer
+change, a tyre meeting a kerb, the starter turning, and a stall. The gloves are simple shapes made by the game, on a visual layer
 of their own that the mirrors leave out.
 
 On a desktop the window shows an instructor's view while the driver is in the headset
@@ -213,13 +215,20 @@ held in VR always steers the wheels directly.
 
 The gearbox (`Gearbox`) is an automatic with a P, R, N, D lever by default, moved one notch at a
 time with `shift_up` (toward D) and `shift_down` (toward P). The car starts in P, which holds it
-with the park pawl. The brake only brakes, and the throttle drives the way the lever is set,
-backward in R. The lever will not go into P or R while the car rolls forward, nor into D while it
-rolls backward, and buzzes the controllers when it refuses. In D the automatic picks the gear from
+with the park pawl, which ratchets while the car rolls and drops in once it is slow. The brake only
+brakes, and the throttle drives the way the lever is set, backward in R. Nothing locks the lever
+out: R while rolling forward, or D while rolling backward, above a walking pace stalls the engine
+with a jolt, and below it the converter takes it up. In D the automatic picks the gear from
 the driven wheels' speed, changing up later the harder the throttle is pressed and kicking down
 when it goes to the floor, and holds each gear a moment so it never hunts. With `car/gearbox` set
-to `manual`, the same actions change gear through R, N and 1 to 6, refusing a change down that
-would over-rev the engine. The engine turns on its own inertia (`CarDynamics`): out of gear it revs
+to `manual`, the same actions change gear through R, N and 1 to 6; a change down past the redline
+stalls the engine, and so does coming to a stop in gear with the throttle shut, the clutch let out.
+The engine is off, turned over, or running. The key (`ignition`) held turns it over with the
+starter, in P or N only (the manual in N), and it catches after a second (`crank_time` in the
+`CarSpec`); let go sooner, it does not. A press switches a running engine off, and off, it drives
+nothing and its revolutions run down to nothing. A scenario sets how the car starts with a
+`CarStart` on its `ScenarioDefinition`: the engine off or running, the lever, and a speed for a
+car that starts moving; without one the car starts running, in P. The engine turns on its own inertia (`CarDynamics`): out of gear it revs
 freely and settles back to idle; in gear a torque converter (or the clutch, in the manual) slips to
 pull away and locks to the driven wheels once they catch up, so the revolutions are the engine's
 own, held at the redline by the limiter, and off the ground they climb or fall at the engine's

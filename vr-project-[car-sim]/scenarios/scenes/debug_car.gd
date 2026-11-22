@@ -53,6 +53,9 @@ const ACCEL_SMOOTHING := 30.0
 @export var spec: CarSpec = preload("res://scenarios/vehicle/specs/kiri86.tres")
 ## The driving aids' preset ([Assists]); empty takes the project setting.
 @export var assist_preset := ""
+## How the car starts: its engine, its lever, its speed ([CarStart]); empty, it starts running,
+## in park (the manual in neutral), standing still.
+@export var start: CarStart
 
 ## The car's speed along its length, m/s, negative reversing.
 var current_speed := 0.0
@@ -73,8 +76,8 @@ var throttle := 0.0
 var wheel_angle := 0.0
 ## Controls set from code instead of [DriverInput], for tests: [code]{throttle, brake, steer,
 ## handbrake}[/code] each from 0 to 1, steer from -1 (full right) to 1 (full left), and
-## [code]select[/code] a lever position by letter (P, R, N, D) to put the gearbox in; empty to read
-## the player's controls.
+## [code]select[/code] a lever position by letter (P, R, N, D) to put the gearbox in, and
+## [code]ignition[/code] whether the key is held; empty to read the player's controls.
 var held_controls := {}
 ## Whether each wheel touches the road, and how far its spring is compressed, metres.
 var grounded := PackedByteArray([0, 0, 0, 0])
@@ -107,6 +110,15 @@ var _mirror_held := false
 var _abs_was := false
 var _settled := false
 var _shift := 0
+## The speed, m/s, a [member start] gives the body when it is first let go.
+var _launch := 0.0
+## Whether the key is read: off during a briefing, whose Enter (or Start) begins the attempt and
+## would otherwise switch the engine off too. Turned on, the key counts only once let go.
+var key_live := true:
+	set(value):
+		key_live = value
+		_key_wait = value
+var _key_wait := false
 var _mu_mean := 1.0
 var _ray := PhysicsRayQueryParameters3D.new()
 
@@ -291,6 +303,9 @@ func _setup_body() -> void:
 	if dynamics.manual:
 		# A manual car is left in neutral with its handbrake; nothing holds it but the brakes.
 		dynamics.gearbox.select(Gearbox.Selector.NEUTRAL)
+	if start:
+		dynamics.place(start.running(), start.selector(), start.speed)
+		_launch = start.speed
 	mass = spec.mass
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
 	center_of_mass = Vector3(0.0, spec.cog_height, spec.wheelbase * (0.5 - spec.front_share))
@@ -321,6 +336,10 @@ func _apply_freeze() -> void:
 		linear_velocity = Vector3.ZERO
 		angular_velocity = Vector3.ZERO
 		_settled = false
+	elif _launch > 0.0 and is_inside_tree():
+		# A car that starts moving gets its speed the first time it is let go.
+		linear_velocity = -global_basis.z * _launch
+		_launch = 0.0
 
 
 ## Gives the body the impulse, N·s, the road users it ran into gave it ([Impacts]).
@@ -356,7 +375,7 @@ func _show(delta: float) -> void:
 			if grounded[i]:
 				work = maxf(work, dynamics.usage[i])
 		sound.follow(rpm, throttle, dynamics.shifting > 0.0, blinking and lit, work,
-			current_speed)
+			current_speed, dynamics.engine)
 	if instruments:
 		var parked := probe.handbrake == VehicleProbe.Toggle.ON
 		instruments.redline = spec.redline_rpm
@@ -374,10 +393,20 @@ func _controls() -> Dictionary:
 			brake = float(held_controls.get("brake", 0.0)),
 			handbrake = float(held_controls.get("handbrake", 0.0)),
 			steer = float(held_controls.get("steer", 0.0)), shift = shift, held = true,
-			select = held_controls.get("select", "")}
+			select = held_controls.get("select", ""),
+			ignition = bool(held_controls.get("ignition", false))}
 	return {throttle = DriverInput.throttle(), brake = DriverInput.brake(),
 		handbrake = 1.0 if DriverInput.handbrake() else 0.0, steer = DriverInput.steer(),
-		shift = shift, held = false, select = ""}
+		shift = shift, held = false, select = "", ignition = _key()}
+
+
+## The key as the car reads it: never while [member key_live] is off, and once on, only after it
+## has been let go.
+func _key() -> bool:
+	var held := DriverInput.ignition()
+	if not held:
+		_key_wait = false
+	return held and key_live and not _key_wait
 
 
 func _drive(delta: float) -> void:
@@ -480,7 +509,7 @@ func _drive(delta: float) -> void:
 	_mu_mean = (mu[0] + mu[1] + mu[2] + mu[3]) * 0.25
 	dynamics.aids = _aids()
 	var step := {throttle = c.throttle, brake = brake, handbrake = c.handbrake, steer = wheel_angle,
-		shift = c.shift}
+		shift = c.shift, starter = c.ignition}
 	if not str(c.select).is_empty():
 		step.select = SELECTOR_LETTERS.find(str(c.select))
 	dynamics.step(delta, step, loads, along, across, mu, current_speed, angular_velocity.dot(up))
@@ -502,6 +531,12 @@ func _drive(delta: float) -> void:
 		driver_view.pulse(0.15, 0.05)
 	elif dynamics.shift_refused:
 		driver_view.pulse(0.5, 0.15)
+	if dynamics.stalled:
+		driver_view.pulse(1.0, 0.4)
+	elif dynamics.start_refused:
+		driver_view.pulse(0.5, 0.15)
+	elif dynamics.engine == CarDynamics.EngineState.CRANKING:
+		driver_view.pulse(0.15, delta)
 	if dynamics.abs_active and not _abs_was:
 		driver_view.pulse(0.3, 0.06)
 	_abs_was = dynamics.abs_active

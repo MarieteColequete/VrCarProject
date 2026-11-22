@@ -12,14 +12,16 @@ const HANDBRAKE := &"handbrake"
 const INDICATOR_LEFT := &"indicator_left"
 const INDICATOR_RIGHT := &"indicator_right"
 const HEADLIGHTS := &"toggle_headlights"
-## Gear changes, read in the manual gearbox only.
+## The gear lever, a notch at a time: the automatic's P-R-N-D, the manual's gears.
 const SHIFT_UP := &"shift_up"
 const SHIFT_DOWN := &"shift_down"
+## The key: held to turn the engine over until it catches, pressed to switch it off.
+const IGNITION := &"ignition"
 
 ## Every action a car reads, for checks that the bindings exist.
 const CAR_ACTIONS: Array[StringName] = [
 	THROTTLE, BRAKE, STEER_LEFT, STEER_RIGHT, HANDBRAKE, INDICATOR_LEFT, INDICATOR_RIGHT,
-	HEADLIGHTS, SHIFT_UP, SHIFT_DOWN]
+	HEADLIGHTS, SHIFT_UP, SHIFT_DOWN, IGNITION]
 
 
 ## Accelerator, 0 to 1.
@@ -27,7 +29,7 @@ static func throttle() -> float:
 	return Input.get_action_strength(THROTTLE)
 
 
-## Brake, 0 to 1; a car may use it as reverse once stopped.
+## Brake, 0 to 1.
 static func brake() -> float:
 	return Input.get_action_strength(BRAKE)
 
@@ -39,6 +41,11 @@ static func steer() -> float:
 
 static func handbrake() -> bool:
 	return Input.is_action_pressed(HANDBRAKE)
+
+
+## Whether the key is held in the start position.
+static func ignition() -> bool:
+	return Input.is_action_pressed(IGNITION)
 
 
 ## Whether an input event switches the headlights on or off.

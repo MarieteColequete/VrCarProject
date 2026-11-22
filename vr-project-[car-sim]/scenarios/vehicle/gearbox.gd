@@ -3,15 +3,12 @@ extends RefCounted
 ## A car's gearbox and its lever. The automatic has a P-R-N-D lever the driver moves one notch at a
 ## time ([method request]); in D it picks the forward gear itself ([method step]) from how fast the
 ## driven wheels turn, with hysteresis, so it never hunts. The manual steps through R, N and the
-## forward gears. Neither moves on its own between reverse and forward: only the driver does, and
-## not at speed. Gears are 1 and up forward, -1 reverse, 0 neutral (and park). Plain fields, no
-## nodes.
+## forward gears. Neither moves on its own between reverse and forward: only the driver does, at
+## any speed; a move against the car's motion is the engine's to suffer ([CarDynamics] stalls it).
+## Gears are 1 and up forward, -1 reverse, 0 neutral (and park). Plain fields, no nodes.
 
 enum Selector { PARK, REVERSE, NEUTRAL, DRIVE }
 
-## The speed, m/s, above which the lever will not go to P or R moving forward, nor to D (or the
-## manual to first) moving backward.
-const LOCKOUT := 0.4
 ## Seconds in a gear before the automatic changes again, but for a kick-down.
 const HOLD := 0.8
 ## Below this speed, m/s, the automatic is in first, whatever it held.
@@ -52,21 +49,16 @@ func rpm_in(in_gear: int, wheel_speed: float) -> float:
 
 
 ## Moves the lever one notch ([param step] +1 toward D, or up a gear; -1 back), with the driven
-## wheels at [param wheel_speed] m/s. Returns false, moving nothing, when the lever is at its end
-## or the move is locked out: P or R moving forward, D or first moving backward, or in the manual
-## a change down past the redline.
+## wheels at [param wheel_speed] m/s. Returns false, moving nothing, only when the lever is at its
+## end. Nothing is locked out: a move against the car's motion, or a change down past the
+## redline, goes through, and the engine pays for it.
 func request(step: int, wheel_speed: float) -> bool:
 	if step == 0:
 		return false
 	if manual:
-		return _request_gear(clampi(gear + signi(step), -1, Powertrain.gear_count(spec)),
-			wheel_speed)
+		return _request_gear(clampi(gear + signi(step), -1, Powertrain.gear_count(spec)))
 	var next: int = clampi(selector + signi(step), Selector.PARK, Selector.DRIVE)
 	if next == selector:
-		return false
-	if (next == Selector.PARK or next == Selector.REVERSE) and wheel_speed > LOCKOUT:
-		return false
-	if next == Selector.DRIVE and wheel_speed < -LOCKOUT:
 		return false
 	_set_selector(next, wheel_speed)
 	return true
@@ -75,7 +67,7 @@ func request(step: int, wheel_speed: float) -> bool:
 ## Puts the lever straight at [param to], as a test or a spawn does, with no lockouts.
 func select(to: Selector, wheel_speed := 0.0) -> void:
 	if manual:
-		var gears := {Selector.REVERSE: -1, Selector.DRIVE: 1}
+		var gears := {Selector.REVERSE: -1, Selector.DRIVE: _gear_for(wheel_speed)}
 		_engage(gears.get(to, 0))
 		selector = to if to != Selector.PARK else Selector.NEUTRAL
 		return
@@ -120,14 +112,8 @@ func letter() -> String:
 	return str(gear)
 
 
-func _request_gear(next: int, wheel_speed: float) -> bool:
+func _request_gear(next: int) -> bool:
 	if next == gear:
-		return false
-	if next < 0 and wheel_speed > LOCKOUT:
-		return false
-	if next > 0 and wheel_speed < -LOCKOUT:
-		return false
-	if next > 0 and rpm_in(next, wheel_speed) > spec[CarSpec.REDLINE_RPM] * 1.02:
 		return false
 	_engage(next)
 	selector = Selector.REVERSE if next < 0 else (Selector.NEUTRAL if next == 0 \
@@ -151,7 +137,7 @@ func _set_selector(to: Selector, wheel_speed: float) -> void:
 func _gear_for(wheel_speed: float) -> int:
 	var top := Powertrain.gear_count(spec)
 	for g in range(1, top + 1):
-		if rpm_in(g, wheel_speed) <= spec[CarSpec.UP_FULL] * 0.8:
+		if rpm_in(g, maxf(wheel_speed, 0.0)) <= spec[CarSpec.UP_FULL] * 0.8:
 			return g
 	return top
 

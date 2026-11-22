@@ -53,9 +53,12 @@ const LAUNCH_RPM := 37
 const GEAR_COUNT := 38
 const ENGINE_INERTIA := 39
 const CREEP_TORQUE := 40
+const CRANK_TIME := 41
+const STARTER_RPM := 42
+const STALL_RPM := 43
 ## The gears' ratios start here, first gear first, [constant GEAR_COUNT] of them; the torque
 ## curve follows them, [constant CURVE_SAMPLES] samples [constant CURVE_STEP] rpm apart from 0.
-const GEARS := 41
+const GEARS := 44
 const CURVE_SAMPLES := 9
 const CURVE_STEP := 1000.0
 ## Air density, kg/m³, and gravity, m/s².
@@ -95,6 +98,12 @@ const G := 9.81
 @export var engine_inertia := 0.12
 ## The torque, Nm, an automatic's converter passes at idle with the throttle shut: the creep.
 @export var creep_torque := 12.0
+## Seconds the starter must turn the engine over before it catches.
+@export var crank_time := 1.0
+## The revolutions the starter turns the engine at.
+@export var starter_rpm := 250.0
+## Below these revolutions a running engine dies.
+@export var stall_rpm := 500.0
 @export var gear_ratios := PackedFloat64Array([3.63, 2.19, 1.54, 1.21, 1.0, 0.77])
 @export var reverse_ratio := 3.44
 @export var final_drive := 4.1
@@ -188,6 +197,9 @@ func packed() -> PackedFloat64Array:
 	p[GEAR_COUNT] = gear_ratios.size()
 	p[ENGINE_INERTIA] = engine_inertia
 	p[CREEP_TORQUE] = creep_torque
+	p[CRANK_TIME] = crank_time
+	p[STARTER_RPM] = starter_rpm
+	p[STALL_RPM] = stall_rpm
 	for i in gear_ratios.size():
 		p[GEARS + i] = gear_ratios[i]
 	var curve := GEARS + gear_ratios.size()

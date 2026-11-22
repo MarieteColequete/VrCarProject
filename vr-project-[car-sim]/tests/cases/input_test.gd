@@ -100,6 +100,24 @@ func _test_debug_car_controls() -> void:
 	await physics_frame
 	var start := car.global_position
 	expect(car.dynamics.gearbox.letter() == "P", "the car starts in park")
+	for i in 30:
+		if runner.session.is_running():
+			break
+		await physics_frame
+	await physics_frame
+	expect(car.key_live, "and is once the attempt runs")
+	Input.action_press(DriverInput.IGNITION)
+	await physics_frame
+	await physics_frame
+	Input.action_release(DriverInput.IGNITION)
+	await physics_frame
+	expect(car.dynamics.engine == CarDynamics.EngineState.OFF, "a press of the key switches it off")
+	Input.action_press(DriverInput.IGNITION)
+	for i in roundi(car.spec.crank_time / DT) + 10:
+		await physics_frame
+	Input.action_release(DriverInput.IGNITION)
+	expect(car.dynamics.engine == CarDynamics.EngineState.RUNNING,
+		"and the key held turns it over until it runs again")
 	for i in 3:
 		_tap(DriverInput.SHIFT_UP)
 		await physics_frame

@@ -1,6 +1,6 @@
 extends TestCase
 ## The gearbox ([Gearbox]) and the engine's own revolutions ([CarDynamics]), stepped by hand: the
-## automatic's P-R-N-D lever and its lockouts, a gearbox that never moves between reverse and
+## automatic's P-R-N-D lever, free to move at any speed, a gearbox that never moves between reverse and
 ## forward on its own however the car jitters at rest, an automatic that climbs through its gears
 ## without hunting, the manual's gears and its refusal to over-rev, and an engine that revs freely
 ## out of gear, idles in the air with the throttle shut, and reaches its limiter, never past it.
@@ -30,15 +30,16 @@ func _test_lever() -> void:
 		"then drive, in first")
 	expect(not box.request(1, 0.0), "drive is the end of the lever")
 	expect(box.request(-1, 5.0) and box.selector == Gearbox.Selector.NEUTRAL,
-		"back to neutral is allowed even moving")
-	expect(not box.request(-1, 5.0) and box.selector == Gearbox.Selector.NEUTRAL,
-		"but not into reverse while rolling forward")
+		"back to neutral while moving")
+	expect(box.request(-1, 5.0) and box.gear == -1,
+		"and on into reverse while rolling forward: nothing is locked out")
 	box.select(Gearbox.Selector.NEUTRAL)
-	expect(not box.request(1, -2.0) and box.selector == Gearbox.Selector.NEUTRAL,
-		"nor into drive while rolling backward")
+	expect(box.request(1, -2.0) and box.gear == 1,
+		"into drive while rolling backward, in first")
 	box.select(Gearbox.Selector.REVERSE)
-	expect(not box.request(-1, 3.0) and box.selector == Gearbox.Selector.REVERSE,
-		"nor into park while moving")
+	expect(box.request(-1, 3.0) and box.selector == Gearbox.Selector.PARK,
+		"into park while moving")
+	expect(not box.request(-1, 3.0), "park is the other end of the lever")
 	box.select(Gearbox.Selector.NEUTRAL)
 	expect(box.request(1, 20.0) and box.gear > 2,
 		"put into drive rolling fast, it takes a gear that suits the speed: %d" % box.gear)
@@ -103,20 +104,18 @@ func _test_manual() -> void:
 	expect(box.request(-1, 0.0) and box.request(-1, 0.0) and box.gear == -1,
 		"down through neutral is reverse, standing still")
 	box.select(Gearbox.Selector.NEUTRAL)
-	expect(not box.request(-1, 3.0) and box.gear == 0, "not into reverse while rolling forward")
+	expect(box.request(-1, 3.0) and box.gear == -1, "into reverse while rolling forward")
+	expect(not box.request(-1, 3.0), "reverse is the bottom")
 	box.select(Gearbox.Selector.DRIVE)
 	for g in range(1, 5):
 		box.request(1, 20.0)
 	var high := box.gear
 	expect(high >= 4, "up through the gears at speed: %d" % high)
-	var down := 0
-	while box.request(-1, 30.0) and box.gear > 0:
-		down += 1
-	expect(box.gear >= 2 and box.rpm_in(box.gear, 30.0) <= KIRI.redline_rpm * 1.02,
-		"changing down at 108 km/h stops short of over-revving, in %d" % box.gear)
+	expect(box.request(-1, 30.0) and box.request(-1, 30.0) and box.request(-1, 30.0)
+		and box.gear == high - 3, "changing down at 108 km/h goes through, over-rev or not")
 	for i in 600:
 		box.step(DT, 1.0, 30.0)
-	expect(box.gear == high - down, "the manual never changes gear by itself")
+	expect(box.gear == high - 3, "the manual never changes gear by itself")
 
 
 func _test_letters() -> void:
