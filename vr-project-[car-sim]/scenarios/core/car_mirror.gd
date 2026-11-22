@@ -13,7 +13,7 @@ const REFLECTANCE := 0.85
 ## How far the mirror's view reaches, metres.
 const FAR := 150.0
 ## The visual layers a mirror does not show: what only the headset or only the spectator sees.
-static var hidden_layers := 0
+static var hidden_layers := Layers.HANDS_VISUAL | Layers.SPECTATOR_VISUAL
 
 ## The glass's size, metres.
 var size := Vector2(0.1, 0.08)

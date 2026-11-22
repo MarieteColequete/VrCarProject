@@ -61,6 +61,10 @@ var steering_axis := Vector3.RIGHT
 ## Where the cockpit's parts are, in the car's space: the steering wheel's centre and the column
 ## pointing at the driver.
 var steering_centre := Vector3.ZERO
+## The steering wheel's column in the car's space, pointing at the driver, and its rim's radius,
+## metres: where the hands take hold.
+var steering_column := Vector3.BACK
+var steering_radius := 0.18
 var radius := 0.3
 ## How much larger than the model's own size it is drawn, against a 2.6 m wheelbase.
 var fit := 1.0
@@ -129,6 +133,14 @@ func mirror_spot(key: StringName, from: Vector3) -> Dictionary:
 static func _facing(at: Vector3, normal: Vector3) -> Transform3D:
 	var up := (Vector3.UP - normal * Vector3.UP.dot(normal)).normalized()
 	return Transform3D(Basis(up.cross(normal).normalized(), up, normal), at)
+
+
+## The steering wheel's frame in the car's space, standing still: its origin the rim's centre, +Z
+## the column pointing at the driver, +Y up across the rim.
+func steering_frame() -> Transform3D:
+	var z := steering_column
+	var y := (Vector3.UP - z * Vector3.UP.dot(z)).normalized()
+	return Transform3D(Basis(y.cross(z).normalized(), y, z), steering_centre)
 
 
 ## Leans the body for a step of [param delta] seconds with the car accelerating [param along] its
@@ -223,6 +235,10 @@ func _build(model: Node3D, wheelbase: float) -> void:
 		if column.dot(Vector3.LEFT) < 0.0:
 			steering_axis = -steering_axis
 		steering_centre = body.transform * steering.position
+		steering_column = (body.transform.basis * steering.transform.basis * _steering_rest.basis
+			* steering_axis).normalized()
+		var span := steering_mesh.get_aabb().size * scale_by
+		steering_radius = maxf(span.y, span.z) / 2.0 * 0.95
 	_materials()
 	_split_blinkers(found.get("Blinkers") as MeshInstance3D)
 	_glow(found.get("Brakelights001") as MeshInstance3D, &"brake", BRAKE)

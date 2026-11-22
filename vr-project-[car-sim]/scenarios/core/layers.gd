@@ -19,3 +19,8 @@ const TRAFFIC := 1 << 5
 ## The layers whose boxes the bake turns into obstacle entities, for road users to see and
 ## [ContactCheck] to judge.
 const JUDGED := OBSTACLE | PEDESTRIAN | TRAFFIC
+
+## Visual layers, for what each camera draws: the driver's hands, which the mirrors leave out, and
+## what only the spectator's window shows, which the headset leaves out.
+const HANDS_VISUAL := 1 << 18
+const SPECTATOR_VISUAL := 1 << 19

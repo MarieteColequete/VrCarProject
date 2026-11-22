@@ -44,8 +44,24 @@ starts in the headset and `DriverView` follows the head; otherwise it starts fla
 with no alert, and the mouse and right stick turn the view. `--xr-mode off` on the command line
 forces flat, for a machine whose active runtime would otherwise launch, such as SteamVR. Closing
 the application from the headset's menu quits the game. The action map (`openxr_action_map.tres`)
-is Godot's stock map; the motion controllers are not bound to driving yet, so the car is driven
-with the keyboard, a gamepad, or a wheel.
+is Godot's stock map, and `DriverView` turns the motion controllers' inputs into the car's input
+actions, so the car reads them as it reads a keyboard or a gamepad:
+
+| Action | Motion controllers |
+|---|---|
+| Steer | Grip the steering wheel's rim with one or both hands and turn it |
+| Throttle | Right trigger |
+| Brake, then reverse once stopped | Left trigger |
+| Handbrake | Right A |
+| Indicators | Flick the left stick left or right |
+| Headlights on or off | Right B |
+| Recentre the seat | Right stick click, or hold both grips away from the wheel for 2 s |
+
+A grip within 10 cm of the rim takes hold of the wheel there (`WheelGrab`), and the glove is drawn
+on the rim while it holds; the wheel turns as the holding hands move round it, the average of the
+two with both, and centres itself once let go. The controllers buzz on the indicator, a gear
+change, and a tyre meeting a kerb. The gloves are simple shapes made by the game, on a visual layer
+of their own that the mirrors leave out.
 
 The world ticks at a fixed 60 Hz whatever the headset's refresh rate (commonly 72 to 144 Hz), and
 physics interpolation draws every body between ticks at the headset's own rate, so the world moves

@@ -145,6 +145,9 @@ func _process(_delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if model and input_enabled:
+		driver_view.grab_wheel(delta, global_transform * model.steering_frame(),
+			model.steering_radius, _steer)
 	_drive(delta)
 	_show(delta)
 
@@ -200,6 +203,8 @@ func _drive(delta: float) -> void:
 	if shifted != gear:
 		# Changing between forward gears drops the drive for a moment.
 		_shifting = CarDrivetrain.SHIFT_TIME if gear > 0 and shifted > 0 else 0.0
+		if _shifting > 0.0:
+			driver_view.pulse(0.15, 0.05)
 		gear = shifted
 	_shifting = maxf(_shifting - delta, 0.0)
 	var pull := 0.0 if _shifting > 0.0 else CarDrivetrain.pull(gear)
@@ -219,7 +224,9 @@ func _drive(delta: float) -> void:
 		current_speed = move_toward(current_speed, 0.0, acceleration * 0.25 * delta)
 	rpm = CarDrivetrain.rpm(current_speed, gear)
 
-	_steer = CarDrivetrain.ease_steer(_steer, steer, delta)
+	# Hands on the wheel steer it directly; the keys and sticks ease toward their steering.
+	var by_hand: bool = not held and driver_view.wheel.held()
+	_steer = driver_view.wheel.steer() if by_hand else CarDrivetrain.ease_steer(_steer, steer, delta)
 	wheel_angle = _steer * CarDrivetrain.lock_at(current_speed, probe.wheelbase)
 	_yaw_rate = CarDrivetrain.yaw_rate(current_speed, wheel_angle, probe.wheelbase)
 	rotate_y(_yaw_rate * delta)
@@ -231,8 +238,10 @@ func _drive(delta: float) -> void:
 		var other := get_slide_collision(i).get_collider() as CollisionObject3D
 		if other and other.collision_layer & Layers.PAVEMENT:
 			on_kerb = true
-	if on_kerb and not _on_kerb and sound:
-		sound.knock_kerb()
+	if on_kerb and not _on_kerb:
+		if sound:
+			sound.knock_kerb()
+		driver_view.pulse(0.6, 0.12)
 	_on_kerb = on_kerb
 	# Blocked by something solid, the car keeps only the speed it really made.
 	if get_slide_collision_count() > 0:
