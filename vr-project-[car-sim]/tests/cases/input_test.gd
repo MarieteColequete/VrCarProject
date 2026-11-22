@@ -99,6 +99,13 @@ func _test_debug_car_controls() -> void:
 	var car: Node3D = runner.car
 	await physics_frame
 	var start := car.global_position
+	expect(car.dynamics.gearbox.letter() == "P", "the car starts in park")
+	for i in 3:
+		_tap(DriverInput.SHIFT_UP)
+		await physics_frame
+		await physics_frame
+	expect(car.dynamics.gearbox.selector == Gearbox.Selector.DRIVE,
+		"shift_up three times moves the lever from P through R and N to D")
 	Input.action_press(&"throttle")
 	for i in 60:
 		await physics_frame
@@ -114,7 +121,16 @@ func _test_debug_car_controls() -> void:
 	for i in 240:
 		await physics_frame
 	_release_all()
-	expect(car.current_speed < 0.0, "holding the brake stops the car, then reverses")
+	expect(absf(car.current_speed) < 0.05, "holding the brake stops the car, and never reverses")
+	for i in 2:
+		_tap(DriverInput.SHIFT_DOWN)
+		await physics_frame
+		await physics_frame
+	Input.action_press(&"throttle")
+	for i in 90:
+		await physics_frame
+	_release_all()
+	expect(car.current_speed < 0.0, "in R, the throttle reverses")
 
 	var probe := VehicleProbe.of(car)
 	Input.action_press(&"handbrake")
@@ -137,3 +153,14 @@ func _action_event(action: StringName) -> InputEventAction:
 	event.action = action
 	event.pressed = true
 	return event
+
+
+func _tap(action: StringName) -> void:
+	var event := InputEventAction.new()
+	event.action = action
+	event.pressed = true
+	Input.parse_input_event(event)
+	event = InputEventAction.new()
+	event.action = action
+	event.pressed = false
+	Input.parse_input_event(event)

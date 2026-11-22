@@ -1,15 +1,22 @@
 class_name CarDynamics
 extends RefCounted
-## A four-wheeled car's drive, brakes and tyres, a step at a time: the gearbox picks a gear, the
-## engine's torque goes through a limited slip differential to the driven wheels, the brakes and
-## the handbrake hold the wheels back, the aids ([Assists]) step in, each wheel's spin follows its
-## torques and its tyre's grip, and each tyre ([TyreModel]) pushes on the road. It knows nothing
-## of nodes: whoever drives it measures each wheel's load and how its contact patch moves, and
-## applies the forces it gives back ([member force]) at the contact patches. The player's car
-## does so on a rigid body; the tests on flat ground.
+## A four-wheeled car's drive, brakes and tyres, a step at a time: the [Gearbox] holds the gear
+## the driver's lever (or the automatic) picked; the engine turns on its own inertia, coupled to
+## the driven wheels through a clutch or torque converter that is open, slipping or locked; its
+## torque goes through a limited slip differential to the driven wheels; the brakes, the handbrake
+## and the park pawl hold the wheels back; the aids ([Assists]) step in; each wheel's spin follows
+## its torques and its tyre's grip, carrying the engine's inertia while locked to it; and each tyre
+## ([TyreModel]) pushes on the road. It knows nothing of nodes: whoever drives it measures each
+## wheel's load and how its contact patch moves, and applies the forces it gives back
+## ([member force]) at the contact patches. The player's car does so on a rigid body; the tests on
+## flat ground.
 ##
 ## Wheels are in the order front left, front right, rear left, rear right. A wheel's frame has
 ## along forward and across to the left.
+
+## How the engine meets the driven wheels: apart (park, neutral, a gear change), slipping (pulling
+## away, or below idle in gear), or locked to them.
+enum Coupling { OPEN, SLIPPING, LOCKED }
 
 const FL := 0
 const FR := 1
@@ -17,12 +24,32 @@ const RL := 2
 const RR := 3
 ## Iterations of the solve for each wheel's spin.
 const SOLVE_STEPS := 18
+## The park pawl's hold on each driven wheel, Nm.
+const PAWL_TORQUE := 30000.0
+## The idle governor's most torque, Nm, given in full 150 rpm below idle.
+const GOVERNOR_TORQUE := 90.0
+## Seconds the engine takes to run up to the converter's or clutch's slipping revolutions.
+const SLIP_SETTLE := 0.15
 
 ## The car's [method CarSpec.packed] spec and its [Assists] preset.
 var spec: PackedFloat64Array
 var aids: PackedFloat64Array
-## Whether the driver changes gear (with [code]shift[/code]) instead of the automatic.
-var manual := false
+var gearbox: Gearbox
+## Whether the driver changes gear by hand instead of the automatic.
+var manual: bool:
+	get:
+		return gearbox.manual
+	set(value):
+		if value != gearbox.manual:
+			gearbox.set_manual(value)
+## The engaged gear: 1 and up, -1 reverse, 0 neutral or park.
+var gear: int:
+	get:
+		return gearbox.gear
+## Seconds left of a gear change.
+var shifting: float:
+	get:
+		return gearbox.shifting
 ## Each wheel's spin, rad/s, forward positive.
 var spin := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
 ## Each wheel's slip ratio and slip angle in the last step.
@@ -32,21 +59,27 @@ var angle := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
 var force := PackedVector2Array([Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO])
 ## Each tyre's work in the last step: 1 at its peak grip; see [method TyreModel.usage].
 var usage := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
-var gear := 0
+## The engine's spin, rad/s, and its revolutions per minute.
+var engine_spin := 0.0
 var rpm := 850.0
+var coupling := Coupling.OPEN
 ## The throttle the engine got after the aids, 0 to 1.
 var throttle := 0.0
-## Seconds left of a gear change.
-var shifting := 0.0
+## Whether the last change asked for moved the lever or the gear ([member shift_refused] when it
+## was locked out).
+var shifted := false
+var shift_refused := false
 ## Whether each aid stepped in during the last step.
 var abs_active := false
 var tcs_active := false
 var esc_active := false
 
 
-func _init(p_spec: PackedFloat64Array, p_aids := Assists.preset("exam")) -> void:
+func _init(p_spec: PackedFloat64Array, p_aids := Assists.preset("exam"), p_manual := false) -> void:
 	spec = p_spec
 	aids = p_aids
+	gearbox = Gearbox.new(spec, p_manual)
+	engine_spin = spec[CarSpec.IDLE_RPM] * TAU / 60.0
 	rpm = spec[CarSpec.IDLE_RPM]
 
 
@@ -64,6 +97,17 @@ func driven(i: int) -> bool:
 	return layout == CarSpec.Drive.ALL or (layout == CarSpec.Drive.REAR) == (i >= 2)
 
 
+## The driven wheels' tread speed, m/s, forward positive: what the gearbox goes by.
+func wheel_speed() -> float:
+	var total := 0.0
+	var count := 0
+	for i in 4:
+		if driven(i):
+			total += spin[i]
+			count += 1
+	return total / maxi(count, 1) * spec[CarSpec.WHEEL_RADIUS]
+
+
 ## The load on a corner's spring and damper, newtons: compressed [param compression] metres,
 ## compressing at [param rate] m/s, with the anti-roll bar pulling it toward the other side of its
 ## axle, compressed [param other] metres. Never pulls the wheel down.
@@ -76,19 +120,24 @@ static func corner_load(p_spec: PackedFloat64Array, compression: float, rate: fl
 
 ## One step of [param dt] seconds. [param controls]: [code]throttle[/code] and [code]brake[/code]
 ## 0 to 1, [code]handbrake[/code] 0 to 1, [code]steer[/code] the front wheels' angle in radians
-## (left positive), [code]reverse[/code] true to drive backward with the throttle, and
-## [code]shift[/code] +1 or -1 to change gear in the manual. Each wheel's [param loads] newtons,
-## its contact patch's speed [param along] and [param across] its own frame (m/s), and the
-## surface's friction [param mu]; the car's [param speed] forward (m/s) and [param yaw_rate]
-## (rad/s, left positive).
+## (left positive), [code]shift[/code] +1 or -1 to move the lever or change gear, and, for tests
+## and spawns, [code]select[/code] a [enum Gearbox.Selector] to put the lever at. Each wheel's
+## [param loads] newtons, its contact patch's speed [param along] and [param across] its own frame
+## (m/s), and the surface's friction [param mu]; the car's [param speed] forward (m/s) and
+## [param yaw_rate] (rad/s, left positive).
 func step(dt: float, controls: Dictionary, loads: PackedFloat64Array, along: PackedFloat64Array,
 		across: PackedFloat64Array, mu: PackedFloat64Array, speed: float, yaw_rate: float) -> void:
 	var pedal := clampf(float(controls.get("throttle", 0.0)), 0.0, 1.0)
 	var brake := clampf(float(controls.get("brake", 0.0)), 0.0, 1.0)
 	var handbrake := clampf(float(controls.get("handbrake", 0.0)), 0.0, 1.0)
 	var steer := float(controls.get("steer", 0.0))
-	_change_gear(dt, pedal, speed, bool(controls.get("reverse", false)),
-		int(controls.get("shift", 0)))
+	var at := wheel_speed()
+	if controls.has("select") and int(controls.select) != gearbox.selector:
+		gearbox.select(int(controls.select), at)
+	var shift := int(controls.get("shift", 0))
+	shifted = shift != 0 and gearbox.request(shift, at)
+	shift_refused = shift != 0 and not shifted
+	gearbox.step(dt, pedal, at)
 	var grip_mu := (mu[0] + mu[1] + mu[2] + mu[3]) * 0.25
 
 	# Stability control: brakes one wheel to turn the car back to what the driver means, and
@@ -106,16 +155,9 @@ func step(dt: float, controls: Dictionary, loads: PackedFloat64Array, along: Pac
 			count += 1
 	throttle = Assists.throttle(aids, spec, pedal, drive_slip)
 	tcs_active = throttle < pedal - 0.001
-	if shifting > 0.0:
-		throttle = 0.0
 
-	var mean_spin := 0.0
-	for i in 4:
-		if driven(i):
-			mean_spin += spin[i] / count
-	rpm = Powertrain.engine_rpm(spec, mean_spin, gear, throttle)
-	var engine := Powertrain.wheel_torque(spec, rpm, throttle, gear) if shifting <= 0.0 else 0.0
-	var drives := _split(engine)
+	var carried := _couple(dt)
+	var drives := _split(carried.x)
 
 	var footbrake := brake * spec[CarSpec.BRAKE_TORQUE]
 	var brakes := PackedFloat64Array([
@@ -135,34 +177,105 @@ func step(dt: float, controls: Dictionary, loads: PackedFloat64Array, along: Pac
 		brakes[wheel] += minf(absf(error) * 5000.0, 1800.0)
 	brakes[RL] += handbrake * spec[CarSpec.HANDBRAKE_TORQUE]
 	brakes[RR] += handbrake * spec[CarSpec.HANDBRAKE_TORQUE]
-
+	var parked := not gearbox.manual and gearbox.selector == Gearbox.Selector.PARK
 	for i in 4:
-		_solve_wheel(i, dt, drives[i], brakes[i], loads[i], along[i], across[i], mu[i])
+		if parked and driven(i):
+			brakes[i] += PAWL_TORQUE
+
+	var base := spec[CarSpec.WHEEL_INERTIA]
+	for i in 4:
+		var inertia := base + (carried.y if driven(i) else 0.0)
+		_solve_wheel(i, dt, drives[i], brakes[i], loads[i], along[i], across[i], mu[i], inertia)
+	if coupling == Coupling.LOCKED:
+		# The engine turns with the wheels it is locked to, never below what it idles down to.
+		engine_spin = maxf(wheel_speed() / spec[CarSpec.WHEEL_RADIUS]
+			* Powertrain.ratio(spec, gearbox.gear), _idle_spin() * 0.95)
+	rpm = engine_spin * 60.0 / TAU
 
 
-## The step's gear: the driver's in the manual, else the automatic's; reverse when asked to drive
-## backward, and drive cut while a forward change goes through.
-func _change_gear(dt: float, pedal: float, speed: float, reverse: bool, shift: int) -> void:
-	shifting = maxf(shifting - dt, 0.0)
-	var next := gear
-	if reverse:
-		next = -1
-	elif manual:
-		if shift != 0 and shifting <= 0.0:
-			next = clampi(gear + shift, -1, Powertrain.gear_count(spec))
-		if next == 0 and shift > 0 and gear < 0:
-			next = 1
-		# Pulling away from neutral, it takes first.
-		if next == 0 and shift == 0 and pedal > 0.0:
-			next = 1
-	elif gear < 0 and speed > -0.5:
-		next = 1
+## The engine's coupling for this step: its spin, and what it sends to the driven wheels, as
+## [code](torque at the wheels altogether in Nm, engine inertia each driven wheel carries)[/code].
+func _couple(dt: float) -> Vector2:
+	var gearing := Powertrain.ratio(spec, gearbox.gear)
+	var wheel_side := wheel_speed() / spec[CarSpec.WHEEL_RADIUS] * gearing
+	var idle := _idle_spin()
+	var stall := lerpf(spec[CarSpec.IDLE_RPM], spec[CarSpec.LAUNCH_RPM], throttle) * TAU / 60.0
+	if gearbox.gear == 0 or gearbox.shifting > 0.0:
+		coupling = Coupling.OPEN
+		# Mid-change the automatic cuts the torque, as a gearbox's controller does.
+		_rev_freely(dt, throttle if gearbox.gear == 0 else 0.0)
+		return Vector2.ZERO
+	# It locks once the wheel side catches up with the slipping revolutions, and lets go only
+	# below idle, so a locked engine stays locked as the throttle opens.
+	var count := 0
+	for i in 4:
+		count += 1 if driven(i) else 0
+	if coupling == Coupling.LOCKED:
+		if wheel_side < idle * 0.95:
+			coupling = Coupling.SLIPPING
+		else:
+			engine_spin = wheel_side
+	elif wheel_side >= stall * 0.97:
+		coupling = Coupling.LOCKED
+		_lock(gearing, count)
 	else:
-		next = Powertrain.next_gear(spec, gear, speed, pedal)
-	if next != gear:
-		if gear > 0 and next > 0:
-			shifting = spec[CarSpec.SHIFT_TIME]
-		gear = next
+		coupling = Coupling.SLIPPING
+	if coupling == Coupling.LOCKED:
+		engine_spin = maxf(engine_spin, idle * 0.95)
+		var torque := _engine_torque(throttle)
+		var through := torque * gearing
+		through = through * spec[CarSpec.EFFICIENCY] if torque > 0.0 \
+			else through / spec[CarSpec.EFFICIENCY]
+		var reflected := spec[CarSpec.ENGINE_INERTIA] * gearing * gearing / maxi(count, 1)
+		return Vector2(through, reflected)
+	# Slipping: the engine runs up toward the slipping revolutions, and the converter (or the
+	# clutch, biting with the throttle) passes its torque on; an automatic's converter adds to it
+	# while the wheel side lags, and creeps with the throttle shut.
+	engine_spin = lerpf(engine_spin, stall, clampf(dt / SLIP_SETTLE, 0.0, 1.0))
+	var available := Powertrain.curve(spec, engine_spin * 60.0 / TAU) * throttle
+	var lag := clampf(1.0 - wheel_side / maxf(engine_spin, 1.0), 0.0, 1.0)
+	var passed := available
+	if not gearbox.manual:
+		passed = available * (1.0 + lag) + spec[CarSpec.CREEP_TORQUE] * lag
+	return Vector2(passed * gearing * spec[CarSpec.EFFICIENCY], 0.0)
+
+
+## Locks the engine to the driven wheels through [param gearing], keeping their momentum: the two
+## meet at a spin between theirs, weighted by their inertias. Off the ground the light wheels
+## take the engine's spin; on the road the tyres then pull the wheels, and the engine with them, to
+## the road's speed.
+func _lock(gearing: float, count: int) -> void:
+	var mean := 0.0
+	for i in 4:
+		if driven(i):
+			mean += spin[i] / count
+	var wheels := count * spec[CarSpec.WHEEL_INERTIA] / (gearing * gearing)
+	var engine := spec[CarSpec.ENGINE_INERTIA]
+	var shared := (engine * engine_spin + wheels * mean * gearing) / (engine + wheels)
+	var change := shared / gearing - mean
+	for i in 4:
+		if driven(i):
+			spin[i] += change
+	engine_spin = shared
+
+
+## The engine on its own for a step with [param open] throttle: the throttle revs it, its drag and
+## the idle governor bring it back to idle, and the limiter holds it at the redline.
+func _rev_freely(dt: float, open: float) -> void:
+	engine_spin += _engine_torque(open) / spec[CarSpec.ENGINE_INERTIA] * dt
+	engine_spin = clampf(engine_spin, _idle_spin() * 0.85,
+		spec[CarSpec.REDLINE_RPM] * TAU / 60.0)
+
+
+## The engine's torque at its spin with [param open] throttle, the idle governor's included.
+func _engine_torque(open: float) -> float:
+	var at := engine_spin * 60.0 / TAU
+	var governor := clampf((spec[CarSpec.IDLE_RPM] - at) / 150.0, 0.0, 1.0) * GOVERNOR_TORQUE
+	return Powertrain.engine_torque(spec, at, open) + governor
+
+
+func _idle_spin() -> float:
+	return spec[CarSpec.IDLE_RPM] * TAU / 60.0
 
 
 ## The engine's [param torque] at the wheels shared between them: half to each driven axle of an
@@ -185,11 +298,10 @@ func _split(torque: float) -> PackedFloat64Array:
 
 ## Solves wheel [param i]'s spin at the end of the step, implicitly so a stiff tyre stays stable:
 ## the spin at which the drive [param drive], the brake [param brake] and the tyre's pull balance
-## the change of spin. Then sets the wheel's slip and its tyre's force.
+## the change of spin of [param inertia], the wheel's own and any engine's locked to it. Then sets the wheel's slip and its tyre's force.
 func _solve_wheel(i: int, dt: float, drive: float, brake: float, load: float, ground: float,
-		side: float, mu: float) -> void:
+		side: float, mu: float, inertia: float) -> void:
 	var r := spec[CarSpec.WHEEL_RADIUS]
-	var inertia := spec[CarSpec.WHEEL_INERTIA]
 	var slip_angle := TyreModel.slip_angle(ground, side)
 	var w := spin[i]
 	var rolling := ground / r
@@ -208,7 +320,7 @@ func _solve_wheel(i: int, dt: float, drive: float, brake: float, load: float, gr
 		return
 	for k in SOLVE_STEPS:
 		var mid := (lo + hi) * 0.5
-		if _residual(dt, w, mid, drive, brake, load, ground, slip_angle, mu) > 0.0:
+		if _residual(dt, w, mid, drive, brake, load, ground, slip_angle, mu, inertia) > 0.0:
 			hi = mid
 		else:
 			lo = mid
@@ -223,6 +335,11 @@ func _solve_wheel(i: int, dt: float, drive: float, brake: float, load: float, gr
 	# At walking pace the tyre pushes sideways no harder than stops the slide within the step.
 	var most := spec[CarSpec.MASS] * 0.25 * absf(side) / dt
 	f.y = clampf(f.y, -most, most)
+	if solved == 0.0 and absf(ground) < 1.5:
+		# A wheel held still at a crawl grips as static friction: as hard as stops the car's share
+		# within the step, up to the tyre's grip.
+		var top := TyreModel.peak(spec, load, mu)
+		f.x = clampf(-spec[CarSpec.MASS] * 0.25 * ground / dt, -top, top)
 	force[i] = f
 	usage[i] = TyreModel.usage(spec, ratio[i], slip_angle)
 
@@ -230,9 +347,9 @@ func _solve_wheel(i: int, dt: float, drive: float, brake: float, load: float, gr
 ## The imbalance on a wheel spinning [param from] at the start of the step and [param to] at its
 ## end: positive when [param to] is too fast.
 func _residual(dt: float, from: float, to: float, drive: float, brake: float, load: float,
-		ground: float, slip_angle: float, mu: float) -> float:
+		ground: float, slip_angle: float, mu: float, inertia: float) -> float:
 	var r := spec[CarSpec.WHEEL_RADIUS]
 	var k := TyreModel.slip_ratio(to * r, ground)
 	var pull := TyreModel.force(spec, k, slip_angle, load, mu).x
 	var held := brake * signf(to)
-	return spec[CarSpec.WHEEL_INERTIA] * (to - from) / dt - drive + pull * r + held
+	return inertia * (to - from) / dt - drive + pull * r + held

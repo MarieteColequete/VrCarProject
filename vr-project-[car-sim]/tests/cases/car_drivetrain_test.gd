@@ -1,8 +1,8 @@
 extends TestCase
 ## The player's car driving on the vehicle core ([CarDynamics] on its rigid body), and the damped
-## spring ([Damped]): it pulls away through the gears, settles on its springs, brakes with the nose
-## dipping, turns along its wheels with less lock at speed, reverses on the brake, and swings round
-## on the handbrake.
+## spring ([Damped]): it starts in park, pulls away in drive through the gears, settles on its
+## springs, brakes with the nose dipping and never reverses on the brake, reverses in R, turns along
+## its wheels with less lock at speed, and swings round on the handbrake.
 
 const CAR := preload("res://scenarios/scenes/debug_car.tscn")
 
@@ -13,6 +13,7 @@ func run() -> void:
 	await _test_reverse_and_handbrake()
 	await _test_manual()
 	await _test_surfaces()
+	await _test_falling()
 
 
 func _test_spring() -> void:
@@ -37,7 +38,7 @@ func _test_drive() -> void:
 	var hood: Node3D = model.body.get_node("kiri86_Hood") if model else null
 	var interior_rest := interior.transform if interior else Transform3D()
 	var hood_rest := hood.transform if hood else Transform3D()
-	car.held_controls = {throttle = 1.0}
+	car.held_controls = {throttle = 1.0, select = "D"}
 	var gears := {}
 	for i in 360:
 		await physics_frame
@@ -49,7 +50,7 @@ func _test_drive() -> void:
 	expect(car.current_speed > 15.0, "the car pulls away: %.1f m/s after 6 s" % car.current_speed)
 	expect(absf(car.global_position.y) < 0.08, "riding on its springs, about on the road: %.3f m"
 		% car.global_position.y)
-	car.held_controls = {brake = 1.0}
+	car.held_controls = {brake = 1.0, select = "D"}
 	for i in 20:
 		await physics_frame
 	if model:
@@ -63,7 +64,7 @@ func _test_drive() -> void:
 			* cluster.global_transform
 		expect(cluster.get_parent() == model.cabin and not model.cabin.transform.is_equal_approx(
 			Transform3D.IDENTITY), "the instruments lean with it: %s" % to_cluster.origin)
-	car.held_controls = {throttle = 0.5, steer = 1.0}
+	car.held_controls = {throttle = 0.5, steer = 1.0, select = "D"}
 	var facing: Vector3 = -car.global_basis.z
 	for i in 60:
 		await physics_frame
@@ -82,16 +83,29 @@ func _test_reverse_and_handbrake() -> void:
 	car.assist_preset = "sim"
 	root.add_child(car)
 	await physics_frame
-	car.held_controls = {brake = 1.0}
+	expect(car.dynamics.gearbox.letter() == "P", "the car starts in park")
+	car.held_controls = {throttle = 1.0}
+	await frames(60)
+	expect(absf(car.current_speed) < 0.05, "and does not move on the throttle in park: %.2f m/s"
+		% car.current_speed)
+	car.held_controls = {brake = 1.0, select = "D"}
+	await frames(120)
+	expect(absf(car.current_speed) < 0.05 and car.gear >= 0,
+		"in drive, holding the brake only holds the car, never reversing: %.2f m/s, gear %d"
+		% [car.current_speed, car.gear])
+	car.held_controls = {throttle = 0.6, select = "R"}
 	await frames(120)
 	expect(car.current_speed < -0.5 and car.gear == -1,
-		"holding the brake stopped, the car reverses: %.1f m/s" % car.current_speed)
-	car.held_controls = {throttle = 1.0}
+		"in reverse the throttle drives the car backward: %.1f m/s" % car.current_speed)
+	car.held_controls = {brake = 1.0, select = "R"}
+	await frames(90)
+	expect(absf(car.current_speed) < 0.05, "and the brake stops it: %.2f m/s" % car.current_speed)
+	car.held_controls = {throttle = 1.0, select = "D"}
 	await frames(240)
-	car.held_controls = {throttle = 0.2, steer = 0.3}
+	car.held_controls = {throttle = 0.2, steer = 0.3, select = "D"}
 	await frames(20)
 	var facing: Vector3 = -car.global_basis.z
-	car.held_controls = {steer = 0.6, handbrake = 1.0}
+	car.held_controls = {steer = 0.6, handbrake = 1.0, select = "D"}
 	await frames(60)
 	var turned := absf(facing.signed_angle_to(-car.global_basis.z, Vector3.UP))
 	expect(car.dynamics.spin[CarDynamics.RL] == 0.0 or car.current_speed < 1.0,
@@ -108,12 +122,14 @@ func _test_manual() -> void:
 	root.add_child(car)
 	await physics_frame
 	car.dynamics.manual = true
-	car.held_controls = {throttle = 1.0}
-	await frames(240)
-	var first: int = car.gear
 	var up := InputEventAction.new()
 	up.action = DriverInput.SHIFT_UP
 	up.pressed = true
+	Input.parse_input_event(up)
+	await frames(2)
+	car.held_controls = {throttle = 1.0}
+	await frames(240)
+	var first: int = car.gear
 	Input.parse_input_event(up)
 	await frames(30)
 	expect(first == 1 and car.gear == 2,
@@ -133,7 +149,7 @@ func _test_surfaces() -> void:
 		car.assist_preset = "sim"
 		root.add_child(car)
 		await physics_frame
-		car.held_controls = {throttle = 1.0}
+		car.held_controls = {throttle = 1.0, select = "D"}
 		await frames(120)
 		speeds[type] = car.current_speed
 		car.queue_free()
@@ -142,3 +158,31 @@ func _test_surfaces() -> void:
 	expect(speeds[&"asphalt"] > speeds[&"ground"] + 1.0,
 		"the car pulls away harder on asphalt than on grass: %.1f against %.1f m/s"
 		% [speeds[&"asphalt"], speeds[&"ground"]])
+
+
+func _test_falling() -> void:
+	var floor := ground()
+	var car: Node3D = CAR.instantiate()
+	root.add_child(car)
+	await physics_frame
+	car.held_controls = {throttle = 1.0, select = "D"}
+	await frames(120)
+	# Lifted 3 m off the road at speed, the throttle shut: it falls with its wheels in the air.
+	car.global_position += Vector3.UP * 3.0
+	car.reset_physics_interpolation()
+	car.held_controls = {select = "D"}
+	var revs := []
+	for i in 40:
+		await physics_frame
+		if car.grounded.count(1) == 0:
+			revs.append(car.rpm)
+	var flared := 0
+	for k in range(1, revs.size()):
+		if revs[k] > revs[k - 1] + 300.0:
+			flared += 1
+	expect(revs.size() > 30 and revs[-1] < revs[0] * 0.7 and flared == 0,
+		"falling with the throttle shut, the revs fall steadily and never flare: %.0f to %.0f rpm"
+		% [revs[0] if revs else 0.0, revs[-1] if revs else 0.0])
+	car.queue_free()
+	floor.queue_free()
+	await process_frame

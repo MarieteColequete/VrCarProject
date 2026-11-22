@@ -13,10 +13,10 @@ scripts read them through `DriverInput`.
 | Action | Keyboard and mouse | Gamepad |
 |---|---|---|
 | Throttle | W, Up | Right trigger |
-| Brake, then reverse once stopped | S, Down | Left trigger |
+| Brake | S, Down | Left trigger |
 | Steer | A and D, Left and Right | Left stick |
 | Handbrake | Space | A (Cross) |
-| Change gear up, down, in the manual gearbox | Shift, Ctrl | B (Circle), D-pad down |
+| Gear lever toward D, toward P (the automatic's P, R, N, D; the manual's R, N, 1 to 6) | Shift, Ctrl | B (Circle), D-pad down |
 | Indicators | Q and E | Left and right shoulder |
 | Headlights on or off | L | X (Square) |
 | Look around | Mouse | Right stick |
@@ -53,9 +53,9 @@ actions, so the car reads them as it reads a keyboard or a gamepad:
 |---|---|
 | Steer | Grip the steering wheel's rim with one or both hands and turn it |
 | Throttle | Right trigger |
-| Brake, then reverse once stopped | Left trigger |
+| Brake | Left trigger |
 | Handbrake | Right A |
-| Change gear up, down, in the manual gearbox | Flick the right stick up or down |
+| Gear lever toward D, toward P (the automatic's P, R, N, D; the manual's R, N, 1 to 6) | Flick the right stick up or down |
 | Indicators | Flick the left stick left or right |
 | Headlights on or off | Right B |
 | Recentre the seat | Right stick click, or hold both grips away from the wheel for 2 s |
@@ -209,10 +209,21 @@ The driving aids (`Assists`) come in three presets, set by the project setting `
 control, stability control, and steering help for keys and sticks (the lock shrinks with speed to
 what the tyres can use, and counter-steer catches a slide); `sport`, with anti-lock brakes, a late
 traction control and less steering help; and `sim`, with anti-lock brakes only. The steering wheel
-held in VR always steers the wheels directly. The automatic gearbox changes up later the harder the
-throttle is pressed, kicks down at full throttle, and reverses on the brake once the car stands
-still; with `car/gearbox` set to `manual`, the driver changes gear with `shift_up` and
-`shift_down`, and the rev limiter holds the engine at the redline. The tyres squeal as they near
+held in VR always steers the wheels directly.
+
+The gearbox (`Gearbox`) is an automatic with a P, R, N, D lever by default, moved one notch at a
+time with `shift_up` (toward D) and `shift_down` (toward P). The car starts in P, which holds it
+with the park pawl. The brake only brakes, and the throttle drives the way the lever is set,
+backward in R. The lever will not go into P or R while the car rolls forward, nor into D while it
+rolls backward, and buzzes the controllers when it refuses. In D the automatic picks the gear from
+the driven wheels' speed, changing up later the harder the throttle is pressed and kicking down
+when it goes to the floor, and holds each gear a moment so it never hunts. With `car/gearbox` set
+to `manual`, the same actions change gear through R, N and 1 to 6, refusing a change down that
+would over-rev the engine. The engine turns on its own inertia (`CarDynamics`): out of gear it revs
+freely and settles back to idle; in gear a torque converter (or the clutch, in the manual) slips to
+pull away and locks to the driven wheels once they catch up, so the revolutions are the engine's
+own, held at the redline by the limiter, and off the ground they climb or fall at the engine's
+pace. The tyres squeal as they near
 their grip, and the controllers buzz as the anti-lock brakes work.
 
 Road users drive on the same model, as two axles on flat ground (`PlanarVehicle`), each with the

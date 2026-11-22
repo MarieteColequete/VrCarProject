@@ -1,9 +1,10 @@
 class_name Powertrain
 extends RefCounted
-## The engine and gearbox of a [CarSpec], as pure functions: the engine's torque over its
-## revolutions, a clutch that slips to pull away, engine braking with the throttle shut, a rev
-## limiter, the automatic gearbox's choice of gear, and the most drive a car can put down at a
-## speed. Gears are 1 and up forward, -1 reverse, 0 neutral. Allocation free, for any thread.
+## The engine and gearing of a [CarSpec], as pure functions: the gears' ratios, the engine's
+## torque over its revolutions, engine braking with the throttle shut, a rev limiter, and the most
+## drive a car can put down at a speed. The choice of gear is the [Gearbox]'s; the engine's spin
+## and its clutch are [CarDynamics]'. Gears are 1 and up forward, -1 reverse, 0 neutral.
+## Allocation free, for any thread.
 
 
 ## The ratio from the engine to the wheels in [param gear], final drive included; 0 in neutral,
@@ -28,17 +29,6 @@ static func rpm(spec: PackedFloat64Array, wheel_spin: float, gear: int) -> float
 	return clampf(through, spec[CarSpec.IDLE_RPM], spec[CarSpec.REDLINE_RPM])
 
 
-## The engine's revolutions with the clutch: pulling away, it slips and the engine runs up toward
-## the launch revolutions with the throttle.
-static func engine_rpm(spec: PackedFloat64Array, wheel_spin: float, gear: int,
-		throttle: float) -> float:
-	var through := rpm(spec, wheel_spin, gear)
-	if gear == 0:
-		return lerpf(spec[CarSpec.IDLE_RPM], spec[CarSpec.REDLINE_RPM], throttle * 0.9)
-	var slipping := lerpf(spec[CarSpec.IDLE_RPM], spec[CarSpec.LAUNCH_RPM], throttle)
-	return maxf(through, slipping)
-
-
 ## The engine's full-throttle torque at [param at_rpm], Nm, from the spec's curve.
 static func curve(spec: PackedFloat64Array, at_rpm: float) -> float:
 	var first := CarSpec.GEARS + int(spec[CarSpec.GEAR_COUNT])
@@ -47,13 +37,21 @@ static func curve(spec: PackedFloat64Array, at_rpm: float) -> float:
 	return lerpf(spec[first + i], spec[first + i + 1], x - i)
 
 
+## The engine's friction with the throttle shut at any revolutions, Nm, besides the engine
+## braking that grows with them.
+const FRICTION := 10.0
+## How far below the redline the limiter cuts, rpm: a step's climb, so the revolutions settle at the
+## redline rather than past it.
+const LIMITER_BAND := 100.0
+
+
 ## The engine's torque at [param at_rpm] with [param throttle] (0 to 1), Nm: the curve's share
-## with the throttle, less engine braking that grows with the revolutions and fades with the
-## throttle; nothing past the redline (the limiter).
+## with the throttle, less its friction and engine braking, which grows with the revolutions and
+## fades with the throttle; nothing from the limiter's cut up (the limiter).
 static func engine_torque(spec: PackedFloat64Array, at_rpm: float, throttle: float) -> float:
-	var drag := spec[CarSpec.ENGINE_BRAKING] * at_rpm / spec[CarSpec.REDLINE_RPM] \
+	var drag := (FRICTION + spec[CarSpec.ENGINE_BRAKING] * at_rpm / spec[CarSpec.REDLINE_RPM]) \
 		* (1.0 - throttle)
-	if at_rpm >= spec[CarSpec.REDLINE_RPM] - 1.0:
+	if at_rpm >= spec[CarSpec.REDLINE_RPM] - LIMITER_BAND:
 		return -drag
 	return curve(spec, at_rpm) * throttle - drag
 
@@ -70,30 +68,6 @@ static func wheel_torque(spec: PackedFloat64Array, at_rpm: float, throttle: floa
 		else through / spec[CarSpec.EFFICIENCY]
 
 
-## The gear to be in after [param gear] at [param speed] m/s with [param throttle]: reverse while
-## moving back, first from a stop, up past the change-up revolutions (which rise with the
-## throttle), down below the change-down revolutions, and down for a kick when the throttle goes
-## to the floor with room below the redline.
-static func next_gear(spec: PackedFloat64Array, gear: int, speed: float, throttle: float) -> int:
-	if speed < -0.05:
-		return -1
-	if gear <= 0:
-		return 1
-	var spin := speed / spec[CarSpec.WHEEL_RADIUS]
-	var now := rpm(spec, spin, gear)
-	var t := clampf(throttle, 0.0, 1.0)
-	var up := lerpf(spec[CarSpec.UP_GENTLE], spec[CarSpec.UP_FULL], t * t)
-	if now > up and gear < gear_count(spec):
-		return gear + 1
-	if gear > 1:
-		var lower := rpm(spec, spin, gear - 1)
-		if now < spec[CarSpec.DOWN_RPM] and lower < up * 0.9:
-			return gear - 1
-		if t > 0.95 and lower < spec[CarSpec.UP_FULL] * 0.85:
-			return gear - 1
-	return gear
-
-
 ## The most forward force the engine can put on the road at [param speed] m/s in its best gear,
 ## newtons, tyres aside. Road users drive with it.
 static func drive_force_max(spec: PackedFloat64Array, speed: float) -> float:
@@ -106,14 +80,3 @@ static func drive_force_max(spec: PackedFloat64Array, speed: float) -> float:
 		var at := maxf(through, spec[CarSpec.LAUNCH_RPM])
 		best = maxf(best, wheel_torque(spec, at, 1.0, gear))
 	return best / spec[CarSpec.WHEEL_RADIUS]
-
-
-## The gear as the cluster shows it: P parked on the handbrake, R, N standing still, or the gear.
-static func gear_letter(gear: int, speed: float, handbrake: bool) -> String:
-	if handbrake and absf(speed) < 0.1:
-		return "P"
-	if gear < 0:
-		return "R"
-	if gear == 0 or absf(speed) < 0.1:
-		return "N"
-	return str(gear)

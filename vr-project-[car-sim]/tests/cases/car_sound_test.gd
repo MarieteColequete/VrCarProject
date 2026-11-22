@@ -46,7 +46,7 @@ func _test_on_car() -> void:
 		"the engine runs")
 	expect(AudioServer.get_bus_index(CarSound.BUS) != -1 and sound.engine_low.bus == CarSound.BUS,
 		"on the car's audio bus")
-	car.held_controls = {throttle = 1.0}
+	car.held_controls = {throttle = 1.0, select = "D"}
 	for i in 90:
 		await physics_frame
 	expect(is_equal_approx(sound.engine_low.pitch_scale,

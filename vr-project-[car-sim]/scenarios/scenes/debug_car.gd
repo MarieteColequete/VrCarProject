@@ -39,6 +39,9 @@ const CAST_FROM := 0.38
 ## second.
 const STEER_RATE := 3.0
 const RETURN_RATE := 4.0
+## The automatic's lever positions by letter, in [enum Gearbox.Selector]'s order, for
+## [member held_controls]' [code]select[/code].
+const SELECTOR_LETTERS := ["P", "R", "N", "D"]
 ## How quickly the measured acceleration the model leans with settles, per second.
 const ACCEL_SMOOTHING := 30.0
 
@@ -50,14 +53,13 @@ const ACCEL_SMOOTHING := 30.0
 @export var spec: CarSpec = preload("res://scenarios/vehicle/specs/kiri86.tres")
 ## The driving aids' preset ([Assists]); empty takes the project setting.
 @export var assist_preset := ""
-## Below this speed, in metres per second, the brake reverses instead (the automatic).
-@export var reverse_threshold := 0.3
 
 ## The car's speed along its length, m/s, negative reversing.
 var current_speed := 0.0
 ## The engine, the gearbox, the brakes and the tyres.
 var dynamics: CarDynamics
-## The gearbox's gear: 1 and up, -1 reversing, 0 in neutral.
+## The gearbox's gear: 1 and up, -1 reversing, 0 in neutral or park. The automatic's lever is
+## [code]dynamics.gearbox.selector[/code]; the car starts in park.
 var gear: int:
 	get:
 		return dynamics.gear if dynamics else 0
@@ -70,7 +72,8 @@ var throttle := 0.0
 ## The front wheels' turn, radians, left positive.
 var wheel_angle := 0.0
 ## Controls set from code instead of [DriverInput], for tests: [code]{throttle, brake, steer,
-## handbrake}[/code] each from 0 to 1, steer from -1 (full right) to 1 (full left); empty to read
+## handbrake}[/code] each from 0 to 1, steer from -1 (full right) to 1 (full left), and
+## [code]select[/code] a lever position by letter (P, R, N, D) to put the gearbox in; empty to read
 ## the player's controls.
 var held_controls := {}
 ## Whether each wheel touches the road, and how far its spring is compressed, metres.
@@ -94,7 +97,6 @@ var settings_path := "user://car.cfg"
 var _packed: PackedFloat64Array
 var _steer := 0.0
 var _braking := false
-var _reversing := false
 var _accel := Vector2.ZERO
 var _last_velocity := Vector3.ZERO
 var _mirror_frame := 0
@@ -146,7 +148,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var shift := DriverInput.shift_pressed(event)
 	if shift != 0:
-		_shift = shift
+		_shift += shift
 		return
 	var side := DriverInput.indicator_pressed(event)
 	if side != VehicleProbe.Indicator.OFF:
@@ -286,6 +288,9 @@ func _setup_body() -> void:
 	_packed = spec.packed()
 	dynamics = CarDynamics.new(_packed, _aids())
 	dynamics.manual = str(ProjectSettings.get_setting(GEARBOX_SETTING, "automatic")) == "manual"
+	if dynamics.manual:
+		# A manual car is left in neutral with its handbrake; nothing holds it but the brakes.
+		dynamics.gearbox.select(Gearbox.Selector.NEUTRAL)
 	mass = spec.mass
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
 	center_of_mass = Vector3(0.0, spec.cog_height, spec.wheelbase * (0.5 - spec.front_share))
@@ -356,7 +361,7 @@ func _show(delta: float) -> void:
 		var parked := probe.handbrake == VehicleProbe.Toggle.ON
 		instruments.redline = spec.redline_rpm
 		instruments.show_state(delta, absf(current_speed) * 3.6, rpm,
-			Powertrain.gear_letter(gear, current_speed, parked), left, right, parked, headlights,
+			dynamics.gearbox.letter(), left, right, parked, headlights,
 			reversing)
 
 
@@ -368,10 +373,11 @@ func _controls() -> Dictionary:
 		return {throttle = float(held_controls.get("throttle", 0.0)),
 			brake = float(held_controls.get("brake", 0.0)),
 			handbrake = float(held_controls.get("handbrake", 0.0)),
-			steer = float(held_controls.get("steer", 0.0)), shift = shift, held = true}
+			steer = float(held_controls.get("steer", 0.0)), shift = shift, held = true,
+			select = held_controls.get("select", "")}
 	return {throttle = DriverInput.throttle(), brake = DriverInput.brake(),
 		handbrake = 1.0 if DriverInput.handbrake() else 0.0, steer = DriverInput.steer(),
-		shift = shift, held = false}
+		shift = shift, held = false, select = ""}
 
 
 func _drive(delta: float) -> void:
@@ -390,19 +396,8 @@ func _drive(delta: float) -> void:
 	var brake: float = c.brake
 	probe.handbrake = VehicleProbe.Toggle.ON if c.handbrake > 0.5 else VehicleProbe.Toggle.OFF
 
-	# The automatic reverses on the brake once stopped, and the throttle brakes a car rolling back.
-	if not dynamics.manual:
-		if _reversing and c.throttle > 0.0 and current_speed > -reverse_threshold:
-			_reversing = false
-		elif not _reversing and brake > 0.0 and c.throttle <= 0.0 \
-				and absf(current_speed) < reverse_threshold:
-			_reversing = true
-	var drive_pedal: float = brake if _reversing else c.throttle
-	var brake_pedal: float = c.throttle if _reversing else brake
-	if _reversing and current_speed > reverse_threshold:
-		drive_pedal = 0.0
-		brake_pedal = maxf(brake_pedal, brake)
-	_braking = brake_pedal > 0.0 and absf(current_speed) > 0.1
+	# The brake only brakes; the throttle drives whichever way the gearbox is in.
+	_braking = brake > 0.0 and absf(current_speed) > 0.1
 
 	# Hands on the wheel steer it directly; the keys and sticks ease toward their steering, with
 	# the aids' lock at speed and their counter-steer.
@@ -484,9 +479,11 @@ func _drive(delta: float) -> void:
 
 	_mu_mean = (mu[0] + mu[1] + mu[2] + mu[3]) * 0.25
 	dynamics.aids = _aids()
-	dynamics.step(delta, {throttle = drive_pedal, brake = brake_pedal, handbrake = c.handbrake,
-		steer = wheel_angle, reverse = _reversing, shift = c.shift}, loads, along, across, mu,
-		current_speed, angular_velocity.dot(up))
+	var step := {throttle = c.throttle, brake = brake, handbrake = c.handbrake, steer = wheel_angle,
+		shift = c.shift}
+	if not str(c.select).is_empty():
+		step.select = SELECTOR_LETTERS.find(str(c.select))
+	dynamics.step(delta, step, loads, along, across, mu, current_speed, angular_velocity.dot(up))
 	for i in 4:
 		if not grounded[i]:
 			continue
@@ -501,8 +498,10 @@ func _drive(delta: float) -> void:
 	if absf(current_speed) > 0.3:
 		apply_central_force(-forward * signf(current_speed) * spec.rolling * weight)
 
-	if is_equal_approx(dynamics.shifting, spec.shift_time):
+	if is_equal_approx(dynamics.shifting, spec.shift_time) or dynamics.shifted:
 		driver_view.pulse(0.15, 0.05)
+	elif dynamics.shift_refused:
+		driver_view.pulse(0.5, 0.15)
 	if dynamics.abs_active and not _abs_was:
 		driver_view.pulse(0.3, 0.06)
 	_abs_was = dynamics.abs_active

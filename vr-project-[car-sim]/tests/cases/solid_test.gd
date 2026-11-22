@@ -117,7 +117,7 @@ func _test_head_on(map: PackedScene) -> void:
 	var car: Node3D = runner.car
 	car.look_at(car.global_position + Vector3.RIGHT, Vector3.UP)
 	car.reset_physics_interpolation()
-	car.set(&"held_controls", {throttle = 1.0})
+	car.set(&"held_controls", {throttle = 1.0, select = "D"})
 	await frames(120)
 	var front := car.global_position.x + 1.3 + 0.325
 	expect(car.global_position.x > LANE_X + 0.01 and front < KERB_X + 0.01,
@@ -134,7 +134,7 @@ func _test_along(map: PackedScene) -> void:
 	var runner := _runner(map)
 	await process_frame
 	var car: Node3D = runner.car
-	car.set(&"held_controls", {throttle = 0.6, steer = -1.0})
+	car.set(&"held_controls", {throttle = 0.6, steer = -1.0, select = "D"})
 	var furthest := -INF
 	for i in 180:
 		await physics_frame
@@ -155,7 +155,7 @@ func _test_house(map: PackedScene) -> void:
 	var runner := _runner(map)
 	await process_frame
 	var car: Node3D = runner.car
-	car.set(&"held_controls", {throttle = 1.0})
+	car.set(&"held_controls", {throttle = 1.0, select = "D"})
 	await frames(360)
 	var house_front := HOUSE_Z + KitModels.size_of(HOUSE).z / 2.0
 	expect(car.global_position.z < -15.0, "the looks-only path does not stop the car")

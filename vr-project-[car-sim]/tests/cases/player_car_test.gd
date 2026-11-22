@@ -146,14 +146,14 @@ func _test_live() -> void:
 	# Driven for real: the instruments and the indicator follow the car.
 	car.probe.indicator = VehicleProbe.Indicator.RIGHT
 	car.probe.headlights = VehicleProbe.Toggle.ON
-	car.held_controls = {throttle = 1.0}
+	car.held_controls = {throttle = 1.0, select = "D"}
 	await frames(60)
 	var instruments: InstrumentCluster = car.instruments
 	expect(instruments.speed_kmh > 10.0 and is_equal_approx(instruments.speed_kmh,
 		car.current_speed * 3.6), "the speedometer reads the car's speed: %.0f km/h"
 		% instruments.speed_kmh)
 	expect(instruments.headlights and not instruments.left_on, "the headlights tell-tale is lit")
-	expect(instruments.rpm > car.spec.idle_rpm - 1.0 and instruments.gear == str(car.gear),
+	expect(instruments.rpm > car.spec.idle_rpm - 1.0 and instruments.gear == car.dynamics.gearbox.letter(),
 		"the rev counter and the gear follow the drivetrain: %.0f rpm, %s"
 		% [instruments.rpm, instruments.gear])
 	expect(absf(instruments.speed_needle - instruments.speed_kmh) < 3.0,

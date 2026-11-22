@@ -51,24 +51,22 @@ func _test_powertrain() -> void:
 	expect(Powertrain.engine_torque(spec, 4000.0, 0.0) < 0.0, "throttle shut, the engine brakes")
 	expect(Powertrain.engine_torque(spec, spec[CarSpec.REDLINE_RPM], 1.0) <= 0.0,
 		"the limiter cuts at the redline")
-	expect(Powertrain.next_gear(spec, 0, 0.0, 0.0) == 1, "from a stop, first")
-	expect(Powertrain.next_gear(spec, 2, -1.0, 0.0) == -1, "moving back, reverse")
-	expect(Powertrain.next_gear(spec, 4, 3.0, 0.0) < 4, "slowing, it changes down")
 	var gentle := _first_change(spec, 0.2)
 	var hard := _first_change(spec, 1.0)
 	expect(hard > gentle * 1.5, "full throttle holds a gear longer: %.1f > %.1f m/s" % [hard, gentle])
 	expect(Powertrain.drive_force_max(spec, 2.0) > Powertrain.drive_force_max(spec, 40.0) * 2.0,
 		"more pull slowly, in a low gear")
-	expect(Powertrain.gear_letter(3, 0.0, true) == "P"
-		and Powertrain.gear_letter(-1, -1.0, false) == "R"
-		and Powertrain.gear_letter(1, 0.0, false) == "N"
-		and Powertrain.gear_letter(3, 8.0, false) == "3", "the cluster's gear letters")
 
 
+## The speed, m/s, at which the automatic first changes up at [param throttle], speeding up
+## steadily.
 func _first_change(spec: PackedFloat64Array, throttle: float) -> float:
-	for step in 600:
-		var speed := step * 0.05
-		if Powertrain.next_gear(spec, 1, speed, throttle) != 1:
+	var box := Gearbox.new(spec)
+	box.select(Gearbox.Selector.DRIVE)
+	for step in 1200:
+		var speed := step * 0.025
+		box.step(DT, throttle, speed)
+		if box.gear != 1:
 			return speed
 	return INF
 
@@ -217,12 +215,13 @@ class FlatCar:
 	func _init(p_spec: PackedFloat64Array, aids: PackedFloat64Array) -> void:
 		spec = p_spec
 		dyn = CarDynamics.new(spec, aids)
+		dyn.gearbox.select(Gearbox.Selector.DRIVE)
 
 	## Sets the wheels rolling at the car's speed, as if it had been driving.
 	func spin_up() -> void:
 		for i in 4:
 			dyn.spin[i] = vx / spec[CarSpec.WHEEL_RADIUS]
-		dyn.gear = Powertrain.next_gear(spec, 3, vx, 0.0)
+		dyn.gearbox.select(Gearbox.Selector.DRIVE, vx)
 
 	## Ticks with [param controls] until [param done] or [param limit] seconds; the time taken.
 	func until(controls: Dictionary, done: Callable, limit: float) -> float:
