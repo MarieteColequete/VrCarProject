@@ -168,6 +168,12 @@ driver looks: held for a fifth of a second within 12° of the direction from the
 a glance with the eyes counts as well as a turn of the head; a car without mirrors is still judged
 on the head's turn.
 
+The car sounds from its cabin (`CarSound`), on an audio bus of its own, `Car`. The engine pitches
+and swells with the revolutions and the throttle and dips as a gear changes, the indicator ticks as
+it blinks, the tyres squeal near their grip at speed, and a tyre thumps when it meets a kerb. The
+sounds are made by the game when the car is built, so it carries no recordings: the engine is a
+four-cylinder's firing pulses and their harmonics, made once slow and once fast and crossfaded.
+
 The Map Kit's roads take the look of City Kit (Roads) (`RoadKit`). The kit's straight road tile is a
 cross-section (asphalt, a darker band by the kerb, the kerb, and the pavement) swept along each
 `RoadSegment`'s curve, and its crossroads and T tiles are fitted over each `RoadJunction`'s pad.

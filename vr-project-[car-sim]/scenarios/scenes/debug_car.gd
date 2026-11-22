@@ -49,6 +49,8 @@ var held_controls := {}
 ## The car as drawn; null when its model does not load.
 var model: PlayerCarModel
 var instruments: InstrumentCluster
+## The engine, the indicator's tick, the tyres, and the kerbs, heard in the cabin.
+var sound: CarSound
 ## The interior mirror and the left and right door mirrors, in that order; empty with the
 ## project setting [code]car/mirrors[/code] off.
 var mirrors: Array[CarMirror] = []
@@ -59,6 +61,7 @@ var _shifting := 0.0
 var _last_speed := 0.0
 var _yaw_rate := 0.0
 var _mirror_frame := 0
+var _on_kerb := false
 var _mirror_quality := "full"
 var _blink_clock := 0.0
 
@@ -79,6 +82,8 @@ func _ready() -> void:
 		instruments.rotation = Vector3(deg_to_rad(-20.0), 0.0, 0.0)
 		add_child(instruments)
 		_mount_mirrors()
+	sound = CarSound.new()
+	add_child(sound)
 	probe.indicator = VehicleProbe.Indicator.OFF
 	probe.handbrake = VehicleProbe.Toggle.OFF
 	probe.headlights = VehicleProbe.Toggle.OFF
@@ -163,6 +168,11 @@ func _show(delta: float) -> void:
 			reversing, headlights)
 		var along := (current_speed - _last_speed) / delta if delta > 0.0 else 0.0
 		model.lean(delta, along, current_speed * _yaw_rate)
+	if sound:
+		var blinking := probe.indicator == VehicleProbe.Indicator.LEFT \
+			or probe.indicator == VehicleProbe.Indicator.RIGHT
+		sound.follow(rpm, throttle, _shifting > 0.0, blinking and lit,
+			current_speed * _yaw_rate, current_speed)
 	_last_speed = current_speed
 	if instruments:
 		var parked := probe.handbrake == VehicleProbe.Toggle.ON
@@ -216,6 +226,14 @@ func _drive(delta: float) -> void:
 	velocity = -global_basis.z * current_speed
 	velocity.y = 0.0
 	move_and_slide()
+	var on_kerb := false
+	for i in get_slide_collision_count():
+		var other := get_slide_collision(i).get_collider() as CollisionObject3D
+		if other and other.collision_layer & Layers.PAVEMENT:
+			on_kerb = true
+	if on_kerb and not _on_kerb and sound:
+		sound.knock_kerb()
+	_on_kerb = on_kerb
 	# Blocked by something solid, the car keeps only the speed it really made.
 	if get_slide_collision_count() > 0:
 		var made := get_real_velocity().dot(-global_basis.z)
