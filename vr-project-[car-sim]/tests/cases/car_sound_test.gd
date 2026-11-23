@@ -104,7 +104,7 @@ func _test_streams() -> void:
 
 
 func _test_on_car() -> void:
-	var floor := ground()
+	var ground_body := ground()
 	var car: Node3D = spawn_car()
 	await physics_frame
 	var sound: CarSound = car.sound
@@ -139,7 +139,7 @@ func _test_on_car() -> void:
 	# 1.5 s at 0.35 s lit and 0.35 s dark: four or five edges.
 	expect(ticks >= 4 and ticks <= 5, "the indicator ticks on and off as it blinks: %d" % ticks)
 	car.queue_free()
-	floor.queue_free()
+	ground_body.queue_free()
 	await process_frame
 
 
@@ -189,7 +189,7 @@ func _test_drives() -> void:
 ## Returns each voice's loudest heard share, the loose share at the end, and each tyre player's
 ## loudest volume (dB), after the run-up, on a floor of [param surface].
 func _drive(speed: float, legs: Callable, seconds: float, surface := &"asphalt") -> Dictionary:
-	var floor := ground(3000.0, surface)
+	var ground_body := ground(3000.0, surface)
 	var car: Node3D = spawn_car()
 	await physics_frame
 	car.held_controls = {throttle = 1.0, select = "D"}
@@ -219,6 +219,6 @@ func _drive(speed: float, legs: Callable, seconds: float, surface := &"asphalt")
 			most[v + "_db"] = maxf(most[v + "_db"], player.volume_db)
 		most.loose = sound.loose
 	car.queue_free()
-	floor.queue_free()
+	ground_body.queue_free()
 	await process_frame
 	return most

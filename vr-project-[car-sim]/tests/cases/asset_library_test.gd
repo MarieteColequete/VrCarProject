@@ -142,19 +142,19 @@ func _test_settings_kept() -> void:
 
 
 func _test_placement() -> void:
-	var at := MapKitPlacer.placement(Vector3(1.26, 0.15, -3.74), 0.5, PI / 2.0, 0.0)
-	expect(at.origin.is_equal_approx(Vector3(1.5, 0.15, -3.5))
-		and at.basis.is_equal_approx(Basis(Vector3.UP, PI / 2.0)),
+	var where := MapKitPlacer.placement(Vector3(1.26, 0.15, -3.74), 0.5, PI / 2.0, 0.0)
+	expect(where.origin.is_equal_approx(Vector3(1.5, 0.15, -3.5))
+		and where.basis.is_equal_approx(Basis(Vector3.UP, PI / 2.0)),
 		"a piece snaps across to the grid, stands on the surface's height, and turns")
 	var raised := MapKitPlacer.placement(Vector3(0, 2.0, 0), 0.0, 0.0, 0.5)
 	expect(is_equal_approx(raised.origin.y, 2.5), "and keeps its own height above the surface")
 
 
 func _test_thumbnails() -> void:
-	var path := "res://assets/kenney/car_kit/sedan.glb"
-	var name := AssetThumbnails.cache_name(path, 100, 1.7)
-	expect(name != AssetThumbnails.cache_name(path, 101, 1.7)
-		and name != AssetThumbnails.cache_name(path, 100, 2.0) and name.ends_with(".png"),
+	var file_path := "res://assets/kenney/car_kit/sedan.glb"
+	var name := AssetThumbnails.cache_name(file_path, 100, 1.7)
+	expect(name != AssetThumbnails.cache_name(file_path, 101, 1.7)
+		and name != AssetThumbnails.cache_name(file_path, 100, 2.0) and name.ends_with(".png"),
 		"a thumbnail is rendered again when its model or its pack's scale changes")
 	var camera := AssetThumbnails.camera_transform()
 	var to_centre := (Vector3(0, 0.5, 0) - camera.origin).normalized()

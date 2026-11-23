@@ -141,11 +141,11 @@ static func binding_text(action: StringName) -> String:
 ## The main thread's process time, the physics process time, and the traffic pipeline's main
 ## thread time (snapshot and committing) and any wait for its threads, in milliseconds; shared
 ## with the [DevHud].
-static func performance_text(runner: ExamRunner) -> String:
+static func performance_text(p_runner: ExamRunner) -> String:
 	var text := "main %.1f ms  physics %.1f ms" % [
 		Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
 		Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0]
-	var traffic := runner.traffic if runner else null
+	var traffic := p_runner.traffic if p_runner else null
 	if traffic and traffic.count > 0:
 		text += "  traffic %.2f ms, waiting %.2f ms, road users %d" % [
 			(traffic.think_usec + traffic.commit_usec - traffic.wait_usec) / 1000.0,

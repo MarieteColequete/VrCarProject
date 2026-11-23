@@ -25,20 +25,20 @@ static func magic(s: float, b: float, shape: float) -> float:
 	return sin(shape * atan(b * s))
 
 
-## The most force a tyre under [param load] newtons on a surface of friction [param mu] gives.
-static func peak(spec: PackedFloat64Array, load: float, mu: float) -> float:
-	if load <= 0.0:
+## The most force a tyre under [param wheel_load] newtons on a surface of friction [param mu] gives.
+static func peak(spec: PackedFloat64Array, wheel_load: float, mu: float) -> float:
+	if wheel_load <= 0.0:
 		return 0.0
-	var falls := 1.0 - spec[CarSpec.LOAD_SENSITIVITY] * (load / NOMINAL_LOAD - 1.0)
-	return mu * spec[CarSpec.GRIP] * load * clampf(falls, 0.5, 1.2)
+	var falls := 1.0 - spec[CarSpec.LOAD_SENSITIVITY] * (wheel_load / NOMINAL_LOAD - 1.0)
+	return mu * spec[CarSpec.GRIP] * wheel_load * clampf(falls, 0.5, 1.2)
 
 
 ## The tyre's force, [code](along, across)[/code] in newtons in the wheel's frame (along forward,
 ## across to the left), at slip ratio [param ratio] and slip angle [param angle] under
-## [param load] newtons on a surface of friction [param mu].
-static func force(spec: PackedFloat64Array, ratio: float, angle: float, load: float,
+## [param wheel_load] newtons on a surface of friction [param mu].
+static func force(spec: PackedFloat64Array, ratio: float, angle: float, wheel_load: float,
 		mu: float) -> Vector2:
-	var top := peak(spec, load, mu)
+	var top := peak(spec, wheel_load, mu)
 	if top <= 0.0:
 		return Vector2.ZERO
 	var share := slip_share(spec, ratio, angle)
@@ -76,17 +76,17 @@ static func tread_scale(spec: PackedFloat64Array) -> Vector2:
 ## Returns [code]Vector4(along force, across force, deflection along, deflection across)[/code],
 ## newtons and shares; the across force is to the left.
 static func contact(spec: PackedFloat64Array, deflect: Vector2, tread: float, along: float,
-		across: float, load: float, mu: float, dt: float) -> Vector4:
-	return touch(prepare(spec, deflect, along, across, load, mu, dt), tread)
+		across: float, wheel_load: float, mu: float, dt: float) -> Vector4:
+	return touch(prepare(spec, deflect, along, across, wheel_load, mu, dt), tread)
 
 
 ## The parts of [method contact] that do not hang on the tread's speed, worked out once for a
 ## step: a wheel's spin is solved by trying many tread speeds against the same road.
 static func prepare(spec: PackedFloat64Array, deflect: Vector2, along: float, across: float,
-		load: float, mu: float, dt: float) -> PackedFloat64Array:
+		wheel_load: float, mu: float, dt: float) -> PackedFloat64Array:
 	var p := PackedFloat64Array()
 	p.resize(_SIZE)
-	var top := peak(spec, load, mu)
+	var top := peak(spec, wheel_load, mu)
 	p[_TOP] = top
 	if top <= 0.0:
 		return p

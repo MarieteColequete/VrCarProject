@@ -252,8 +252,10 @@ func _physics_process(delta: float) -> void:
 	if _pad_down.advance(delta):
 		_park = true
 	var real_wheel := DriverInput.wheel.active()
-	driver_view.real_rim = global_transform * model.steering_frame() \
-		if model and real_wheel else null
+	if model and real_wheel:
+		driver_view.real_rim = global_transform * model.steering_frame()
+	else:
+		driver_view.real_rim = null
 	if model and input_enabled and not real_wheel:
 		# With a real wheel the hands are on it, not on the car's.
 		driver_view.grab_wheel(delta, global_transform * model.steering_frame(),

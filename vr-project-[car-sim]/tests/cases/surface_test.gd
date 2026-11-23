@@ -17,10 +17,10 @@ func run() -> void:
 
 func _test_type() -> void:
 	var asphalt := BodyType.of(&"asphalt")
-	var ground := BodyType.of(&"ground")
+	var ground_type := BodyType.of(&"ground")
 	expect(asphalt != null and asphalt.layer == Layers.WORLD and is_equal_approx(asphalt.friction,
 		1.0) and not asphalt.judged(), "the asphalt type is on the world layer, full grip, unjudged")
-	expect(ground.friction < asphalt.friction, "the grass grips less than the asphalt")
+	expect(ground_type.friction < asphalt.friction, "the grass grips less than the asphalt")
 	var segment := RoadSegment.new()
 	segment.curve = Curve3D.new()
 	segment.curve.add_point(Vector3.ZERO)
@@ -91,7 +91,7 @@ func _test_baked(map: PackedScene) -> void:
 		expect(body != null and body.collision_layer == type.layer
 			and is_equal_approx(friction, type.friction) and absf(height - flush) < 0.001,
 			"a ray down onto %s hits %s, friction %.2f, at its drawn height (hit %s, friction %.2f, y %.3f)"
-			% [c[2], c[1], type.friction, body.name if body else "nothing", friction, height])
+			% [c[2], c[1], type.friction, str(body.name) if body else "nothing", friction, height])
 	if runner.session.is_running():
 		runner.session.abort()
 	runner.queue_free()

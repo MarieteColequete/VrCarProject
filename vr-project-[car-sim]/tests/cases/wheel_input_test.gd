@@ -50,17 +50,17 @@ func _test_pedal() -> void:
 
 
 func _test_settings() -> void:
-	var path := "user://wheel_input_test.cfg"
+	var file_path := "user://wheel_input_test.cfg"
 	var config := ConfigFile.new()
 	config.set_value(WheelInput.SECTION, "enabled", false)
 	config.set_value(WheelInput.SECTION, "rotation", 900.0)
 	config.set_value(WheelInput.SECTION, "brake_axis", 3)
-	config.save(path)
-	var wheel := WheelInput.load_from(path)
+	config.save(file_path)
+	var wheel := WheelInput.load_from(file_path)
 	expect(is_equal_approx(wheel.rotation, 900.0) and wheel.brake_axis == 3
 		and not wheel.active() and is_zero_approx(wheel.brake()),
 		"the settings are read, and a wheel switched off reads nothing")
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(file_path))
 	var defaults := WheelInput.load_from("user://none_such.cfg")
 	expect(is_equal_approx(defaults.rotation, 900.0) and defaults.throttle_axis == -1,
 		"without a file the rim is a 900 degree wheel, the car's own")

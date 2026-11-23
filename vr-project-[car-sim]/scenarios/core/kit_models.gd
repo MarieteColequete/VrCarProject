@@ -46,6 +46,7 @@ static func triangles(model_path: String) -> int:
 	for surface in built.get_surface_count():
 		var arrays := built.surface_get_arrays(surface)
 		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		@warning_ignore("integer_division")
 		count += (indices.size() if not indices.is_empty()
 			else (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()) / 3
 	return count

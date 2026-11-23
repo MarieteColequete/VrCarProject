@@ -29,9 +29,9 @@ var _stores := {}
 func define(component: StringName, defaults: Dictionary) -> ComponentStore:
 	if _stores.has(component):
 		return _stores[component]
-	var store := ComponentStore.new(component, defaults)
-	_stores[component] = store
-	return store
+	var added := ComponentStore.new(component, defaults)
+	_stores[component] = added
+	return added
 
 
 func store(component: StringName) -> ComponentStore:

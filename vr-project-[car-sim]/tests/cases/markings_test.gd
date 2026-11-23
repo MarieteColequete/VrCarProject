@@ -31,6 +31,7 @@ func _test_markings() -> void:
 	var dashed := _marking(RoadMarking.Kind.DASHED, Vector3(5, 0, 0), Vector3(5, 0, -30))
 	await process_frame
 	expect(_vertex_count(solid) > 0, "a solid line draws paint")
+	@warning_ignore("integer_division")
 	expect(_vertex_count(dashed) > 0 and _vertex_count(dashed) < _vertex_count(solid) / 2,
 		"a dashed line draws a third of a solid one (3 m dash, 6 m gap)")
 

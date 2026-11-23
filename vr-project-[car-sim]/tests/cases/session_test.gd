@@ -11,8 +11,8 @@ func run() -> void:
 
 func _test_session() -> void:
 	var step_titles: Array[String] = []
-	var record_steps := func(runner: ExamRunner) -> void:
-		runner.session.step_changed.connect(func(step: ScenarioStep) -> void:
+	var record_steps := func(exam: ExamRunner) -> void:
+		exam.session.step_changed.connect(func(step: ScenarioStep) -> void:
 			step_titles.append(step.title))
 
 	var r := await drive([{to = Vector3(0, 0, -45), speed = 8.0}], STEPS_FIXTURE, record_steps)
@@ -48,14 +48,14 @@ func _test_session() -> void:
 
 ## Every event of a drive that crosses lines, speeds, and runs the stop line, as text.
 func _event_log() -> Array:
-	var log := []
+	var lines := []
 	var on_spawn := func(runner: ExamRunner) -> void:
 		runner.world_runner.events_emitted.connect(func(events: Array[WorldEvent]) -> void:
 			for event in events:
-				log.append("%s %d %.3f" % [event.kind, event.entity, event.time]))
+				lines.append("%s %d %.3f" % [event.kind, event.entity, event.time]))
 	await drive([{to = at(20.0), speed = 15.0}, {to = Vector3(-1.75, 0, 0), speed = 15.0},
 		{to = Vector3(-1.75, 0, -40), speed = 15.0}], null, on_spawn)
-	return log
+	return lines
 
 
 func _test_same_drive_same_events() -> void:

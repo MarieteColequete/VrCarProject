@@ -114,8 +114,8 @@ func _test_sloping_road() -> void:
 	terrain.rebuild()
 	var worst := 0.0
 	for i in 41:
-		var at := curve.get_baked_length() * (0.05 + 0.9 * i / 40.0)
-		var p := curve.sample_baked(at)
+		var where := curve.get_baked_length() * (0.05 + 0.9 * i / 40.0)
+		var p := curve.sample_baked(where)
 		worst = maxf(worst, absf(terrain.height_at(p) - (p.y - Terrain.ROAD_SINK)))
 	expect(worst < 0.02, "the land under a road falling 10% lies just under it all along: "
 		+ "%.3f m off at worst" % worst)

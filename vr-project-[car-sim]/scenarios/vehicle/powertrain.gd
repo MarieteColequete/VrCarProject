@@ -25,8 +25,8 @@ static func gear_count(spec: PackedFloat64Array) -> int:
 ## The engine's revolutions with the driven wheels turning at [param wheel_spin] rad/s in
 ## [param gear], before the clutch: idle at least, the redline at most.
 static func rpm(spec: PackedFloat64Array, wheel_spin: float, gear: int) -> float:
-	var through := absf(wheel_spin * ratio(spec, gear)) / CarSpec.RPM
-	return clampf(through, spec[CarSpec.IDLE_RPM], spec[CarSpec.REDLINE_RPM])
+	var geared := absf(wheel_spin * ratio(spec, gear)) / CarSpec.RPM
+	return clampf(geared, spec[CarSpec.IDLE_RPM], spec[CarSpec.REDLINE_RPM])
 
 
 ## The engine's full-throttle torque at [param at_rpm], Nm, from the spec's curve.
@@ -77,9 +77,9 @@ static func drive_force_max(spec: PackedFloat64Array, speed: float) -> float:
 	var spin := maxf(speed, 0.0) / spec[CarSpec.WHEEL_RADIUS]
 	var best := 0.0
 	for gear in range(1, gear_count(spec) + 1):
-		var through := absf(spin * ratio(spec, gear)) / CarSpec.RPM
-		if through > spec[CarSpec.REDLINE_RPM]:
+		var geared := absf(spin * ratio(spec, gear)) / CarSpec.RPM
+		if geared > spec[CarSpec.REDLINE_RPM]:
 			continue
-		var at := maxf(through, spec[CarSpec.LAUNCH_RPM])
+		var at := maxf(geared, spec[CarSpec.LAUNCH_RPM])
 		best = maxf(best, wheel_torque(spec, at, 1.0, gear))
 	return best / spec[CarSpec.WHEEL_RADIUS]

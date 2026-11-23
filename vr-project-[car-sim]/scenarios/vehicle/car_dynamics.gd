@@ -376,8 +376,8 @@ func _lock(gearing: float, count: int) -> void:
 		if driven(i):
 			mean += spin[i] / count
 	var wheel_side := count * spec[CarSpec.WHEEL_INERTIA] / (gearing * gearing)
-	var engine := spec[CarSpec.ENGINE_INERTIA]
-	var shared := (engine * engine_spin + wheel_side * mean * gearing) / (engine + wheel_side)
+	var inertia := spec[CarSpec.ENGINE_INERTIA]
+	var shared := (inertia * engine_spin + wheel_side * mean * gearing) / (inertia + wheel_side)
 	var change := shared / gearing - mean
 	for i in 4:
 		if driven(i):
@@ -389,9 +389,9 @@ func _lock(gearing: float, count: int) -> void:
 ## the idle governor bring it back to idle, and the limiter holds it at the redline.
 func _rev_freely(dt: float, open: float) -> void:
 	# Just caught, it runs up to idle under the governor rather than jumping there.
-	var floor := minf(engine_spin, _idle_spin() * 0.85)
+	var idle_floor := minf(engine_spin, _idle_spin() * 0.85)
 	engine_spin += _engine_torque(open) / spec[CarSpec.ENGINE_INERTIA] * dt
-	engine_spin = clampf(engine_spin, floor, spec[CarSpec.REDLINE_RPM] * CarSpec.RPM)
+	engine_spin = clampf(engine_spin, idle_floor, spec[CarSpec.REDLINE_RPM] * CarSpec.RPM)
 
 
 ## The engine not running for a step: the starter turns it at its revolutions, or else its

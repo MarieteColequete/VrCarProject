@@ -29,17 +29,17 @@ var left := 0
 var right := 0
 
 
-## A lane [param id] along [param curve] placed at [param p_transform], with [param settings]
+## A lane [param p_id] along [param p_curve] placed at [param p_transform], with [param settings]
 ## for its other fields (such as [code]is_lane[/code] or [code]speed_limit[/code]). The curve is
 ## baked here, once, so sampling it only reads the cache.
-static func of(id: int, curve: Curve3D, p_transform := Transform3D(),
+static func of(p_id: int, p_curve: Curve3D, p_transform := Transform3D(),
 		settings := {}) -> LaneData:
 	var lane := LaneData.new()
-	lane.id = id
-	lane.curve = curve
+	lane.id = p_id
+	lane.curve = p_curve
 	lane.transform = p_transform
 	lane.inverse = p_transform.affine_inverse()
-	lane.length = curve.get_baked_length()
+	lane.length = p_curve.get_baked_length()
 	for key: StringName in settings:
 		lane.set(key, settings[key])
 	return lane

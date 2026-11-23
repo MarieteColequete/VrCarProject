@@ -55,25 +55,25 @@ func rpm_in(in_gear: int, wheel_speed: float) -> float:
 		/ CarSpec.RPM
 
 
-## Moves the lever one notch ([param step] +1 up toward D, or up a gear; -1 down toward R, or
+## Moves the lever one notch ([param p_step] +1 up toward D, or up a gear; -1 down toward R, or
 ## down a gear), with the driven wheels at [param wheel_speed] m/s; from P, up is D and down is R.
 ## Returns false, moving nothing, only when the lever is at its end. Nothing is locked out: a move against the car's motion, or a change down past the
 ## redline, goes through, and the engine pays for it.
-func request(step: int, wheel_speed: float) -> bool:
-	if step == 0:
+func request(p_step: int, wheel_speed: float) -> bool:
+	if p_step == 0:
 		return false
 	if manual:
-		return _request_gear(clampi(gear + signi(step), -1, Powertrain.gear_count(spec)))
+		return _request_gear(clampi(gear + signi(p_step), -1, Powertrain.gear_count(spec)))
 	var next: int = selector
 	match selector:
 		Selector.PARK:
-			next = Selector.DRIVE if step > 0 else Selector.REVERSE
+			next = Selector.DRIVE if p_step > 0 else Selector.REVERSE
 		Selector.REVERSE:
-			next = Selector.NEUTRAL if step > 0 else Selector.REVERSE
+			next = Selector.NEUTRAL if p_step > 0 else Selector.REVERSE
 		Selector.NEUTRAL:
-			next = Selector.DRIVE if step > 0 else Selector.REVERSE
+			next = Selector.DRIVE if p_step > 0 else Selector.REVERSE
 		Selector.DRIVE:
-			next = Selector.DRIVE if step > 0 else Selector.NEUTRAL
+			next = Selector.DRIVE if p_step > 0 else Selector.NEUTRAL
 	if next == selector:
 		return false
 	_set_selector(next, wheel_speed)

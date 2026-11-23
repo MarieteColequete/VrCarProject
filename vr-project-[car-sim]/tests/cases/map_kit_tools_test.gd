@@ -27,14 +27,14 @@ func _test_create_map() -> void:
 	_remove(ROOT)
 	expect(not MapFiles.is_map_name("Main Street") and not MapFiles.is_map_name("1st")
 		and MapFiles.is_map_name("main_street_2"), "map names are lower case folder names")
-	var path := MapFiles.create_map("main_street", "Main Street", ROOT)
+	var file_path := MapFiles.create_map("main_street", "Main Street", ROOT)
 	var entries := MapCatalogue.scan(ROOT)
-	expect(path == ROOT + "main_street/main_street.tscn" and entries.size() == 1
+	expect(file_path == ROOT + "main_street/main_street.tscn" and entries.size() == 1
 		and entries[0].id == &"main_street" and entries[0].title == "Main Street",
 		"a new map is a folder and scene the scan finds, with its id and title")
-	var road_map := load(path).instantiate() as RoadMap if not path.is_empty() else null
+	var road_map := load(file_path).instantiate() as RoadMap if not file_path.is_empty() else null
 	expect(road_map != null and road_map.has_node("Environment") and road_map.spawns().size() == 1
-		and (load(path) as PackedScene).get_state().get_node_instance(0) != null,
+		and (load(file_path) as PackedScene).get_state().get_node_instance(0) != null,
 		"a new map inherits the map base, with its environment and spawn")
 	if road_map:
 		road_map.free()
@@ -96,9 +96,9 @@ func _test_lane_links() -> void:
 	a.next = [b]
 	expect(RoadNetwork.lane_links([a, b, back, far]).is_empty(), "a link already made is not repeated")
 	a.next = []
-	var connect := RoadNetwork.connect_lanes(null, [a, b, back, far])
-	connect.apply(root)
-	expect(a.next == [b] and connect.sets.size() == 1,
+	var joined := RoadNetwork.connect_lanes(null, [a, b, back, far])
+	joined.apply(root)
+	expect(a.next == [b] and joined.sets.size() == 1,
 		"connecting the picked lanes links the ones whose ends meet, as the dock does")
 	for lane in [a, b, back, far]:
 		lane.free()
@@ -331,14 +331,15 @@ func _test_joining() -> void:
 	var road := _segment(Vector3(0, 0, 0), Vector3(0, 0, -20))
 	var road_map := _map([road])
 	var placed := RoadSegment.new()
-	var at: Variant = RoadNetwork.joining_transform(road_map, placed, Vector3(1, 0, -22))
-	expect(at != null and (at as Transform3D).origin.is_equal_approx(Vector3(0, 0, -20))
+	var where: Variant = RoadNetwork.joining_transform(road_map, placed, Vector3(1, 0, -22))
+	expect(where != null and (where as Transform3D).origin.is_equal_approx(Vector3(0, 0, -20))
 		and placed.curve.get_point_position(0).is_equal_approx(Vector3.ZERO),
 		"a road placed near an open end starts on it")
 	var junction := RoadJunction.new()
-	at = RoadNetwork.joining_transform(road_map, junction, Vector3(0, 0, 2))
-	var arm: Variant = (at as Transform3D) * junction.arm_end(RoadJunction.Arm.SOUTH).origin \
-		if at != null else null
+	where = RoadNetwork.joining_transform(road_map, junction, Vector3(0, 0, 2))
+	var arm: Variant = null
+	if where != null:
+		arm = (where as Transform3D) * junction.arm_end(RoadJunction.Arm.SOUTH).origin
 	expect(arm != null and (arm as Vector3).is_equal_approx(Vector3.ZERO),
 		"a junction placed near an open end joins it by its south arm")
 	expect(RoadNetwork.joining_transform(road_map, RoadSegment.new(), Vector3(20, 0, 20)) == null,
@@ -363,11 +364,11 @@ func _test_overlay_marks() -> void:
 	road_map.free()
 
 
-static func _remove(path: String) -> void:
-	if not DirAccess.dir_exists_absolute(path):
+static func _remove(file_path: String) -> void:
+	if not DirAccess.dir_exists_absolute(file_path):
 		return
-	for folder in DirAccess.get_directories_at(path):
-		_remove(path.path_join(folder))
-	for file in DirAccess.get_files_at(path):
-		DirAccess.remove_absolute(path.path_join(file))
-	DirAccess.remove_absolute(path)
+	for folder in DirAccess.get_directories_at(file_path):
+		_remove(file_path.path_join(folder))
+	for file in DirAccess.get_files_at(file_path):
+		DirAccess.remove_absolute(file_path.path_join(file))
+	DirAccess.remove_absolute(file_path)

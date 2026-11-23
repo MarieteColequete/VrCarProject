@@ -36,14 +36,14 @@ func loads(spec: PackedFloat64Array, squeezed: PackedFloat64Array, grounded: Pac
 	return out
 
 
-## The load on a corner's spring and damper, newtons: compressed [param compression] metres,
+## The load on a corner's spring and damper, newtons: compressed [param p_compression] metres,
 ## compressing at [param rate] m/s, with the anti-roll bar pulling it toward the other side of its
 ## axle, compressed [param other] metres. Never pulls the wheel down.
-static func corner_load(spec: PackedFloat64Array, compression: float, rate: float,
+static func corner_load(spec: PackedFloat64Array, p_compression: float, rate: float,
 		other: float) -> float:
-	var load := spec[CarSpec.SPRING_RATE] * compression + spec[CarSpec.DAMPER_RATE] * rate \
-		+ spec[CarSpec.ANTI_ROLL] * (compression - other)
-	return maxf(load, 0.0)
+	var wheel_load := spec[CarSpec.SPRING_RATE] * p_compression + spec[CarSpec.DAMPER_RATE] * rate \
+		+ spec[CarSpec.ANTI_ROLL] * (p_compression - other)
+	return maxf(wheel_load, 0.0)
 
 
 ## Forgets the last step's motion, for a car placed by hand.

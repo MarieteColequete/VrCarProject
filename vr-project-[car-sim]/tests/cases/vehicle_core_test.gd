@@ -24,20 +24,20 @@ func run() -> void:
 
 func _test_tyre() -> void:
 	var spec := KIRI.packed()
-	var load := 3000.0
-	var top := TyreModel.peak(spec, load, 1.0)
-	var at_peak := TyreModel.force(spec, spec[CarSpec.PEAK_RATIO], 0.0, load, 1.0)
+	var wheel_load := 3000.0
+	var top := TyreModel.peak(spec, wheel_load, 1.0)
+	var at_peak := TyreModel.force(spec, spec[CarSpec.PEAK_RATIO], 0.0, wheel_load, 1.0)
 	expect(absf(at_peak.x - top) < 1.0, "the tyre pulls hardest at its peak slip: %.0f N" % at_peak.x)
-	var spun := TyreModel.force(spec, 1.0, 0.0, load, 1.0)
+	var spun := TyreModel.force(spec, 1.0, 0.0, wheel_load, 1.0)
 	expect(spun.x < top and spun.x > top * 0.6, "and less spinning, but not nothing: %.0f" % spun.x)
-	var side := TyreModel.force(spec, 0.0, 0.05, load, 1.0)
+	var side := TyreModel.force(spec, 0.0, 0.05, wheel_load, 1.0)
 	expect(side.y < 0.0, "sliding left, the tyre pushes right")
-	var both := TyreModel.force(spec, 0.08, 0.1, load, 1.0)
+	var both := TyreModel.force(spec, 0.08, 0.1, wheel_load, 1.0)
 	expect(both.length() <= top + 1.0, "braking and turning share the grip: %.0f <= %.0f"
 		% [both.length(), top])
-	expect(TyreModel.force(spec, 0.1, 0.0, load, 0.5).x < at_peak.x * 0.55,
+	expect(TyreModel.force(spec, 0.1, 0.0, wheel_load, 0.5).x < at_peak.x * 0.55,
 		"half the friction, half the grip")
-	expect(TyreModel.peak(spec, load * 2.0, 1.0) < top * 2.0, "grip grows less than the load")
+	expect(TyreModel.peak(spec, wheel_load * 2.0, 1.0) < top * 2.0, "grip grows less than the load")
 
 
 func _test_powertrain() -> void:

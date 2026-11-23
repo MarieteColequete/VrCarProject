@@ -269,7 +269,9 @@ func intersect_ray(from: Vector3, direction: Vector3, reach := 2000.0) -> Varian
 	var into := RoadMap.to_map(self, map_of(self))
 	var inverse := into.affine_inverse()
 	var hit: Variant = field().intersect_ray(inverse * from, inverse.basis * direction, reach)
-	return into * (hit as Vector3) if hit != null else null
+	if hit == null:
+		return null
+	return into * (hit as Vector3)
 
 
 ## Cuts and fills [param out] (in the terrain's space) to the map's roads and junctions.
@@ -426,7 +428,9 @@ func rebuild_area(area: Rect2) -> void:
 	var across := ceili(float(_field.count_x - 1) / CHUNK)
 	var down := ceili(float(_field.count_z - 1) / CHUNK)
 	chunks_drawn = 0
+	@warning_ignore("integer_division")
 	for cj in range(maxi((j0 - 2) / CHUNK, 0), mini((j1 + 1) / CHUNK, down - 1) + 1):
+		@warning_ignore("integer_division")
 		for ci in range(maxi((i0 - 2) / CHUNK, 0), mini((i1 + 1) / CHUNK, across - 1) + 1):
 			var k := cj * across + ci
 			if k < _chunks.size() and is_instance_valid(_chunks[k]):

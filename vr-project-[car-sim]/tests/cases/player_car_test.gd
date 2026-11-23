@@ -22,11 +22,11 @@ func _test_fit() -> void:
 		return
 	root.add_child(model)
 	var fronts := model.wheels.filter(func(w: Dictionary) -> bool: return w.front)
-	var at := model.wheels.map(func(w: Dictionary) -> Vector3:
+	var where := model.wheels.map(func(w: Dictionary) -> Vector3:
 		return (w.node as Node3D).global_position)
 	var front_z: float = fronts.map(func(w: Dictionary) -> float:
 		return (w.node as Node3D).global_position.z).reduce(func(a, b): return a + b) / 2.0
-	var lowest: float = at.map(func(p: Vector3) -> float: return p.y).min()
+	var lowest: float = where.map(func(p: Vector3) -> float: return p.y).min()
 	expect(absf(front_z + 1.3) < 0.02, "its front wheels are 1.3 m ahead, -Z: %.2f" % front_z)
 	expect(absf(lowest - model.radius) < 0.03 and model.radius > 0.25 and model.radius < 0.35,
 		"its wheels stand on the ground: radius %.2f m" % model.radius)
@@ -59,9 +59,9 @@ func _test_fit() -> void:
 
 func _test_box_uvs() -> void:
 	# A 1 m square facing up, and a wall facing +X, as two triangles each, wound as Godot's are.
-	var floor := PackedVector3Array([Vector3(0, 0, 0), Vector3(1, 0, 0), Vector3(0, 0, 1),
+	var floor_points := PackedVector3Array([Vector3(0, 0, 0), Vector3(1, 0, 0), Vector3(0, 0, 1),
 		Vector3(1, 0, 0), Vector3(1, 0, 1), Vector3(0, 0, 1)])
-	var uvs := MeshCut.box_uvs(floor, Transform3D.IDENTITY, Basis.IDENTITY, 0.5)
+	var uvs := MeshCut.box_uvs(floor_points, Transform3D.IDENTITY, Basis.IDENTITY, 0.5)
 	var span := Vector2.ZERO
 	for uv in uvs:
 		span = span.max(uv)
@@ -120,13 +120,14 @@ func _triangles(mesh: Mesh) -> int:
 	for surface in mesh.get_surface_count():
 		var arrays := mesh.surface_get_arrays(surface)
 		var index: Variant = arrays[Mesh.ARRAY_INDEX]
+		@warning_ignore("integer_division")
 		count += (index as PackedInt32Array).size() / 3 if index != null \
 			else (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() / 3
 	return count
 
 
 func _test_live() -> void:
-	var floor := ground()
+	var ground_body := ground()
 	var car: Node3D = spawn_car()
 	var model: PlayerCarModel = car.model
 	var view: Node3D = car.driver_view
@@ -198,7 +199,7 @@ func _test_live() -> void:
 			seen_off = true
 	expect(seen_on and seen_off, "the right indicator arrow blinks")
 	car.queue_free()
-	floor.queue_free()
+	ground_body.queue_free()
 	await process_frame
 
 
