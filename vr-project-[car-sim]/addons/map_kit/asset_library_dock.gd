@@ -468,9 +468,7 @@ func _place_at_centre(entry: AssetCatalogue.Entry) -> void:
 	if road_map == null:
 		_info.text = "Open a map to place %s." % entry.label
 		return
-	plugin.placer.arm(_piece(entry))
-	plugin.placer.place(road_map, plugin.dock.view_centre(road_map))
-	plugin.placer.disarm()
+	plugin.placer.drop_at_centre(road_map, _piece(entry))
 
 
 func _on_armed(piece: MapKitTools.Piece) -> void:
@@ -498,7 +496,7 @@ func _replace_selection(entry: AssetCatalogue.Entry) -> void:
 	var edit := MapKitTools.Edit.new()
 	for node in EditorInterface.get_selection().get_top_selected_nodes():
 		if node is MapAsset:
-			MapKitTools.set_model(edit, node as MapAsset, entry)
+			AssetTools.set_model(edit, node as MapAsset, entry)
 	if not plugin.apply(edit, "Replace with %s" % entry.label):
 		_info.text = "Select map assets in the scene to replace."
 
@@ -570,11 +568,10 @@ func _apply_view() -> void:
 
 
 func _apply_icons() -> void:
-	var theme := EditorInterface.get_editor_theme() if plugin else null
-	if theme:
-		_view_button.icon = theme.get_icon(&"FileList", &"EditorIcons")
-		_search.right_icon = theme.get_icon(&"Search", &"EditorIcons")
-		_refresh_button.icon = theme.get_icon(&"Reload", &"EditorIcons")
+	if plugin and EditorInterface.get_editor_theme():
+		_view_button.icon = MapKitDock.editor_icon(&"FileList")
+		_search.right_icon = MapKitDock.editor_icon(&"Search")
+		_refresh_button.icon = MapKitDock.editor_icon(&"Reload")
 		_refresh_button.text = ""
 	_apply_view()
 
@@ -607,5 +604,4 @@ func _swatch(pack: AssetPack) -> Texture2D:
 
 
 func _placeholder() -> Texture2D:
-	var theme := EditorInterface.get_editor_theme() if plugin else null
-	return theme.get_icon(&"MeshInstance3D", &"EditorIcons") if theme else null
+	return MapKitDock.editor_icon(&"MeshInstance3D") if plugin else null

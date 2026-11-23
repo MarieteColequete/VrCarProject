@@ -1,0 +1,9 @@
+Car rolling on asphalt .wav
+by orlandorizo, from Freesound, https://freesound.org/people/orlandorizo/sounds/591079/
+
+Licensed under Creative Commons CC0 1.0 Universal (public domain):
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Changes: source/ holds Freesound's high-quality OGG preview of the recording, as downloaded.
+tyres_asphalt.wav is 62 to 75 s of it, a stretch with no bumps, in mono, made a seamless loop and
+brought to -14 dB RMS by tools/car_recordings.gd.

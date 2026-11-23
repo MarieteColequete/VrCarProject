@@ -7,6 +7,17 @@ extends RefCounted
 ## user sees the same tick, whatever order the threads run in.
 
 const CELL := 10.0
+## The places of the snapshot's arrays in [method arrays].
+const GRID := 0
+const IDS := 1
+const CORNERS := 2
+const CENTRE := 3
+const ALONG := 4
+const ACROSS := 5
+const HALF_LENGTH := 6
+const HALF_WIDTH := 7
+const VELOCITY := 8
+const ROAD_USER := 9
 
 
 ## The boxes, as flat arrays indexed alike, so threads read plain numbers rather than shared
@@ -25,6 +36,13 @@ var half_width := PackedFloat32Array()
 ## Grid cell to the indices of the boxes touching it.
 var grid := {}
 var _cells := {}
+
+
+## Its arrays in one plain list, at the indices above, for worker threads: they read plain
+## arrays, never the snapshot itself. Main thread, once sealed.
+func arrays() -> Array:
+	return [grid, ids, corners, centre, along, across, half_length, half_width, velocity,
+		road_user]
 
 
 ## Adds a box: [param facing] is the unit facing on the ground. Main thread, while building.

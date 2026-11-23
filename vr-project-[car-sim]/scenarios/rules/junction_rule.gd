@@ -35,10 +35,6 @@ static func step(p: Dictionary, s: Dictionary, f: RuleFrame, live: bool) -> Rule
 	return r
 
 
-static func finish(_p: Dictionary, s: Dictionary, _f: RuleFrame, _live: bool) -> RuleResult:
-	return RuleResult.new(s)
-
-
 static func _held(car: CarState) -> Dictionary:
 	return {VehicleProbe.Indicator.LEFT: car.indicator_held_for(VehicleProbe.Indicator.LEFT),
 		VehicleProbe.Indicator.RIGHT: car.indicator_held_for(VehicleProbe.Indicator.RIGHT)}

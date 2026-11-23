@@ -3,8 +3,7 @@ extends TestCase
 ## steering wheel, its live parts (wheels, steering wheel, lights), and the instruments, all
 ## following the car's state; and its cabin, cut into parts each in a textured material of its own.
 
-const CAR := preload("res://scenarios/scenes/debug_car.tscn")
-const CAR_SCRIPT := preload("res://scenarios/scenes/debug_car.gd")
+const CAR_SCRIPT := preload("res://scenarios/scenes/player_car.gd")
 
 
 func run() -> void:
@@ -62,13 +61,13 @@ func _test_box_uvs() -> void:
 	# A 1 m square facing up, and a wall facing +X, as two triangles each, wound as Godot's are.
 	var floor := PackedVector3Array([Vector3(0, 0, 0), Vector3(1, 0, 0), Vector3(0, 0, 1),
 		Vector3(1, 0, 0), Vector3(1, 0, 1), Vector3(0, 0, 1)])
-	var uvs := PlayerCarModel.box_uvs(floor, Transform3D.IDENTITY, Basis.IDENTITY, 0.5)
+	var uvs := MeshCut.box_uvs(floor, Transform3D.IDENTITY, Basis.IDENTITY, 0.5)
 	var span := Vector2.ZERO
 	for uv in uvs:
 		span = span.max(uv)
 	expect(span.is_equal_approx(Vector2(2.0, 2.0)), "a metre of floor is two repeats at half a metre each: %s" % span)
 	var wall := PackedVector3Array([Vector3(0, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, 1)])
-	var on_wall := PlayerCarModel.box_uvs(wall, Transform3D.IDENTITY, Basis.IDENTITY, 1.0)
+	var on_wall := MeshCut.box_uvs(wall, Transform3D.IDENTITY, Basis.IDENTITY, 1.0)
 	expect(on_wall[1].is_equal_approx(Vector2(0, 1)) and on_wall[2].is_equal_approx(Vector2(1, 0)),
 		"a wall facing sideways is laid out along its length and height: %s" % on_wall)
 	expect(PlayerCarModel.cabin_zone(Vector3(0.0, 1.3, 0.5), Vector3.DOWN) == &"headliner"
@@ -101,6 +100,13 @@ func _test_cabin() -> void:
 			after += _triangles(part.mesh)
 	for cut: Dictionary in [model.mirror_glass, model.mirror_housing]:
 		after += _triangles((cut[&"rear"] as MeshInstance3D).mesh)
+	var face := model.cluster_face
+	expect(face != null and _triangles(face.mesh) >= 8 and face.get_parent() == model.body
+		and (face.get_meta(&"size") as Vector2).x > 0.4,
+		"the gauge face behind the wheel is cut out of the interior: %d triangles, %s m"
+		% [_triangles(face.mesh) if face else 0, face.get_meta(&"size") if face else Vector2.ZERO])
+	if face:
+		after += _triangles(face.mesh)
 	expect(before > 3000 and after == before,
 		"the cabin's parts hold every triangle the interior had: %d of %d" % [after, before])
 	var wheel := model.steering_wheel as MeshInstance3D
@@ -120,8 +126,8 @@ func _triangles(mesh: Mesh) -> int:
 
 
 func _test_live() -> void:
-	var car: Node3D = CAR.instantiate()
-	root.add_child(car)
+	var floor := ground()
+	var car: Node3D = spawn_car()
 	var model: PlayerCarModel = car.model
 	var view: Node3D = car.driver_view
 	expect(model != null and view.position.distance_to(model.steering_centre
@@ -132,27 +138,42 @@ func _test_live() -> void:
 		await process_frame
 		return
 
-	model.drive(0.5, 3.0, 1.0, true, false, true, false, true)
-	expect(model.wheel_turn() > deg_to_rad(20.0), "steering left turns the front wheels left: %.0f°"
+	var rolling := PackedFloat64Array([10.0, 10.0, 10.0, 10.0])
+	var rack := Steering.new()
+	rack.steer(car.spec.packed(), 1.0)
+	model.drive(0.5, rolling, rack, true, false, true, false, true)
+	expect(absf(model.wheel_turn() - rack.angles[CarDynamics.FL]) < 0.001,
+		"steering left turns the front wheels left, drawn at the steering's own angle: %.1f°"
 		% rad_to_deg(model.wheel_turn()))
 	expect(model.is_lit(&"blinkers_left") and not model.is_lit(&"blinkers_right")
 		and model.is_lit(&"brake") and model.is_lit(&"headlights") and not model.is_lit(&"reverse"),
 		"the lights show the left indicator, the brake, and the headlights")
-	model.drive(0.1, 0.0, 0.0, false, false, false, true, false)
+	for side in ["BlinkersLeft", "BlinkersRight"]:
+		var x := _drawn_x(model.find_child(side, true, false) as MeshInstance3D, car)
+		expect((x < -0.3) if side == "BlinkersLeft" else (x > 0.3),
+			"the %s are on the car's %s side: %.2f m across" % [side, "left" if side
+			== "BlinkersLeft" else "right", x])
+	model.drive(0.1, PackedFloat64Array([0.0, 0.0, 0.0, 0.0]), Steering.new(), false, false,
+		false, true, false)
 	expect(is_zero_approx(model.wheel_turn()) and model.is_lit(&"reverse")
 		and not model.is_lit(&"blinkers_left"), "and change as the car does")
 
 	# Driven for real: the instruments and the indicator follow the car.
 	car.probe.indicator = VehicleProbe.Indicator.RIGHT
 	car.probe.headlights = VehicleProbe.Toggle.ON
-	car.held_controls = {throttle = 1.0}
+	car.held_controls = {throttle = 1.0, select = "D"}
 	await frames(60)
 	var instruments: InstrumentCluster = car.instruments
+	expect(instruments.mounted != null and instruments.mounted == car.model.cluster_face
+		and instruments.mounted.material_override != null,
+		"the instruments are drawn on the model's own gauge face")
 	expect(instruments.speed_kmh > 10.0 and is_equal_approx(instruments.speed_kmh,
-		car.current_speed * 3.6), "the speedometer reads the car's speed: %.0f km/h"
-		% instruments.speed_kmh)
+		absf(car.signals.vehicle_speed) * 3.6)
+		and absf(instruments.speed_kmh - car.current_speed * 3.6) < 2.0,
+		"the speedometer reads the car's speed from its wheels: %.0f km/h, the body %.0f"
+		% [instruments.speed_kmh, car.current_speed * 3.6])
 	expect(instruments.headlights and not instruments.left_on, "the headlights tell-tale is lit")
-	expect(instruments.rpm > CarDrivetrain.IDLE_RPM and instruments.gear == str(car.gear),
+	expect(instruments.rpm > car.spec.idle_rpm - 1.0 and instruments.gear == car.dynamics.gearbox.letter(),
 		"the rev counter and the gear follow the drivetrain: %.0f rpm, %s"
 		% [instruments.rpm, instruments.gear])
 	expect(absf(instruments.speed_needle - instruments.speed_kmh) < 3.0,
@@ -177,6 +198,7 @@ func _test_live() -> void:
 			seen_off = true
 	expect(seen_on and seen_off, "the right indicator arrow blinks")
 	car.queue_free()
+	floor.queue_free()
 	await process_frame
 
 
@@ -198,3 +220,20 @@ func _test_instruments() -> void:
 	cluster.free()
 	expect(CAR_SCRIPT.blink_on(0.0) and CAR_SCRIPT.blink_on(0.3) and not CAR_SCRIPT.blink_on(0.4)
 		and CAR_SCRIPT.blink_on(0.75), "an indicator is lit, then dark, in turn")
+
+
+## How far across the car (its left negative) [param part]'s drawn triangles sit, on average.
+func _drawn_x(part: MeshInstance3D, car: Node3D) -> float:
+	if part == null:
+		return 0.0
+	var to_car := car.global_transform.affine_inverse() * part.global_transform
+	var total := 0.0
+	var count := 0
+	for surface in part.mesh.get_surface_count():
+		var arrays := part.mesh.surface_get_arrays(surface)
+		var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		for i in index:
+			total += (to_car * points[i]).x
+			count += 1
+	return total / maxi(count, 1)

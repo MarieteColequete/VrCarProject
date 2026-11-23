@@ -4,7 +4,8 @@ extends RefCounted
 ## in a few straight segments that follow the curve, against the boxes of a [TrafficSnapshot], and
 ## reports the nearest one in the way, whatever it is: the player's car, another road user, a
 ## pedestrian, or a parked van. It sees what the snapshot holds: road users, the player's car, and
-## the scenario's obstacles. It reads only the snapshot, so it is safe on any thread.
+## the scenario's obstacles. It reads only the snapshot's arrays ([method TrafficSnapshot.arrays]),
+## never the snapshot itself, so it is safe on any thread.
 
 ## Straight segments the look-ahead is split into, so the sweep follows a curved path.
 const SEGMENTS := 3
@@ -14,19 +15,19 @@ const SEGMENTS := 3
 ## from the user's front, other than entity [param me]'s own. When there is one it returns true and
 ## writes into [param hit]: [code][1, entity, gap from the user's front, its speed along the
 ## user's direction (negative when coming towards it), 1 if a road user][/code]; when the way is
-## clear it returns false, leaving [param hit] as it was. It reads only the snapshot and creates no
-## object, so it is safe and cheap on any thread.
-static func sense(snapshot: TrafficSnapshot, points: PackedVector3Array, half_width: float,
-		me: int, hit: PackedFloat64Array) -> bool:
-	# Local copies once, so the loops below read plain values instead of shared objects.
-	var grid := snapshot.grid
-	var ids := snapshot.ids
-	var corners := snapshot.corners
-	var centres := snapshot.centre
-	var alongs := snapshot.along
-	var acrosses := snapshot.across
-	var half_lengths := snapshot.half_length
-	var half_widths := snapshot.half_width
+## clear it returns false, leaving [param hit] as it was. [param seen] is the snapshot's
+## [method TrafficSnapshot.arrays]. It reads only plain arrays and creates no object, so it is
+## safe and cheap on any thread.
+static func sense(seen: Array, points: PackedVector3Array, half_width: float, me: int,
+		hit: PackedFloat64Array) -> bool:
+	var grid: Dictionary = seen[TrafficSnapshot.GRID]
+	var ids: PackedInt64Array = seen[TrafficSnapshot.IDS]
+	var corners: PackedVector2Array = seen[TrafficSnapshot.CORNERS]
+	var centres: PackedVector2Array = seen[TrafficSnapshot.CENTRE]
+	var alongs: PackedVector2Array = seen[TrafficSnapshot.ALONG]
+	var acrosses: PackedVector2Array = seen[TrafficSnapshot.ACROSS]
+	var half_lengths: PackedFloat32Array = seen[TrafficSnapshot.HALF_LENGTH]
+	var half_widths: PackedFloat32Array = seen[TrafficSnapshot.HALF_WIDTH]
 	var travelled := 0.0
 	for i in points.size() - 1:
 		var a := Vector2(points[i].x, points[i].z)
@@ -84,8 +85,10 @@ static func sense(snapshot: TrafficSnapshot, points: PackedVector3Array, half_wi
 			hit[0] = 1.0
 			hit[1] = ids[nearest_index]
 			hit[2] = travelled + nearest
-			hit[3] = snapshot.velocity[nearest_index].dot(dir)
-			hit[4] = float(snapshot.road_user[nearest_index])
+			var velocities: PackedVector2Array = seen[TrafficSnapshot.VELOCITY]
+			var road_users: PackedByteArray = seen[TrafficSnapshot.ROAD_USER]
+			hit[3] = velocities[nearest_index].dot(dir)
+			hit[4] = float(road_users[nearest_index])
 			return true
 		travelled += length
 	return false

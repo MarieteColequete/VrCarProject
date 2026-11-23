@@ -52,6 +52,9 @@ static func define(world: World) -> void:
 		hull_size = Vector3(1.9, 1.5, 4.3), hull_height = 0.75, stop_speed = 0.3,
 		# The entities the contact hull touches now.
 		touching = PackedInt64Array(),
+		# The car's mass, kg, and the impulse the road users it ran into gave it this tick
+		# ([Impacts]), N·s, for the shell to give its body.
+		mass = 1250.0, impulse = Vector3.ZERO,
 	})
 	world.define(ZONE, {
 		transform = Transform3D(), half = Vector3.ONE, name = &"", kind = &"zone",
@@ -85,9 +88,9 @@ static func define(world: World) -> void:
 		rng_state = 0, clock = 0.0, next_at = 0.0, spawned = 0,
 	})
 	world.define(RULE, {
-		name = &"", script = null, params = {}, state = {}, active_steps = PackedInt64Array(),
+		name = &"", params = {}, state = {}, active_steps = PackedInt64Array(),
 		order = 0,
-		# The script's step and finish, bound once.
+		# The script's step and finish, bound once; finish is empty for a rule without one.
 		step = Callable(), finish = Callable(),
 	})
 	world.define(SESSION, {

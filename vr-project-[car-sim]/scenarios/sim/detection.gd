@@ -61,7 +61,10 @@ static func contacts(world: World, _dt: float) -> Delta:
 			now.append(body[0])
 			if not was.has(body[0]):
 				d.emit(WorldEvent.new(&"contact", body[0], {pedestrian = body[3]}))
-	d.write(Schema.VEHICLE, car.entity, &"touching", now)
+	# Written only when it changed: a write bumps the vehicle store, and every reading of the car
+	# after it this tick would read it afresh.
+	if now != was:
+		d.write(Schema.VEHICLE, car.entity, &"touching", now)
 	return d
 
 

@@ -29,10 +29,6 @@ static func step(p: Dictionary, s: Dictionary, f: RuleFrame, live: bool) -> Rule
 	return r
 
 
-static func finish(_p: Dictionary, s: Dictionary, _f: RuleFrame, _live: bool) -> RuleResult:
-	return RuleResult.new(s)
-
-
 ## Metres from the car's front to the line along the direction of traffic; negative once past.
 static func distance_to_line(p: Dictionary, car: CarState) -> float:
 	var front := car.position + car.forward * car.body_length * 0.5

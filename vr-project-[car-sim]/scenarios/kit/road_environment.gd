@@ -3,7 +3,8 @@ class_name RoadEnvironment
 extends Node3D
 ## The world every scenario shares: daylight, a sky, and a flat grass ground the car drives on.
 ## The ground is [member ground_size] metres, centred on [member ground_offset]; it is built
-## here, as internal children, so a scenario only sets the two values.
+## here, as internal children, so a scenario only sets the two values. A map with a [Terrain]
+## turns [member ground] off: the terrain is its ground.
 
 const GRASS := preload("res://scenarios/kit/grass.tres")
 
@@ -11,6 +12,11 @@ const GRASS := preload("res://scenarios/kit/grass.tres")
 @export var ground_size := Vector2(200, 200):
 	set(value):
 		ground_size = value
+		_rebuild()
+## Whether the flat ground is built; off for a map whose [Terrain] is the ground.
+@export var ground := true:
+	set(value):
+		ground = value
 		_rebuild()
 ## Where the ground's centre sits, relative to this node.
 @export var ground_offset := Vector3.ZERO:
@@ -43,7 +49,11 @@ func _rebuild() -> void:
 	if not is_inside_tree():
 		return
 	if _ground:
+		remove_child(_ground)
 		_ground.queue_free()
+		_ground = null
+	if not ground:
+		return
 	_ground = StaticBody3D.new()
 	_ground.name = "Ground"
 	BodyType.of(&"ground").apply(_ground)

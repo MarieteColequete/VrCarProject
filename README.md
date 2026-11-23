@@ -8,26 +8,48 @@ situations of the practical driving exam into scenarios driven in VR.
 The simulator is VR only, built for a headset and a driving wheel, on PC VR and standalone headsets.
 For development it also runs flat on a monitor with a keyboard and mouse or a gamepad. Bindings are
 input actions in `project.godot`, so a device is added or remapped there without code changes; car
-scripts read them through `DriverInput`.
+scripts read them through `DriverInput`. The gamepad is the reference layout: the motion
+controllers (see Virtual reality) and a steering wheel match it one to one, so a button does the
+same job on each. The one gesture is park on a gamepad: a pad has no button left for it, so holding
+`shift_down` (LB, the left paddle on a wheel) for `DriverInput.PARK_HOLD` (half a second) parks,
+and a quicker press moves the lever down. [docs/driving-guide.md](docs/driving-guide.md) walks
+through driving with all of them.
 
-| Action | Keyboard and mouse | Gamepad |
+| Action | Keyboard and mouse | Gamepad and wheel |
 |---|---|---|
-| Throttle | W, Up | Right trigger |
-| Brake, then reverse once stopped | S, Down | Left trigger |
-| Steer | A and D, Left and Right | Left stick |
+| Throttle, brake | W, S | Right, left trigger (a wheel's pedals) |
+| Steer | A and D | Left stick (a wheel's rim, turned 1:1) |
 | Handbrake | Space | A (Cross) |
-| Indicators | Q and E | Left and right shoulder |
+| Mirror switch: interior, left, right, then none; then tilt the mirror | Tab, then the arrow keys | B (Circle), then the right stick or the D-pad |
 | Headlights on or off | L | X (Square) |
-| Look around | Mouse | Right stick |
-| Recentre the view | C | Right stick click |
-| Set a mirror: interior, left, right, then none; parked only | Tab, then the mouse | D-pad up, then the right stick |
-| Driver or chase view; in VR, the spectator's chase or shoulder view | V | Select |
-| Free the mouse, recapture it | Escape, click | |
-| Begin the attempt after the briefing | Enter | Start |
-| Restart the attempt | R | Y (Triangle) |
-| Next scenario, in the sandbox | N | D-pad right |
-| Next map in free drive, in the sandbox | M | D-pad left |
+| Engine: hold to start, press to switch off; begin the attempt after the briefing | Enter | Y (Triangle) |
+| Menu (a hook for a menu to come; nothing opens yet) | Escape | Start (Menu) |
+| Driver or chase view; in VR, the spectator's chase or shoulder view | V | Select (View) |
+| Gear lever up, down (the automatic's D, N, R; from P, up is D and down is R; the manual's 6 to 1, N, R) | Shift, Ctrl | RB, LB (a wheel's right and left paddles) |
+| Park (the automatic) | P | Hold LB |
+| Indicators | Q and E | D-pad left and right |
+| Restart the attempt | R | D-pad up |
+| Next: the next scenario, or in free drive the next map | N | D-pad down |
+| Look around; in the chase view, orbit the car | Mouse | Right stick |
+| In the chase view, closer, farther | Mouse wheel | |
+| Recentre the view; in the chase view, back behind the car | C | Right stick click |
 | Show or hide the debug HUD | F1 | Left stick click |
+| Free the mouse, recapture it | Backspace, click | |
+
+Mirrors can be set standing still or driving. While one is picked the D-pad tilts it, and its
+indicator, restart and next jobs wait until the switch lets go, after six seconds untouched or a
+press past the right mirror; the mouse keeps turning the head.
+
+A steering wheel needs no setup when the platform presents it as a gamepad, as it does most wheels:
+its buttons land on the gamepad's actions, and the first joypad whose name holds "wheel" steers the
+car through `WheelInput`, its rim turning the car's own wheel as far as it turns, with no rate
+limit, up to the car's lock. `user://controls.cfg`, section `wheel`, sets the rest: `enabled`
+(`auto`, true, or false), `device` or `name` to pick the joypad, `steer_axis`, `rotation` (the rim's
+turn lock to lock in degrees, as the wheel's own software sets it; 900 by default, the car's own
+wheel's, which turns two and a half turns lock to lock as a road car's does), and for pedals on axes of their own `throttle_axis` and `brake_axis` with where each rests
+and is fully pressed (`throttle_rest`, `throttle_pressed`, and the same for the brake), so inverted
+and combined pedals read right. A wheel's force feedback is not driven; only rumble reaches a
+joypad.
 
 With the Dev HUD on (see Maps), F3 to F9 drive its tools, as input actions; its free camera flies
 with the mouse, W, A, S, and D, Q and E for down and up, and Shift to go faster, keys that are
@@ -45,24 +67,38 @@ starts in the headset and `DriverView` follows the head; otherwise it starts fla
 with no alert, and the mouse and right stick turn the view. `--xr-mode off` on the command line
 forces flat, for a machine whose active runtime would otherwise launch, such as SteamVR. Closing
 the application from the headset's menu quits the game. The action map (`openxr_action_map.tres`)
-is Godot's stock map, and `DriverView` turns the motion controllers' inputs into the car's input
-actions, so the car reads them as it reads a keyboard or a gamepad:
+is Godot's stock map with a Valve Index profile added, and `DriverView` turns the motion
+controllers' inputs into the car's input actions, so the car reads them as it reads a keyboard or a
+gamepad. The layout is the gamepad's: right A and B are its A and B, left X and Y its X and Y (on an
+Index, whose hands both have A and B, the left hand's), the left stick flicked is its D-pad, and
+the right stick flicked its shoulders:
 
-| Action | Motion controllers |
-|---|---|
-| Steer | Grip the steering wheel's rim with one or both hands and turn it |
-| Throttle | Right trigger |
-| Brake, then reverse once stopped | Left trigger |
-| Handbrake | Right A |
-| Indicators | Flick the left stick left or right |
-| Headlights on or off | Right B |
-| Recentre the seat | Right stick click, or hold both grips away from the wheel for 2 s |
-| Set a mirror | Grip its glass and move the hand across it, or the left stick click, then the right stick |
+| Action | Motion controllers | Gamepad |
+|---|---|---|
+| Steer | Grip the steering wheel's rim with one or both hands and turn it | Left stick |
+| Throttle, brake | Right, left trigger | Right, left trigger |
+| Handbrake | Right A | A |
+| Mirror switch, then tilt the mirror | Right B, then the right stick; or grip its glass and move the hand across it | B |
+| Headlights on or off | Left X | X |
+| Engine: hold to start, press to switch off; begin the attempt | Left Y | Y |
+| Menu | Left menu button (on an Index, the left trackpad pressed) | Start |
+| Gear lever up, down; hold down to park | Flick the right stick up or down (down moves the lever when let go); hold it down | RB, LB; hold LB |
+| Indicators | Flick the left stick left or right | D-pad left, right |
+| Restart, next | Flick the left stick up, down | D-pad up, down |
+| Recentre the seat | Right stick click, or hold both grips away from the wheel for 2 s | Right stick click |
+| With a real wheel: line the car's wheel up with it | Hold its rim at a quarter to three with both controllers for 2 s | |
+| Show or hide the debug HUD | Left stick click | Left stick click |
+
+Controllers without face buttons (Vive wands, Windows Mixed Reality) are not laid out. With a real
+steering wheel connected, gripping the car's own wheel is switched off: the hands are on the real
+one, and the car's turns with it. Holding the real rim at a quarter to three with both controllers
+for two seconds lines the car's wheel up with it: the headset's room shifts so the controllers'
+midpoint is the car's rim's centre, and the shift is kept in `user://controls.cfg`, section `vr`.
 
 A grip within 10 cm of the rim takes hold of the wheel there (`WheelGrab`), and the glove is drawn
 on the rim while it holds; the wheel turns as the holding hands move round it, the average of the
 two with both, and centres itself once let go. The controllers buzz on the indicator, a gear
-change, and a tyre meeting a kerb. The gloves are simple shapes made by the game, on a visual layer
+change, a tyre meeting a kerb, the starter turning, and a stall. The gloves are simple shapes made by the game, on a visual layer
 of their own that the mirrors leave out.
 
 On a desktop the window shows an instructor's view while the driver is in the headset
@@ -101,7 +137,7 @@ fault, a reaction, a light changing, the car entering a zone.
 A `WorldRunner` runs a tick in a fixed order: it applies the traffic decided on worker threads
 during the last tick, reads the car's pose through its `VehicleProbe`, runs the systems in stages,
 applies their deltas in order, starts the next traffic work, publishes the tick's events, and runs
-the views. The stages (`Simulation`, `scenarios/sim/`) are the car's motion; zones and contacts;
+the views. The stages (`Simulation`, `scenarios/sim/`) are the car's motion; zones, contacts and crashes;
 lights and traffic sources; then the rules and the session. Within a stage every system reads the
 same world.
 
@@ -111,14 +147,15 @@ world, every node reference becoming an entity id. Detection is geometry, not ph
 a zone while its body box overlaps the zone's box, and touches a road user or obstacle while its
 contact hull overlaps that body, so the same drive scores the same way on every run. Views draw the
 world and touch nodes and servers only: the road users are one `MultiMesh`, interpolated between
-ticks, with a kinematic body each in the physics server so the player's car collides with them;
+ticks, with a kinematic body each in the physics server; the player's car meets walkers there, and
+road users' cars only through the crash system (`Impacts`);
 lights light their lamps; parked cars are placed once.
 
 Solid things collide by their kind, a `BodyType` (`scenarios/data/body_types/`), one per physics
 layer: the ground, pavements and kerbs, obstacles (houses, poles, fences, props), vehicles (parked
 cars and road users, on the traffic layer), pedestrians, and the player's car. A type sets the
-layer, what it collides with, and the surface's grip and bounce (kept for wheel physics; the arcade
-car does not read them). Whether it is judged follows its layer: the bake turns the boxes of
+layer, what it collides with, and the surface's grip and bounce; the player's car reads the grip
+under each wheel. Whether it is judged follows its layer: the bake turns the boxes of
 obstacles, vehicles, and pedestrians into obstacle entities, which road users see and
 `ContactCheck` judges, and leaves pavements out. The player's car is a box riding 0.25 m above the ground, so the bodywork clears a
 kerb and may overhang it, and a box for each tyre, which is what a kerb stops. A tyre touching or
@@ -167,9 +204,16 @@ car's wheelbase, left-hand drive, and the driver's eyes sit behind its steering 
 the car reports is in the car, as in a real one, since the view is VR: the wheels roll and the
 front ones steer, the steering wheel turns with the steering, the blinkers, brake lights, reversing
 lights, and headlights glow with the car's state, the headlamps cast dipped beams on the road, and
-the instrument panel in the binnacle (`InstrumentCluster`) shows the speed on a dial and in figures,
-the engine's revolutions and the gear, the indicator arrows blinking, and the handbrake, headlights,
-and reverse tell-tales; its needles follow their readings without overshooting. The paint has a
+the instrument panel (`InstrumentCluster`), drawn on the model's own gauge face behind the wheel
+(cut out of the cabin as the mirrors' glass is), shows the speed on a dial and in figures, the
+engine's revolutions and the gear, the indicator arrows blinking, the handbrake, headlights, and
+reverse tell-tales, a fuel gauge and a coolant gauge at its ends, and the warning lights; its
+needles follow their readings without overshooting. The fuel, the coolant and the warning lights
+are for show (`DashState`): with the key on and the engine not running the engine, oil, battery
+and ABS lights are lit, going out once it runs (the engine and ABS lights after their self-test),
+the stability light flashes while stability or traction control acts, the fuel drains with the
+engine's work (about 1% a minute in town) with a low-fuel light under 12%, and the coolant warms
+to 90 C over a few minutes and cools when the engine is off. The paint has a
 clear coat, and the number plates' letters, the badges, and the tyre walls stand out through normal
 maps made from the model's height maps by `tools/kiri86_normals.gd`.
 
@@ -187,19 +231,99 @@ read per map, light enough for a standalone headset. The materials are CC0 sets 
 headliner, and [Plastic012A](https://ambientcg.com/view?id=Plastic012A) for the dash and doors;
 each is tinted to the car's black cabin.
 
-The car drives as an arcade car with a real car's habits (`CarDrivetrain`). A five speed automatic
-gearbox changes up as the engine's revolutions rise, later the harder the throttle is pressed, and
-down as the car slows, with a short pause in the drive at each change. The car turns along its front
-wheels like a bicycle, so it turns only while it moves and more tightly the slower it goes: the lock
-eases with the speed, so a full turn never pushes the car sideways harder than a tyre grips. The
-steering eases to the controls rather than snapping. The car dips under braking, squats under
-acceleration, and rolls out of a turn, all of it as one, cockpit, instruments, and mirrors
-included, while the wheels stay on the road and the driver's head stays level, so the cabin moves a
-little round the driver as a real body does on its springs.
+The car drives on a vehicle model in the spirit of the open-world racing games, real enough to
+learn on and forgiving enough to enjoy (`scenarios/vehicle/`). The car is a rigid body of its
+spec's mass (`CarSpec`; the Kiri '86 is a rear-wheel drive coupé of 1250 kg) on four suspended
+wheels, each cast down to the road for its spring, damper, anti-roll bar and bump stop
+(`Suspension`). The engine's torque curve, a six speed gearbox, a limited slip differential, the
+brakes, the handbrake and each tyre's rolling resistance turn each wheel (`Powertrain`,
+`CarDynamics`). Each tyre's tread is a brush with a relaxation length (`TyreModel.contact`): it
+deflects only as its contact patch slides over the road, and rolling at speed its force settles
+to a simplified Pacejka magic formula over its combined slip, so braking or pulling hard leaves
+less grip for turning, grip grows less than the load on the tyre, and a tyre past its peak
+slides. A still patch pushes nothing, and a wheel held by its brake grips as static friction. The
+steering (`Steering`) is geometry only: the steering wheel turns the rack, and the rack turns the
+front wheels by Ackermann's geometry, the inner one further. It pushes nothing and nothing else
+steers, so steered standing still the car stays put, and it turns only as its tyres grip while
+it rolls (`WheelContacts` measures how each patch moves along and across its wheel). The weight
+moves between the wheels as the car brakes, pulls and turns. The surface under each wheel gives
+its friction, from the body it lies on (`BodyType`). The body is free: each spring pushes its own
+corner off the road along the road's normal, so it pitches as it brakes and pulls away, rolls in
+a turn, follows hills and crests, and can roll over (the attempt's restart is the way back).
+The driver's view is fixed to the car, so in a headset the world tilts around the driver as in a
+real car. Each tyre grips along the ground under it, so a slope pulls the car down it, and a wheel held still by the brake or the park pawl
+holds it there. The model also dips under braking, squats under acceleration and rolls out of a
+turn, cockpit, instruments and mirrors included.
+
+The driving aids (`Assists`) come in three presets, set by the project setting `car/assists`:
+`exam`, the default and always the one in an exam attempt, with anti-lock brakes, traction
+control and stability control; `sport`, with anti-lock brakes and a late traction control; and
+`sim`, with anti-lock brakes only. They act through the brakes and the engine, as on a road car,
+and never steer. A real steering wheel, and the car's own held in VR, turn the wheels directly;
+the keys and sticks turn it as a hand would, at a hand's pace, the same at any speed, so at speed
+a small turn is a big one.
+
+The player's car is built in layers, as a real car is. The plant is the physics: the body, the
+suspension, the steering, the contacts, the wheels and tyres (`Suspension`, `Steering`,
+`WheelContacts`, `CarDynamics`, `TyreModel`). Its sensors (`CarSensors`) measure it
+as hardware does into one record each step (`CarSignals`): each wheel's speed from its own spin,
+the output shaft, the crank, a yaw-rate gyro, an accelerometer (it feels 1 g up at rest and nothing
+in free fall), the steering angle, the throttle position, and the brake, handbrake and reverse
+switches. Its control units decide from those signals alone, a step behind as real ones do
+(`CarSystems`): the ABS module (`AbsModule`) estimates the car's speed from the wheels and the
+accelerometer, each wheel's slip, the rear's slide and the road's grip, and runs the anti-lock
+brakes, traction control and stability control on those estimates; the transmission unit
+(`TransmissionUnit`) holds the automatic's gear while the driven wheels flare, as in the air; the
+body controller (`BodyController`) lights the brake lamps from the pedal's switch and the reversing
+lamps from the reverse switch. Everything the driver reads or feels follows the signals: the
+speedometer shows the ABS module's speed from the wheels, so a car falling through the air shows
+what its wheels turn at, not its fall, and the lamps, the dash and the controllers' buzz read the
+same record. What is physical follows the plant: the tyres are
+heard where they touch the road, each wheel turns at its own spin, and the body leans with its
+motion. The exam judges the car from its pose, as an examiner sees it.
+
+The gearbox (`Gearbox`) is an automatic by default, its lever running D, N, R from top to bottom,
+moved one notch at a time with `shift_up` and `shift_down`; park is a button of its own (`park`,
+or `shift_down` held half a second on a gamepad or the right stick in VR), and leaving it the lever
+goes straight to D (up) or R (down), as on a car shifted by wire. The car starts in P, which holds it
+with the park pawl, which ratchets while the car rolls and drops in once it is slow. The brake only
+brakes, and the throttle drives the way the lever is set, backward in R. Nothing locks the lever
+out: R while rolling forward, or D while rolling backward, above a walking pace stalls the engine
+with a jolt, and below it the converter takes it up. In D the automatic picks the gear from
+the driven wheels' speed, changing up later the harder the throttle is pressed and kicking down
+when it is held to the floor, and holds each gear a moment so it never hunts; with the driven
+wheels off the road (in the air, upside down) it holds its gear. The accelerator eases toward the
+pedal or key as a foot moves it, opening fully in 0.6 s and closing in an eighth of a second, so
+tapping a key cruises in top gear (6th from about 80 km/h) and holding it down kicks down to
+overtake. With `car/gearbox` set
+to `manual`, the same actions change gear through R, N and 1 to 6; a change down past the redline
+stalls the engine, and so does coming to a stop in gear with the throttle shut, the clutch let out.
+The engine is off, turned over, or running. The key (`ignition`) held turns it over with the
+starter, in P or N only (the manual in N), and it catches after a second (`crank_time` in the
+`CarSpec`); let go sooner, it does not. A press switches a running engine off, and off, it drives
+nothing and its revolutions run down to nothing. A scenario sets how the car starts with a
+`CarStart` on its `ScenarioDefinition`: the engine off or running, the lever, and a speed for a
+car that starts moving; without one the car starts running, in P. The engine turns on its own inertia (`CarDynamics`): out of gear it revs
+freely and settles back to idle; in gear a torque converter (or the clutch, in the manual) slips to
+pull away and locks to the driven wheels once they catch up, so the revolutions are the engine's
+own, held at the redline by the limiter, and off the ground they climb or fall at the engine's
+pace. The tyres squeal when they slide sideways past
+their grip and skid when they lock or spin, and the controllers buzz as the anti-lock brakes work.
+
+Road users drive on the same model, as two axles on the lane's grade (`PlanarVehicle`), each with the
+spec its size picks (`TrafficSpecs`: a hatchback, a saloon, a van or a lorry). The Intelligent
+Driver Model still decides the speed they want; they slow ahead of a bend to what they take it at,
+steer to keep their lane, and steer across to the next one to change lanes. Running into a road
+user's car trades an impulse between the two by their masses (`Impacts`); hit hard, the road user
+crashes and brakes to a halt where the knock leaves it, and the road users behind go round it. All
+of the road users' driving stays reproducible and runs on their worker threads; crashes are worked
+out on the main thread from the car's state, by geometry, so the same car state gives the same
+crash.
 
 The car has an interior mirror and two door mirrors (`CarMirror`), their picture on the model's
-own glass: `PlayerCarModel` cuts each housing's face out of the model when the car is built, as it
-splits the blinkers, and gives it UVs across the face. Each shows what a mirror there would: a camera at the driver's eye reflected across the
+own glass: `PlayerCarModel` cuts each housing's face out of the model (`MeshCut`) when the car is
+built, as it splits the blinkers, and gives it UVs across the face. Each shows what a mirror
+there would: a camera at the driver's eye reflected across the
 glass looks back through it, cut to the glass's edges, so the picture moves with the head as a real
 mirror's does. The door mirrors see a little wider than flat glass, as convex mirrors do. The
 reflecting plane is turned within the glass, so the housing round it is cut out of the model too,
@@ -210,9 +334,9 @@ The driver sets the mirrors as in a real car. In VR a grip within 8 cm of a mirr
 hold of it (`MirrorGrab`), and moving the hand across the glass tilts it, right to see more to the
 right, up to see higher. On the keyboard, the gamepad, or the controllers, the mirror switch
 (`MirrorAdjust`, the `mirror_adjust` action) picks the interior mirror, then the left, then the
-right; the picked mirror's glass lights up a little, and the look controls tilt it instead of
-turning the head. Like a car's mirror switch, it is for a car standing still: it lets go once the
-car passes 5 km/h, or after 6 s untouched. Each mirror tilts up to 20° either way from where the
+right; the picked mirror's glass lights up a little, and the arrow keys, the D-pad, or the look
+stick tilt it, standing still or driving, while the mouse still turns the head. It lets go after
+6 s untouched. Each mirror tilts up to 20° either way from where the
 car sets it for the seat, and the tilts are kept between sessions in `user://car.cfg`.
 
 To save the frame, the interior mirror is drawn on one frame and the door mirrors
@@ -224,9 +348,30 @@ on the head's turn.
 
 The car sounds from its cabin (`CarSound`), on an audio bus of its own, `Car`. The engine pitches
 and swells with the revolutions and the throttle and dips as a gear changes, the indicator ticks as
-it blinks, the tyres squeal near their grip at speed, and a tyre thumps when it meets a kerb. The
-sounds are made by the game when the car is built, so it carries no recordings: the engine is a
-four-cylinder's firing pulses and their harmonics, made once slow and once fast and crossfaded.
+it blinks, the tyres rumble on the road louder with speed, and a tyre thumps when it meets a kerb. The tyres
+have three voices, each driven by its own slip and smoothed so one step's spike passes unheard
+(`CarSound.tyre_voices`): a soft scrub that grows as they work toward their grip, there through
+any turn or stop; a squeal only when they slide sideways well past their peak slip angle, so a
+full-lock turn at 20 km/h stays quiet while one at 30 km/h or a handbrake slide sings; and a
+skid, lower and rougher, when the wheels lock or spin, which pulses softly while the anti-lock
+brakes work through a hard stop. A gentle stop makes neither. Each surface sounds its own,
+crossfading by the share of wheels on it: on the roads the scrub is the roar of a car's tyres on
+asphalt; on the loose ground (grass and dirt) the car rolls as on a dirt road, scrubs with the
+crunch of tyres on gravel, and any slide, sideways or locked, sprays gravel instead of squealing. The engine at idle,
+the road heard from the cabin, and the indicator's relay are CC0 recordings from Freesound, in
+`vr-project-[car-sim]/assets/freesound/` with their credits and the downloaded previews they are
+cut from by `tools/car_recordings.gd`: [car_idle_loop.wav](https://freesound.org/people/AndrewAlexander/sounds/369053/)
+by AndrewAlexander, [Car Driving Interior](https://freesound.org/people/squareal/sounds/237374/)
+by squareal, and [Nissan Sentra turning signal](https://freesound.org/people/MPierluissi/sounds/446322/)
+by MPierluissi; the tyres on asphalt, [Car rolling on asphalt](https://freesound.org/people/orlandorizo/sounds/591079/)
+by orlandorizo; and the loose ground's, a [truck on a dirt road](https://freesound.org/people/kyles/sounds/637192/)
+by kyles, a [tyre on gravel](https://freesound.org/people/TRP/sounds/577504/) by TRP, and
+[tyres on a gravel shoulder](https://freesound.org/people/UnplugTheFridge/sounds/529225/) by
+UnplugTheFridge. The rest is made by the game when the car is built, and so is each recording's
+stand-in when its file is missing: the engine's fast loop is a four-cylinder's firing pulses and
+their harmonics, crossfaded with the idle as the revolutions rise, the squeal is noise rung
+through a few of the tread's resonances, so it rasps like rubber rather than whistling, and the
+skid is broad noise with no rings at all.
 
 The Map Kit's roads take the look of City Kit (Roads) (`RoadKit`). The kit's straight road tile is a
 cross-section (asphalt, a darker band by the kerb, the kerb, and the pavement) swept along each
@@ -249,8 +394,8 @@ scene under `vr-project-[car-sim]/scenarios/scenes/<name>/` that inherits
 the zones only checks use, and any steps. The base gives the `Scenario` root and a `Checks` node
 already holding `ContactCheck`, `LineCheck`, and `TrafficConflictCheck`. The car starts at the
 scenario's `spawn_point`, or else at the map's first `MapSpawn`. Scenarios are laid out with the car
-driving towards -Z on the right-hand side of the road, in the lane centred on x = 1.75. Each of the
-nine scenarios is set on the map of the same name in `maps/`.
+driving towards -Z on the right-hand side of the road, in the lane centred on x = 1.75. Nine of the
+ten scenarios are set on the map of the same name in `maps/`; `hill_start` is set on `hill_road`.
 
 Its `ScenarioDefinition`, `definition.tres` beside the scene, gives the id, the title, the menu
 category and difficulty, the briefing, the time limit, the scoring policy, and the car scene to
@@ -263,6 +408,7 @@ a rule entity judged by the rule's pure functions (`scenarios/rules/`):
 | Check | Rule |
 |---|---|
 | `StopCheck` | A complete stop inside the approach zone before the line zone is entered |
+| `RollBackCheck` | Once stopped inside its zone on a hill, rolling back more than `max_roll` (0.5 m) before moving on |
 | `SpeedLimitCheck` | The speed limit over a zone, with a grace time and a serious margin |
 | `RouteCheck` | Staying in the lane of a `Path3D` centreline, on the road, and not against traffic |
 | `LineCheck` | Crossing a solid line, crossing a dashed line without indicating that way, riding on a line, hitting a kerb (a tyre touching or crossing it) |
@@ -335,8 +481,8 @@ fault. Its `to_dict()` gives
 the same as plain data: the scenario, the outcome, each fault with its description, and each tier's
 count against the policy's limit.
 
-`scenarios/debug/scenario_sandbox.tscn` runs any catalogued scenario, and any map in free drive,
-with the `DebugHud`, a flat
+`scenarios/debug/scenario_sandbox.tscn`, the project's main scene, runs any catalogued scenario,
+and any map in free drive, with the `DebugHud`, a flat
 overlay showing the briefing, the current step, the time against the limit, faults as they are
 committed, how other road users react, the frame and physics times with the traffic pipeline's
 share of the main thread, and the result. It runs from the editor. The HUD only listens to the
@@ -379,6 +525,26 @@ The authoring nodes in `scenarios/map/` build the usual parts of a map from a fe
 What the buttons generate is ordinary children, saved with the map and editable like any other;
 generating again replaces only what the node generated before.
 
+#### Terrain
+
+A map whose land is not flat has a `Terrain` (`scenarios/map/terrain.gd`) and its environment's
+`ground` turned off. The land is a height grid of `cell` metres over `size`: a heightmap image first
+(white stands `heightmap_height` metres up), then each `TerrainShape` of the map in tree order: a
+hill, a valley, a ramp, or a plateau, each with a height, a radius or a size, and a falloff over
+which it eases into the land. Under every road and junction the land lies 5 cm below the asphalt,
+across the pavements and a 1 m shoulder, and eases back to its own height over `road_blend`. The
+land is drawn in chunks and is solid ground. A road climbs and falls with its curve's height and
+never banks; a junction is a flat pad at its own height. In the Map Kit, **Add terrain** adds the
+node, the palette's Terrain section places the shapes, and **Drape on terrain** sets the selected
+roads, lanes, markings, spawns, props, and assets (or the whole map's) on the land in one undoable
+step, the roads no steeper than 12%. In the 3D view each shape's outline lies on the land, its
+full effect bright and its falloff beyond, with a marker from the land up or down to the height it
+aims at; a selected shape has handles to drag its radius and falloff on the land and its height on
+the marker (a ramp's length, width, height, and falloff), snapped to half a metre, or a tenth with
+Shift held, each drag one undo step. While a shape changes, the terrain builds again only the land
+it reached and now reaches, and the collider follows a moment after the last change, so a shape
+dragged across a large map follows the mouse.
+
 The Map Kit editor plugin (`addons/map_kit/`, enabled in `project.godot`) puts all of this in a
 dock beside the inspector, in folding sections that stay as they were left:
 
@@ -396,9 +562,14 @@ dock beside the inspector, in folding sections that stay as they were left:
   leading nowhere, a spawn off the road, and spawns on top of each other are notices. Selecting one
   selects its node; **Fix all** applies every fix at once.
 - **Selection** sets the selected meshes as road (the asphalt material), gives them a solid body on
-  the obstacle layer, links the lanes whose ends meet (the selected ones, or all of the map's), or
-  snaps them to the grid. **Next look** steps the selected map assets to the next model of their
-  category, and props and scenery to their next look.
+  the obstacle layer, links the lanes whose ends meet (the selected ones, or all of the map's),
+  snaps them to the grid, adds terrain, or drapes them on it (see Terrain). **Next look** steps
+  the selected map assets to the next model of their category, and props and scenery to their next
+  look.
+- **Terrain shape** shows while one terrain shape is selected: its kind, its height, radius (or a
+  ramp's length and width), and falloff on sliders, a slider's drag one undo step, and **Stand on
+  the land**, which moves the shape's base onto the land under it without the shape, so a
+  plateau's or a ramp's height counts from the ground.
 - **Road users** turns the selected cars into road users that drive to a checkpoint: select the
   cars (map assets from the Asset Library, props, or road users already) and the checkpoint (or
   leave it out when the map has only one), and press **Drive to checkpoint**. Each becomes a
@@ -408,7 +579,8 @@ dock beside the inspector, in folding sections that stay as they were left:
   it keeps the rules and reacts to traffic, and there is nothing to script.
 - **The palette** holds a road, one-way road, crossroads, T junction, lane, any marking but a bay
   edge (a `ParkingBay` draws its own), traffic light, traffic source, checkpoint, any sign, a spawn,
-  a trigger zone, a no-parking zone, a crossing area, and a parking bay, with a search box; cars,
+  a trigger zone, a no-parking zone, a crossing area, a parking bay, and the terrain shapes, with a
+  search box; cars,
   houses, trees, and other models are in the Asset Library. Pick a piece and click in the 3D view to
   place it under the map's matching node, on the grid; a road or junction placed near an open road
   end joins it. Shift and click keeps placing, R turns the piece a quarter (Shift and R by 15
@@ -467,9 +639,13 @@ from a quarter to double, F7 pauses, F8 steps one tick while paused, and F9 move
 next spawn; a check box on its panel draws the world's trigger zones and lanes in 3D.
 
 Every change the dock makes to the open map is one undo step; creating, renaming, duplicating,
-and deleting maps, and the save before playing, are not. The work behind it is `MapKitTools`,
-which runs without the editor. `maps/sample_town/` is built with the kit alone: a main road
-crossed by two side roads that give way, oncoming traffic, signs, parked cars, buildings, and trees.
+and deleting maps, and the save before playing, are not. The work behind it is `MapKitTools` and
+its modules (`MapFiles`, `MapPalette`, `RoadNetwork`, `MapProblems`, `TerrainAuthoring`,
+`AssetTools`), which run without the editor; the dock only wires them to its controls.
+`maps/sample_town/` is built with the kit alone: a main road
+crossed by two side roads that give way, oncoming traffic, signs, parked cars, buildings, and trees. `maps/hill_road/` is the same town on a hill: its main road climbs about 12% from the south onto
+a plateau, where the side roads cross it and fall away east and west; the `hill_start` scenario
+stops the car halfway up and judges it on rolling back.
 
 To build a map (in more detail in [docs/map-guide.md](docs/map-guide.md)):
 
@@ -482,7 +658,7 @@ To build a map (in more detail in [docs/map-guide.md](docs/map-guide.md)):
    Library. For a road user, place a car and a checkpoint and press **Drive to checkpoint**; for a
    steady flow, place a traffic source.
 3. Move `Spawn` to where the car starts, and add more spawns for other starts.
-4. Clear the **Problems**, then **Play**; in the sandbox, M moves from map to map.
+4. Clear the **Problems**, then **Play**; in the sandbox, N moves from map to map.
 
 ### Building a scenario
 

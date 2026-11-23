@@ -15,6 +15,8 @@ var columns := {}
 ## Counts every change to the store, so a value derived from it can tell whether it is still
 ## current.
 var version := 0
+## Counts the rows taken out, so a view can tell an entity left even when another came in.
+var removals := 0
 
 var _row := {}
 var _sorted := PackedInt64Array()
@@ -105,6 +107,7 @@ func remove(id: int) -> void:
 	_row.erase(id)
 	_sorted_valid = false
 	version += 1
+	removals += 1
 
 
 func get_value(id: int, column: StringName) -> Variant:

@@ -16,7 +16,3 @@ static func step(p: Dictionary, s: Dictionary, f: RuleFrame, live: bool) -> Rule
 		else:
 			r.complete = true
 	return r
-
-
-static func finish(_p: Dictionary, s: Dictionary, _f: RuleFrame, _live: bool) -> RuleResult:
-	return RuleResult.new(s)

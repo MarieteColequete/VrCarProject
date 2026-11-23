@@ -52,6 +52,7 @@ const TURN_POINTS := 8
 
 var _mesh_instance: MeshInstance3D
 var _pavement: StaticBody3D
+var _asphalt: StaticBody3D
 var _rebuild_queued := false
 
 
@@ -59,6 +60,36 @@ func _ready() -> void:
 	_mesh_instance = MeshInstance3D.new()
 	add_child(_mesh_instance, false, INTERNAL_MODE_BACK)
 	rebuild()
+	set_notify_transform(true)
+
+
+## Moved, it tells the terrain, which builds the land again where it was and is; leaving, it tells
+## the terrain to build the land it reached without it.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSFORM_CHANGED:
+		Terrain.notify_changed(self)
+
+
+func _exit_tree() -> void:
+	Terrain.notify_leaving(self)
+
+
+## How far [param local] (in the junction's own space) lies outside its asphalt: nought on it. The
+## east and west arms make one bar across; the south arm, and a crossroads' north arm, the other.
+func distance_outside(local: Vector3) -> float:
+	var half := road_width / 2.0
+	var reach := half + arm_length
+	var north := reach if shape == Shape.CROSSROADS else half
+	return minf(_box_distance(local.x, local.z, reach, -half, half),
+		_box_distance(local.x, local.z, half, -north, reach))
+
+
+## How far [param x], [param z] lies outside the box [param half_x] either side of x = 0 and from
+## [param z0] to [param z1].
+static func _box_distance(x: float, z: float, half_x: float, z0: float, z1: float) -> float:
+	var dx := maxf(absf(x) - half_x, 0.0)
+	var dz := maxf(maxf(z0 - z, z - z1), 0.0)
+	return Vector2(dx, dz).length()
 
 
 ## The junction's arms.
@@ -143,11 +174,7 @@ func make_lanes() -> Array[TrafficLane]:
 
 ## The children generated as [param what], [constant LINES] or [constant LANES].
 func generated(what: StringName) -> Array[Node]:
-	var out: Array[Node] = []
-	for child in get_children():
-		if child.get_meta(GENERATED, &"") == what:
-			out.append(child)
-	return out
+	return RoadPieces.generated(self, GENERATED, what)
 
 
 ## A curve from [param entry] heading [param into] to [param exit] heading [param onward]: a
@@ -176,14 +203,11 @@ func _turn(entry: Vector3, into: Vector3, exit: Vector3, onward: Vector3) -> Cur
 
 ## Adds a generated child the scene saves.
 func _keep(node: Node) -> void:
-	add_child(node, true)
-	node.owner = owner if owner else self
+	RoadPieces.keep(self, node)
 
 
 func _clear(what: StringName) -> void:
-	for child in generated(what):
-		remove_child(child)
-		child.free()
+	RoadPieces.clear(self, GENERATED, what)
 
 
 func rebuild() -> void:
@@ -191,16 +215,20 @@ func rebuild() -> void:
 	if _mesh_instance == null:
 		return
 	var half := road_width / 2.0
+	var outward: Array = []
+	for arm in arms():
+		outward.append(DIRECTIONS[arm])
+	_asphalt = _swap_body(_asphalt, RoadKit.surface_body(RoadKit.pad_surface_shapes(half,
+		outward, arm_length)))
 	if surface == null and RoadKit.available():
-		var outward: Array = []
-		for arm in arms():
-			outward.append(DIRECTIONS[arm])
 		_mesh_instance.mesh = RoadKit.pad(shape == Shape.T, half, RoadKit.PAVEMENT, outward,
 			arm_length)
 		_set_pavement(RoadKit.pavement_body(RoadKit.pad_shapes(shape == Shape.T, half,
 			RoadKit.PAVEMENT, outward, arm_length)))
+		Terrain.notify_changed(self)
 		return
 	_set_pavement(null)
+	Terrain.notify_changed(self)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	_quad(st, Vector3(-half, 0, -half), Vector3(half, 0, half))
@@ -220,13 +248,18 @@ func pavement_body() -> StaticBody3D:
 	return _pavement
 
 
+## The pad's asphalt body, of the asphalt [BodyType], whose top is the road's drawn asphalt.
+func surface_body() -> StaticBody3D:
+	return _asphalt
+
+
 func _set_pavement(body: StaticBody3D) -> void:
-	if _pavement and is_instance_valid(_pavement):
-		remove_child(_pavement)
-		_pavement.queue_free()
-	_pavement = body
-	if body:
-		add_child(body, false, INTERNAL_MODE_BACK)
+	_pavement = _swap_body(_pavement, body)
+
+
+## Replaces the internal body [param old] with [param body], returning it.
+func _swap_body(old: StaticBody3D, body: StaticBody3D) -> StaticBody3D:
+	return RoadPieces.swap_body(self, old, body)
 
 
 func _queue_rebuild() -> void:

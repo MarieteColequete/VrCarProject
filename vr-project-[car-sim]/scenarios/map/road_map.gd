@@ -14,6 +14,19 @@ extends Node3D
 @export_multiline var description: String
 
 
+
+## The transform from [param node]'s space to [param ancestor]'s (its map, or any node above it),
+## without needing the tree.
+static func to_map(node: Node, ancestor: Node) -> Transform3D:
+	var out := Transform3D.IDENTITY
+	var at := node
+	while at != null and at != ancestor:
+		if at is Node3D:
+			out = (at as Node3D).transform * out
+		at = at.get_parent()
+	return out
+
+
 ## The map's spawns, in tree order; the first is where free drive starts.
 func spawns() -> Array[MapSpawn]:
 	var found: Array[MapSpawn] = []

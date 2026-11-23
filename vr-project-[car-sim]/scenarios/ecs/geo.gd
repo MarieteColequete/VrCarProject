@@ -25,18 +25,61 @@ static func ground_box(box: Transform3D, half: Vector3) -> Array:
 	return [Vector2(box.origin.x, box.origin.z), along, half.z * z.length(), half.x * x.length()]
 
 
+## A share that is whole within [param inner] of something and eases out to none at [param outer],
+## at [param distance] from it: how a terrain shape, a road's cut, or a junction's pad blends into
+## the land. None beyond the inner reach when there is no easing.
+static func ease_out(inner: float, outer: float, distance: float) -> float:
+	if distance <= inner:
+		return 1.0
+	if outer <= inner:
+		return 0.0
+	return 1.0 - smoothstep(inner, outer, distance)
+
+
+## Where along the segment from [param a] by [param d] the point nearest [param p] lies, 0 to 1.
+static func along_segment(p: Vector2, a: Vector2, d: Vector2) -> float:
+	var length2 := d.length_squared()
+	return clampf((p - a).dot(d) / length2, 0.0, 1.0) if length2 > 0.0 else 0.0
+
+
+## The rectangle on the ground (x, z) that the box [param half] (x, z) either side of its centre
+## covers once [param placed] takes it from its own space.
+static func ground_area(placed: Transform3D, half: Vector2) -> Rect2:
+	var first := placed * Vector3(-half.x, 0, -half.y)
+	var out := Rect2(Vector2(first.x, first.z), Vector2.ZERO)
+	for corner in [Vector3(half.x, 0, -half.y), Vector3(half.x, 0, half.y),
+			Vector3(-half.x, 0, half.y)]:
+		var at: Vector3 = placed * corner
+		out = out.expand(Vector2(at.x, at.z))
+	return out
+
+
 ## Whether two ground boxes overlap, by the separating axis test on their four axes.
 static func boxes_overlap(c1: Vector2, along1: Vector2, half_len1: float, half_wid1: float,
 		c2: Vector2, along2: Vector2, half_len2: float, half_wid2: float) -> bool:
+	return box_contact_normal(c1, along1, half_len1, half_wid1, c2, along2, half_len2,
+		half_wid2) != Vector2.ZERO
+
+
+## The side two ground boxes meet across, as the unit normal from the first toward the second,
+## by the separating axis test's least overlap; zero when they do not overlap.
+static func box_contact_normal(c1: Vector2, along1: Vector2, half_len1: float, half_wid1: float,
+		c2: Vector2, along2: Vector2, half_len2: float, half_wid2: float) -> Vector2:
 	var across1 := Vector2(-along1.y, along1.x)
 	var across2 := Vector2(-along2.y, along2.x)
-	var d := c2 - c1
+	var gap := c2 - c1
+	var least := INF
+	var normal := Vector2.ZERO
 	for axis: Vector2 in [along1, across1, along2, across2]:
 		var r1 := absf(axis.dot(along1)) * half_len1 + absf(axis.dot(across1)) * half_wid1
 		var r2 := absf(axis.dot(along2)) * half_len2 + absf(axis.dot(across2)) * half_wid2
-		if absf(axis.dot(d)) > r1 + r2:
-			return false
-	return true
+		var overlap := r1 + r2 - absf(axis.dot(gap))
+		if overlap < 0.0:
+			return Vector2.ZERO
+		if overlap < least:
+			least = overlap
+			normal = axis if axis.dot(gap) >= 0.0 else -axis
+	return normal
 
 
 ## Whether a body standing at [param body] (its transform, the box centred [param body_height]

@@ -9,8 +9,11 @@ extends RefCounted
 ## high, so the road matches the lanes and the kerb lines that are judged. The kit's centre line
 ## is painted over with asphalt: the road's [RoadMarking]s draw the lines. The pavements are
 ## solid: [method pavement_shapes] and [method pad_shapes] give their colliders, kerb high, for one
-## body of the pavement [BodyType] per road, which stops the car's tyres at the kerb. Built on the
-## main thread.
+## body of the pavement [BodyType] per road, which stops the car's tyres at the kerb. The asphalt is
+## solid too: [method surface_shapes] and [method pad_surface_shapes] give thin colliders whose
+## top is the drawn asphalt, [constant LIFT] above the ground, for one body of the asphalt
+## [BodyType] per road, so a wheel reads the road's grip, not the grass's. Built on the main
+## thread.
 
 const FOLDER := "res://assets/kenney/city_kit_roads/"
 const STRAIGHT := FOLDER + "road-straight.glb"
@@ -50,7 +53,7 @@ static func available() -> bool:
 	return not _tile(STRAIGHT).is_empty()
 
 
-## The road along [param frames] ([code][position, right][/code] pairs, as
+## The road along [param frames] ([code][position, right, up][/code], as
 ## [method RoadSegment.frames] gives them), [param half] metres of asphalt either side of the
 ## centre, with a kerb and [param pavement] metres of pavement beyond it, or the asphalt alone when
 ## [param kerbs] is false. Null when the kit does not load or there are fewer than two frames.
@@ -150,13 +153,42 @@ static func pad_shapes(t: bool, half: float, pavement: float, arms: Array,
 	return out
 
 
+## The asphalt's colliders along [param frames] (as for [method road]): one slab per stretch
+## between frames, [param half] metres either side of the centre, its top the drawn asphalt, so
+## they follow the curve with no gaps and meet the pavements at the kerb. Local to the road.
+static func surface_shapes(frames: Array, half: float) -> Array[Shape3D]:
+	var out: Array[Shape3D] = []
+	for i in frames.size() - 1:
+		var a: Array = frames[i]
+		var b: Array = frames[i + 1]
+		out.append(prism([a[0] - a[1] * half, a[0] + a[1] * half, b[0] + b[1] * half,
+			b[0] - b[1] * half], LIFT))
+	return out
+
+
+## A junction pad's asphalt colliders, matching [method pad] and the plain pad alike: the square
+## [param half] metres either side of the centre, and each arm of [param arms] (outward
+## directions) reaching [param arm_length] metres beyond it, the asphalt's width.
+static func pad_surface_shapes(half: float, arms: Array, arm_length: float) -> Array[Shape3D]:
+	var out: Array[Shape3D] = []
+	out.append(prism([Vector3(-half, 0, -half), Vector3(half, 0, -half), Vector3(half, 0, half),
+		Vector3(-half, 0, half)], LIFT))
+	if arm_length > 0.01:
+		for out_dir: Vector3 in arms:
+			var right := out_dir.cross(Vector3.UP)
+			out.append_array(surface_shapes([[out_dir * half, right],
+				[out_dir * (half + arm_length), right]], half))
+	return out
+
+
 ## A collider standing on the ground outline [param corners] (local points, in order round it),
-## from just below the ground to kerb high.
-static func prism(corners: Array) -> ConvexPolygonShape3D:
+## from just below each corner to [param top] above it, kerb high unless given: the corners keep
+## their own heights, so the prisms along a road follow its grade.
+static func prism(corners: Array, top := RoadMarking.KERB_HEIGHT) -> ConvexPolygonShape3D:
 	var points := PackedVector3Array()
 	for corner: Vector3 in corners:
 		points.append(Vector3(corner.x, corner.y - SINK, corner.z))
-		points.append(Vector3(corner.x, corner.y + RoadMarking.KERB_HEIGHT, corner.z))
+		points.append(Vector3(corner.x, corner.y + top, corner.z))
 	var shape := ConvexPolygonShape3D.new()
 	shape.points = points
 	return shape
@@ -164,11 +196,22 @@ static func prism(corners: Array) -> ConvexPolygonShape3D:
 
 ## One static body of the pavement [BodyType] holding [param shapes]; null when there are none.
 static func pavement_body(shapes: Array[Shape3D]) -> StaticBody3D:
+	return body_of(&"pavement", "Pavement", shapes)
+
+
+## One static body of the asphalt [BodyType] holding [param shapes]; null when there are none.
+static func surface_body(shapes: Array[Shape3D]) -> StaticBody3D:
+	return body_of(&"asphalt", "Asphalt", shapes)
+
+
+## One static body named [param body_name] of the [BodyType] [param kind] holding
+## [param shapes]; null when there are none.
+static func body_of(kind: StringName, body_name: String, shapes: Array[Shape3D]) -> StaticBody3D:
 	if shapes.is_empty():
 		return null
 	var body := StaticBody3D.new()
-	body.name = "Pavement"
-	BodyType.of(&"pavement").apply(body)
+	body.name = body_name
+	BodyType.of(kind).apply(body)
 	for shape in shapes:
 		var holder := CollisionShape3D.new()
 		holder.shape = shape
@@ -198,17 +241,19 @@ static func _height(y: float) -> float:
 
 
 ## Adds the straight tile between frames [param a] and [param b]: the tile's length along the
-## way from one to the other, its cross-section to their right; without the kerbs and pavement
-## when [param kerbs] is false.
+## way from one to the other, climbing or falling with it, its cross-section to their right and
+## its heights along their up (straight up when a frame gives none); without the kerbs and
+## pavement when [param kerbs] is false.
 static func _sweep(st: SurfaceTool, tile: Array, a: Array, b: Array, half: float,
 		pavement: float, kerbs: bool) -> void:
 	var positions: PackedVector3Array = tile[0]
 	var normals: PackedVector3Array = tile[1]
 	var uvs: PackedVector2Array = tile[2]
-	var along: Vector3 = (b[0] - a[0])
-	along.y = 0.0
-	along = along.normalized()
+	var along: Vector3 = (b[0] - a[0]).normalized()
 	var right: Vector3 = (a[1] + b[1]).normalized()
+	var up_a: Vector3 = a[2] if a.size() > 2 else Vector3.UP
+	var up_b: Vector3 = b[2] if b.size() > 2 else Vector3.UP
+	var up := (up_a + up_b).normalized()
 	for i in range(0, positions.size(), 3):
 		if not kerbs and not _road_only(positions, i):
 			continue
@@ -217,10 +262,12 @@ static func _sweep(st: SurfaceTool, tile: Array, a: Array, b: Array, half: float
 			var n := normals[i + k]
 			var t := p.x + 0.5
 			var across := _across(p.z, half, pavement)
-			var at: Vector3 = (a[0] + a[1] * across).lerp(b[0] + b[1] * across, t)
-			st.set_normal((along * n.x + Vector3.UP * n.y + right * n.z).normalized())
+			var lift := _height(p.y)
+			var at: Vector3 = (a[0] + a[1] * across + up_a * lift).lerp(
+				b[0] + b[1] * across + up_b * lift, t)
+			st.set_normal((along * n.x + up * n.y + right * n.z).normalized())
 			st.set_uv(uvs[i + k])
-			st.add_vertex(at + Vector3.UP * _height(p.y))
+			st.add_vertex(at)
 
 
 ## Whether the triangle from [param i] is part of the asphalt, not the kerb or the pavement.

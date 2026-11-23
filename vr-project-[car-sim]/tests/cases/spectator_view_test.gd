@@ -3,7 +3,6 @@ extends TestCase
 ## car, the view from behind the driver's shoulder, both turning with the car's heading only, and
 ## no spectator without a headset.
 
-const CAR := preload("res://scenarios/scenes/debug_car.tscn")
 
 
 func run() -> void:
@@ -29,8 +28,7 @@ func _test_spots() -> void:
 
 
 func _test_follow() -> void:
-	var car: Node3D = CAR.instantiate()
-	root.add_child(car)
+	var car: Node3D = spawn_car()
 	await physics_frame
 	expect(car.driver_view.spectator == null and car.driver_view.headset == null,
 		"without a headset, there is no spectator")

@@ -7,4 +7,4 @@ script = ExtResource("type")
 title = "Ground"
 layer = 1
 mask = 0
-friction = 1.0
+friction = 0.6

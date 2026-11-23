@@ -36,7 +36,8 @@ func _roundabout(wait: float, signal_at := 0.0, first_exit := false) -> Array:
 
 
 func _test_roundabout() -> void:
-	var r := await drive(_roundabout(10.5), ROUNDABOUT)
+	# The circulating cars take the ring at about 6 m/s, so a gap behind them opens about 15 s in.
+	var r := await drive(_roundabout(15.0), ROUNDABOUT)
 	expect_clean(r,
 		"giving way to the circulating traffic and signalling right before the second exit is clean")
 
@@ -48,10 +49,10 @@ func _test_roundabout() -> void:
 	expect_only(r, &"undue_hesitation",
 		"waiting long after the roundabout is clear is one minor fault")
 
-	r = await drive(_roundabout(10.5, NAN), ROUNDABOUT)
+	r = await drive(_roundabout(15.0, NAN), ROUNDABOUT)
 	expect_only(r, &"no_indicator_turn",
 		"leaving the roundabout without signalling is one minor fault")
 
-	r = await drive(_roundabout(10.5, 60.0, true), ROUNDABOUT)
+	r = await drive(_roundabout(15.0, 60.0, true), ROUNDABOUT)
 	expect_only(r, &"wrong_turn",
 		"leaving by the first exit when the route goes straight on is a wrong turn", &"")
