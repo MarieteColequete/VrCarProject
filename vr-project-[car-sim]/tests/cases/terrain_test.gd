@@ -1,7 +1,9 @@
 extends TestCase
 ## Terrain and sloped roads: the height field's sampling, the terrain shapes, a heightmap, the
 ## corridor cut and filled under a road, the land's collider, a road on a grade, and draping a
-## road on a hill no steeper than the grade allowed.
+## road on a hill no steeper than the grade allowed. Then the editing: a shape's handles and its
+## outline on the land, the land built again only where a shape changed (the same as built whole,
+## and faster), and the Map Kit's shape edits.
 
 const GRADE := 0.1
 
@@ -15,6 +17,10 @@ func run() -> void:
 	await _test_sloped_road()
 	_test_drape()
 	_test_add_terrain()
+	_test_handles()
+	_test_outline()
+	await _test_partial_rebuild()
+	await _test_shape_edits()
 
 
 func _test_sampling() -> void:
@@ -265,3 +271,118 @@ func _test_add_terrain() -> void:
 		and MapKitTools.add_terrain(map).is_empty(),
 		"adding terrain turns the flat ground off, and is done once")
 	map.free()
+
+
+func _test_handles() -> void:
+	for kind: int in TerrainShape.Kind.values():
+		var shape := _shape(kind, 4.0)
+		var ground := 1.5
+		var worst := 0.0
+		for handle: Dictionary in shape.handles(ground):
+			var back := shape.value_from(handle.name, handle.local, ground)
+			worst = maxf(worst, absf(back - shape.handle_value(handle.name)))
+		expect(worst < 0.0001, "%s: each handle gives back the value it shows: %.5f off"
+			% [TerrainShape.Kind.keys()[kind], worst])
+		shape.free()
+	var hill := _shape(TerrainShape.Kind.HILL, 4.0)
+	var at: Vector3 = hill.handles()[0].local
+	expect(is_equal_approx(hill.value_from(TerrainShape.RADIUS, at + Vector3(3, 0, 0)), 8.0)
+		and hill.value_from(TerrainShape.HEIGHT, Vector3(0, -2, 0), 1.0) == 0.0,
+		"a radius dragged 3 m out grows 3 m; a hill's height never goes below its land")
+	hill.free()
+
+
+func _test_outline() -> void:
+	var ramp := _shape(TerrainShape.Kind.RAMP, 3.0)
+	var land := func(p: Vector3) -> float: return 0.1 * p.x - 0.05 * p.z
+	var worst := 0.0
+	var points := 0
+	for loop in TerrainShape.drape(ramp.outline_loops(), land, 0.0):
+		for p in loop:
+			worst = maxf(worst, absf(p.y - land.call(p)))
+			points += 1
+	expect(points > 40 and worst < 0.0001,
+		"the outline lies on the land, %d points along it" % points)
+	ramp.free()
+
+
+## A terrain over a map, with a hill on it, in the tree; and the hill.
+func _live_terrain(extent: float, at := Vector3.ZERO) -> Array:
+	var map := RoadMap.new()
+	var terrain := Terrain.new()
+	terrain.size = Vector2(extent, extent)
+	map.add_child(terrain)
+	var hill := TerrainShape.new()
+	hill.height = 6.0
+	hill.radius = 8.0
+	hill.falloff = 12.0
+	hill.position = at
+	map.add_child(hill)
+	var plateau := TerrainShape.new()
+	plateau.kind = TerrainShape.Kind.PLATEAU
+	plateau.height = 2.0
+	plateau.position = at + Vector3(15, 0, 4)
+	map.add_child(plateau)
+	root.add_child(map)
+	return [map, terrain, hill]
+
+
+func _test_partial_rebuild() -> void:
+	var made := _live_terrain(200.0)
+	var map: RoadMap = made[0]
+	var terrain: Terrain = made[1]
+	var hill: TerrainShape = made[2]
+	await process_frame
+	var was := terrain.shape_area(hill)
+	hill.position = Vector3(20, 0, -10)
+	hill.radius = 11.0
+	var t := Time.get_ticks_usec()
+	terrain.rebuild_area(was.merge(terrain.shape_area(hill)))
+	var partial := (Time.get_ticks_usec() - t) / 1000.0
+	var drawn := terrain.chunks_drawn
+	var patched := terrain.field().heights.duplicate()
+	t = Time.get_ticks_usec()
+	terrain.rebuild()
+	var whole := (Time.get_ticks_usec() - t) / 1000.0
+	var full := terrain.field().heights
+	var worst := 0.0
+	for k in full.size():
+		worst = maxf(worst, absf(full[k] - patched[k]))
+	expect(worst < 0.0001, "built again only where the hill was and is, the land is the same as "
+		+ "built whole: %.5f m off at worst" % worst)
+	expect(drawn > 0 and drawn < terrain.chunks_drawn,
+		"and it draws %d of the %d chunks again" % [drawn, terrain.chunks_drawn])
+	if OS.has_environment("TESTS_BENCH"):
+		print("terrain 200 m at 1 m: whole %.1f ms, a hill moved %.1f ms" % [whole, partial])
+	map.queue_free()
+	await process_frame
+
+
+func _test_shape_edits() -> void:
+	var made := _live_terrain(120.0)
+	var map: RoadMap = made[0]
+	var terrain: Terrain = made[1]
+	var hill: TerrainShape = made[2]
+	await process_frame
+	var plateau := TerrainShape.new()
+	plateau.kind = TerrainShape.Kind.PLATEAU
+	plateau.position = Vector3(0, 9, 0)
+	map.add_child(plateau)
+	terrain.rebuild()
+	var under := terrain.land_height_at(Vector3.ZERO, terrain.land(plateau))
+	var with_it := terrain.land_height_at(Vector3.ZERO)
+	MapKitTools.snap_shape_base(map, plateau).apply(map)
+	expect(is_equal_approx(plateau.position.y, under) and under > 1.0
+		and absf(with_it - under) > 1.0,
+		"standing a plateau on the land puts its base on the land under it, not on itself: "
+		+ "%.2f m (%.2f with it)" % [plateau.position.y, with_it])
+	MapKitTools.set_shape(hill, TerrainShape.WIDTH, 7.0).apply(map)
+	MapKitTools.set_shape(hill, &"kind", TerrainShape.Kind.RAMP).apply(map)
+	MapKitTools.set_shape(hill, TerrainShape.FALLOFF, 3.5).apply(map)
+	expect(hill.kind == TerrainShape.Kind.RAMP and hill.size.x == 7.0 and hill.falloff == 3.5,
+		"the dock's edits set the kind, a ramp's width and the falloff")
+	expect(MapKitTools.shape_fields(TerrainShape.Kind.RAMP).has(TerrainShape.LENGTH)
+		and not MapKitTools.shape_fields(TerrainShape.Kind.HILL).has(TerrainShape.LENGTH),
+		"a ramp is sized by its length and width, the rest by their radius")
+	map.queue_free()
+	await process_frame

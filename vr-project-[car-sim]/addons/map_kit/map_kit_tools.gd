@@ -22,6 +22,14 @@ const EXTENSION := 20.0
 
 const WARNING := &"warning"
 const NOTICE := &"notice"
+## What each terrain shape does, by its kind's name as the palette shows it.
+const SHAPE_NOTES := {
+	"Hill": "A rise in the land, full within its radius, easing out over its falloff.",
+	"Valley": "A hollow in the land, full within its radius, easing out over its falloff.",
+	"Ramp": "A slope over its rectangle, from the node's height at its +Z end to its height "
+		+ "above that at its -Z end.",
+	"Plateau": "Flat land at its height above the node within its radius, easing out over its "
+		+ "falloff."}
 
 
 ## One entry of the palette: its button text, the section it is listed under, the map node it is
@@ -243,14 +251,10 @@ static func pieces() -> Array[Piece]:
 		var key: String = RoadSign.Kind.keys()[kind]
 		out.append(Piece.new(sentence(key), "Signs", "Signs", func() -> Node3D: return _sign(kind),
 			_icon("sign_" + key.to_lower()), "A %s sign; scenery only." % sentence(key).to_lower()))
-	var shapes := {"Hill": "A rise in the land, full within its radius, easing out over its falloff.",
-		"Valley": "A hollow in the land, full within its radius, easing out over its falloff.",
-		"Ramp": "A slope over its rectangle, climbing its height towards -Z.",
-		"Plateau": "Flat land at its height within its radius, easing out over its falloff."}
-	for label: String in shapes:
+	for label: String in SHAPE_NOTES:
 		var kind: int = TerrainShape.Kind[label.to_upper()]
 		out.append(Piece.new(label, "Terrain", "", func() -> Node3D: return _terrain_shape(kind),
-			_icon("terrain_" + label.to_lower()), shapes[label] + " Shapes the map's terrain."))
+			_icon("terrain_" + label.to_lower()), SHAPE_NOTES[label] + " Shapes the map's terrain."))
 	out.append(Piece.new("Spawn", "Zones and places", "", _spawn, _icon("spawn"),
 		"Where the car may start, facing the arrow."))
 	out.append(Piece.new("Trigger zone", "Zones and places", "Zones",
@@ -650,6 +654,48 @@ static func on_road(map: Node, point: Vector3) -> bool:
 					or (absf(local.z) <= half and absf(local.x) <= reach):
 				return true
 	return false
+
+
+## What a terrain shape of [param kind] is sized by, as its handles name them
+## ([method TerrainShape.handles]): its height, its radius or a ramp's length and width, and its
+## falloff.
+static func shape_fields(kind: TerrainShape.Kind) -> Array[StringName]:
+	if kind == TerrainShape.Kind.RAMP:
+		return [TerrainShape.HEIGHT, TerrainShape.LENGTH, TerrainShape.WIDTH, TerrainShape.FALLOFF]
+	return [TerrainShape.HEIGHT, TerrainShape.RADIUS, TerrainShape.FALLOFF]
+
+
+## Sets [param shape]'s [param field] to [param value]: [code]kind[/code], or one of
+## [method shape_fields] in metres.
+static func set_shape(shape: TerrainShape, field: StringName, value: float) -> Edit:
+	var edit := Edit.new()
+	if shape == null:
+		return edit
+	match field:
+		&"kind":
+			edit.set_value(shape, &"kind", int(value))
+		TerrainShape.LENGTH:
+			edit.set_value(shape, &"size", Vector2(shape.size.x, value))
+		TerrainShape.WIDTH:
+			edit.set_value(shape, &"size", Vector2(value, shape.size.y))
+		_:
+			edit.set_value(shape, field, value)
+	return edit
+
+
+## Stands [param shape] on [param map]'s land under it, the land as it is without the shape and
+## the roads, so a plateau or a ramp starts from the ground. Empty when the map has no terrain.
+static func snap_shape_base(map: Node, shape: TerrainShape) -> Edit:
+	var edit := Edit.new()
+	var terrain := Terrain.of(map)
+	if terrain == null or shape == null:
+		return edit
+	var at := to_map(shape, map).origin
+	var ground := terrain.land_height_at(at, terrain.land(shape))
+	var parent := to_map(shape.get_parent(), map)
+	var local := parent.affine_inverse() * Vector3(at.x, ground, at.z)
+	edit.set_value(shape, &"position", Vector3(shape.position.x, local.y, shape.position.z))
+	return edit
 
 
 ## Adds a [Terrain] to [param map] over its environment's ground, whose flat ground it turns off.

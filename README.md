@@ -509,7 +509,13 @@ land is drawn in chunks and is solid ground. A road climbs and falls with its cu
 never banks; a junction is a flat pad at its own height. In the Map Kit, **Add terrain** adds the
 node, the palette's Terrain section places the shapes, and **Drape on terrain** sets the selected
 roads, lanes, markings, spawns, props, and assets (or the whole map's) on the land in one undoable
-step, the roads no steeper than 12%.
+step, the roads no steeper than 12%. In the 3D view each shape's outline lies on the land, its
+full effect bright and its falloff beyond, with a marker from the land up or down to the height it
+aims at; a selected shape has handles to drag its radius and falloff on the land and its height on
+the marker (a ramp's length, width, height, and falloff), snapped to half a metre, or a tenth with
+Shift held, each drag one undo step. While a shape changes, the terrain builds again only the land
+it reached and now reaches, and the collider follows a moment after the last change, so a shape
+dragged across a large map follows the mouse.
 
 The Map Kit editor plugin (`addons/map_kit/`, enabled in `project.godot`) puts all of this in a
 dock beside the inspector, in folding sections that stay as they were left:
@@ -529,8 +535,13 @@ dock beside the inspector, in folding sections that stay as they were left:
   selects its node; **Fix all** applies every fix at once.
 - **Selection** sets the selected meshes as road (the asphalt material), gives them a solid body on
   the obstacle layer, links the lanes whose ends meet (the selected ones, or all of the map's),
-  snaps them to the grid, adds terrain, or drapes them on it (see Terrain). **Next look** steps the selected map assets to the next model of their
-  category, and props and scenery to their next look.
+  snaps them to the grid, adds terrain, or drapes them on it (see Terrain). **Next look** steps
+  the selected map assets to the next model of their category, and props and scenery to their next
+  look.
+- **Terrain shape** shows while one terrain shape is selected: its kind, its height, radius (or a
+  ramp's length and width), and falloff on sliders, a slider's drag one undo step, and **Stand on
+  the land**, which moves the shape's base onto the land under it without the shape, so a
+  plateau's or a ramp's height counts from the ground.
 - **Road users** turns the selected cars into road users that drive to a checkpoint: select the
   cars (map assets from the Asset Library, props, or road users already) and the checkpoint (or
   leave it out when the map has only one), and press **Drive to checkpoint**. Each becomes a

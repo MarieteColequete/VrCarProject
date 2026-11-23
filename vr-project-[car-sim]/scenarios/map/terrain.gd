@@ -9,7 +9,10 @@ extends Node3D
 ## [constant SHOULDER] beyond, and eased back to the land over [member road_blend]. The land is drawn
 ## as a mesh in chunks of [constant CHUNK] cells and is solid ground, a [HeightMapShape3D] of the
 ## ground [BodyType]; the map's [RoadEnvironment] then has its flat ground off. Rebuilt in the editor
-## when it, a shape, or a road changes; built once when a map loads.
+## when it, a shape, or a road changes; built once when a map loads. A shape that moves or changes
+## rebuilds only the ground it reached and now reaches, and only the chunks over it, and the
+## collider follows a moment after the last change ([constant COLLIDER_DELAY]), so a shape
+## dragged in the editor follows the mouse.
 
 ## Width (X) and length (Z) of the land, metres.
 @export var size := Vector2(200, 200):
@@ -51,11 +54,22 @@ const SHOULDER := 1.0
 ## Metres per repeat of the material across the land.
 const UV_SCALE := 4.0
 const GROUP := &"map_terrain"
+## Seconds after the last change in the editor before the collider is rebuilt.
+const COLLIDER_DELAY := 0.4
 
 var _field: HeightField
 var _body: StaticBody3D
 var _chunks: Array[MeshInstance3D] = []
 var _rebuild_queued := false
+## What is to be built again: everything, or only the ground in [member _dirty] (the terrain's
+## space).
+var _whole_dirty := false
+var _dirty := Rect2()
+## The ground each shape reached at the last build, by its instance id, in the terrain's space.
+var _shape_areas := {}
+var _collider_wait := 0
+## How many chunks the last build drew, for tests.
+var chunks_drawn := 0
 
 
 func _ready() -> void:
@@ -111,8 +125,42 @@ static func notify_changed(node: Node) -> void:
 		if not is_instance_valid(node) or not node.is_inside_tree() or node.owner == null:
 			return
 		var terrain := of(map_of(node))
-		if terrain:
+		if terrain == null:
+			return
+		if node is TerrainShape:
+			terrain._shape_changed(node)
+		else:
 			terrain.queue_rebuild(), CONNECT_ONE_SHOT)
+
+
+## Tells the terrain a shape [param shape] is leaving the tree: the ground it reached is built
+## again without it. Only in the editor, and only for shapes the scene saves.
+static func notify_leaving(shape: TerrainShape) -> void:
+	if not Engine.is_editor_hint() or shape.owner == null or not shape.is_inside_tree():
+		return
+	var terrain := of(map_of(shape))
+	if terrain == null or terrain == shape:
+		return
+	var id := shape.get_instance_id()
+	if terrain._shape_areas.has(id):
+		terrain.queue_rebuild_area(terrain._shape_areas[id])
+		terrain._shape_areas.erase(id)
+	else:
+		terrain.queue_rebuild()
+
+
+## The ground [param shape] reaches now, in the terrain's space.
+func shape_area(shape: TerrainShape) -> Rect2:
+	var map := map_of(self)
+	return shape.area(to_space(self, map).affine_inverse() * to_space(shape, map))
+
+
+func _shape_changed(shape: TerrainShape) -> void:
+	var now := shape_area(shape)
+	var id := shape.get_instance_id()
+	var reached: Variant = _shape_areas.get(id)
+	_shape_areas[id] = now
+	queue_rebuild_area(now.merge(reached) if reached != null else now)
 
 
 ## The land last built, roads included, in the terrain's own space; built now if it was not yet.
@@ -122,19 +170,30 @@ func field() -> HeightField:
 	return _field
 
 
-## The land without the roads: the heightmap and the shapes, in the terrain's own space.
-func land() -> HeightField:
+## The land without the roads: the heightmap and the shapes (but [param skip]), in the terrain's
+## own space.
+func land(skip: TerrainShape = null) -> HeightField:
 	var out := HeightField.covering(size, cell)
+	_shape_land(out, out.rect(), skip)
+	return out
+
+
+## Adds the heightmap (stretched over [param whole], the whole land's rectangle) and the shapes
+## but [param skip] to [param out], a part of the land or the whole of it.
+func _shape_land(out: HeightField, whole: Rect2, skip: TerrainShape = null) -> void:
 	if heightmap:
-		out.add_image(heightmap.get_image(), heightmap_height)
+		out.add_image(heightmap.get_image(), heightmap_height, whole)
 	var map := map_of(self)
 	var to_terrain := to_space(self, map).affine_inverse()
+	var reach := out.rect()
 	var found: Array[Node] = []
 	Scenario.collect(map, found)
 	for node in found:
-		if node is TerrainShape:
-			(node as TerrainShape).apply(out, to_terrain * to_space(node, map))
-	return out
+		if node is TerrainShape and node != skip:
+			var shape := node as TerrainShape
+			var placed := to_terrain * to_space(shape, map)
+			if shape.area(placed).intersects(reach, true):
+				shape.apply(out, placed)
 
 
 ## The land with the roads cut and filled into it, in the terrain's own space.
@@ -273,19 +332,105 @@ static func _box_distance(x: float, z: float, half_x: float, z0: float, z1: floa
 	return Vector2(dx, dz).length()
 
 
+## Builds the whole land again, once, after this frame.
 func queue_rebuild() -> void:
+	_whole_dirty = true
+	_queue()
+
+
+## Builds the land in [param area] (x, z, the terrain's space) again, once, after this frame.
+func queue_rebuild_area(area: Rect2) -> void:
+	_dirty = _dirty.merge(area) if _dirty.has_area() else area
+	_queue()
+
+
+func _queue() -> void:
 	if _rebuild_queued or not is_inside_tree():
 		return
 	_rebuild_queued = true
-	rebuild.call_deferred()
+	_rebuild_dirty.call_deferred()
+
+
+func _rebuild_dirty() -> void:
+	if _whole_dirty or _field == null:
+		rebuild()
+	else:
+		rebuild_area(_dirty)
+	_dirty = Rect2()
+	# The shapes' outlines lie on the land, which moved.
+	var found: Array[Node] = []
+	Scenario.collect(map_of(self), found)
+	for node in found:
+		if node is TerrainShape:
+			(node as Node3D).update_gizmos()
+
+
+## Builds the land in [param area] (x, z, the terrain's space) again: its heights there from the
+## heightmap, the shapes and the roads, and the chunks drawn over it. The collider follows
+## [constant COLLIDER_DELAY] seconds after the last change in the editor, at once elsewhere.
+func rebuild_area(area: Rect2) -> void:
+	_rebuild_queued = false
+	if not is_inside_tree():
+		return
+	if _field == null:
+		rebuild()
+		return
+	var span := _field.span(area.grow(_field.cell))
+	if span.is_empty():
+		return
+	var i1 := mini(maxi(span[2], span[0] + 1), _field.count_x - 1)
+	var j1 := mini(maxi(span[3], span[1] + 1), _field.count_z - 1)
+	var i0 := mini(span[0], i1 - 1)
+	var j0 := mini(span[1], j1 - 1)
+	var part := HeightField.new(_field.origin + Vector2(i0, j0) * _field.cell, _field.cell,
+		i1 - i0 + 1, j1 - j0 + 1)
+	_shape_land(part, _field.rect())
+	stamp_roads(part)
+	_field.paste(part, i0, j0)
+	# A point's normal reads its neighbours, so the chunks one point beyond change too; a chunk
+	# shares its edge points with the next.
+	var across := ceili(float(_field.count_x - 1) / CHUNK)
+	var down := ceili(float(_field.count_z - 1) / CHUNK)
+	chunks_drawn = 0
+	for cj in range(maxi((j0 - 2) / CHUNK, 0), mini((j1 + 1) / CHUNK, down - 1) + 1):
+		for ci in range(maxi((i0 - 2) / CHUNK, 0), mini((i1 + 1) / CHUNK, across - 1) + 1):
+			var k := cj * across + ci
+			if k < _chunks.size() and is_instance_valid(_chunks[k]):
+				_chunks[k].mesh = _chunk(_field, ci * CHUNK, cj * CHUNK,
+					mini(CHUNK, _field.count_x - 1 - ci * CHUNK),
+					mini(CHUNK, _field.count_z - 1 - cj * CHUNK), material)
+				chunks_drawn += 1
+	if Engine.is_editor_hint() and is_inside_tree():
+		_collider_wait += 1
+		var wait := _collider_wait
+		get_tree().create_timer(COLLIDER_DELAY).timeout.connect(func() -> void:
+			if wait == _collider_wait and is_inside_tree():
+				_rebuild_collider())
+	else:
+		_rebuild_collider()
+
+
+func _rebuild_collider() -> void:
+	if _body and is_instance_valid(_body):
+		remove_child(_body)
+		_body.queue_free()
+	_body = body(_field)
+	add_child(_body, false, INTERNAL_MODE_BACK)
 
 
 ## Builds the land again: its field, its drawn chunks, and its collider.
 func rebuild() -> void:
 	_rebuild_queued = false
+	_whole_dirty = false
 	if not is_inside_tree():
 		return
 	_field = build_field()
+	_shape_areas.clear()
+	var found: Array[Node] = []
+	Scenario.collect(map_of(self), found)
+	for node in found:
+		if node is TerrainShape:
+			_shape_areas[node.get_instance_id()] = shape_area(node)
 	for chunk in _chunks:
 		if is_instance_valid(chunk):
 			remove_child(chunk)
@@ -296,11 +441,9 @@ func rebuild() -> void:
 		chunk.mesh = mesh
 		add_child(chunk, false, INTERNAL_MODE_BACK)
 		_chunks.append(chunk)
-	if _body and is_instance_valid(_body):
-		remove_child(_body)
-		_body.queue_free()
-	_body = body(_field)
-	add_child(_body, false, INTERNAL_MODE_BACK)
+	chunks_drawn = _chunks.size()
+	_collider_wait += 1
+	_rebuild_collider()
 	update_configuration_warnings()
 
 

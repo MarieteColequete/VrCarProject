@@ -190,6 +190,20 @@ with **Check now**. The problems and their fixes:
   terrain: roads follow the land no steeper than 12%, junctions stand on it, and lanes, markings,
   spawns, signs and props lie on the road or the land under them.
 
+**Terrain shape.** Shown while one terrain shape (Hill, Valley, Ramp, Plateau) is selected:
+
+- **Kind** turns it into another kind of shape.
+- **Height**, **Radius** (a ramp's **Length** and **Width**), and **Falloff** set its size on
+  sliders; a slider's drag is one undo step.
+- **Stand on the land** moves the shape's base onto the land under it, the land without this
+  shape, so a plateau's or a ramp's height counts from the ground.
+
+In the 3D view each shape's outline lies on the land: its full effect, and its falloff beyond, with
+a marker from the land up or down to the height it aims at. The selected shape has handles: drag
+the radius and the falloff on the land, and the height on the marker (a ramp's length, width,
+height, and falloff). They snap to half a metre, or a tenth with Shift held, and each drag is one
+undo step. While a shape changes, only the land it reaches is built again, so it follows the mouse.
+
 **Road users.** **Drive to checkpoint** turns the selected cars into road users that drive to the
 selected checkpoint (see [Traffic and people](#traffic-and-people)).
 

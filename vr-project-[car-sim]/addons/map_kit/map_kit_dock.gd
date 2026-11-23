@@ -9,6 +9,8 @@ extends EditorDock
 ## one is known; selecting one selects its node.
 ## [br]- Selection: set meshes as road, give them a solid body, link lanes, snap to the grid, add
 ## terrain, and drape roads and places on it.
+## [br]- Terrain shape: shown while one [TerrainShape] is selected; its kind, height, size and
+## falloff with sliders (a drag is one undo action), and standing its base on the land.
 ## [br]- Palette: pieces to place by clicking in the 3D view, with a search box.
 ## [br]- View: the overlay, the Dev HUD when playing, and the grid step.
 ## [br]The work is the [MapKitPlugin]'s and [MapKitTools]'.
@@ -51,6 +53,12 @@ var _palette_buttons: Array[Button] = []
 var _palette_group := ButtonGroup.new()
 var _place_hint: Label
 
+var _shape_section: FoldableContainer
+var _shape: TerrainShape
+var _shape_kind: OptionButton
+var _shape_note: Label
+var _shape_sliders := {}
+
 var _overlay_box: CheckBox
 var _dev_hud_box: CheckBox
 var _grid_step: SpinBox
@@ -75,6 +83,7 @@ func _init() -> void:
 	_build_maps(column)
 	_build_problems(column)
 	_build_selection(column)
+	_build_shape(column)
 	_build_road_users(column)
 	_build_palette(column)
 	_build_view(column)
@@ -99,6 +108,8 @@ func _ready() -> void:
 			plugin.set_setting("folded/" + section.title.get_slice(" (", 0), folded))
 	plugin.problems_changed.connect(show_problems)
 	plugin.placer.armed_changed.connect(_on_armed)
+	EditorInterface.get_selection().selection_changed.connect(_on_selection_changed)
+	_on_selection_changed()
 	EditorInterface.get_resource_filesystem().filesystem_changed.connect(refresh_maps)
 	_overlay_box.set_pressed_no_signal(plugin.setting("overlay", true))
 	_dev_hud_box.set_pressed_no_signal(plugin.setting("dev_hud", false))
@@ -109,6 +120,10 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	var selection := EditorInterface.get_selection()
+	if selection and selection.selection_changed.is_connected(_on_selection_changed):
+		selection.selection_changed.disconnect(_on_selection_changed)
+	_watch_shape(null)
 	var filesystem := EditorInterface.get_resource_filesystem()
 	if filesystem and filesystem.filesystem_changed.is_connected(refresh_maps):
 		filesystem.filesystem_changed.disconnect(refresh_maps)
@@ -302,6 +317,92 @@ func _build_selection(column: VBoxContainer) -> void:
 		"Shows the next car, van, or house on the selected props, the next kind of the selected "
 		+ "scenery, and the next model of the selected map assets' category."))
 	box.add_child(flow)
+
+
+func _build_shape(column: VBoxContainer) -> void:
+	var box := _section(column, "Terrain shape")
+	_shape_section = box.get_parent() as FoldableContainer
+	_shape_section.visible = false
+	_shape_kind = OptionButton.new()
+	for label: String in MapKitTools.SHAPE_NOTES:
+		_shape_kind.add_item(label, TerrainShape.Kind[label.to_upper()])
+	_shape_kind.item_selected.connect(func(index: int) -> void:
+		_set_shape(&"kind", _shape_kind.get_item_id(index), false))
+	box.add_child(_shape_kind)
+	_shape_note = _note("")
+	box.add_child(_shape_note)
+	var limits := {TerrainShape.HEIGHT: [-50.0, 50.0], TerrainShape.RADIUS: [0.0, 200.0],
+		TerrainShape.LENGTH: [1.0, 400.0], TerrainShape.WIDTH: [1.0, 200.0],
+		TerrainShape.FALLOFF: [0.0, 200.0]}
+	for field: StringName in limits:
+		var slider := EditorSpinSlider.new()
+		slider.label = String(field).capitalize()
+		slider.suffix = "m"
+		slider.min_value = limits[field][0]
+		slider.max_value = limits[field][1]
+		slider.step = 0.1
+		slider.allow_greater = true
+		slider.allow_lesser = field == TerrainShape.HEIGHT
+		slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		slider.value_changed.connect(func(value: float) -> void: _set_shape(field, value, true))
+		box.add_child(slider)
+		_shape_sliders[field] = slider
+	box.add_child(_button("Stand on the land", _snap_shape,
+		"Moves the shape's base onto the land under it, the land without this shape, so a "
+		+ "plateau's or a ramp's height counts from the ground.", &"ToolMove"))
+	box.add_child(_note("Drag its handles in the 3D view: the radius and falloff on the land, "
+		+ "the height on its marker. Shift snaps finer."))
+
+
+func _on_selection_changed() -> void:
+	var picked := _selected()
+	_watch_shape(picked[0] as TerrainShape if picked.size() == 1 else null)
+
+
+## Shows [param shape] in the Terrain shape section and follows its changes; hides the section
+## for none.
+func _watch_shape(shape: TerrainShape) -> void:
+	if _shape == shape:
+		return
+	if is_instance_valid(_shape) and _shape.shape_changed.is_connected(_show_shape):
+		_shape.shape_changed.disconnect(_show_shape)
+	_shape = shape
+	if _shape:
+		_shape.shape_changed.connect(_show_shape)
+	if _shape_section:
+		_shape_section.visible = _shape != null
+	_show_shape()
+
+
+func _show_shape() -> void:
+	if _shape == null or not is_instance_valid(_shape):
+		return
+	_shape_kind.select(_shape_kind.get_item_index(_shape.kind))
+	var label := _shape_kind.get_item_text(_shape_kind.selected)
+	_shape_note.text = MapKitTools.SHAPE_NOTES.get(label, "")
+	var fields := MapKitTools.shape_fields(_shape.kind)
+	for field: StringName in _shape_sliders:
+		var slider: EditorSpinSlider = _shape_sliders[field]
+		slider.visible = fields.has(field)
+		slider.set_value_no_signal(_shape.handle_value(field))
+
+
+func _set_shape(field: StringName, value: float, merge: bool) -> void:
+	if _shape == null or not is_instance_valid(_shape):
+		return
+	var named := "kind" if field == &"kind" else String(field).capitalize().to_lower()
+	plugin.apply(MapKitTools.set_shape(_shape, field, value), "Set terrain shape's " + named,
+		false, merge)
+
+
+func _snap_shape() -> void:
+	var road_map := _need_map()
+	if road_map == null or _shape == null:
+		return
+	if Terrain.of(road_map) == null:
+		_say("The map has no terrain: press Add terrain first.")
+		return
+	plugin.apply(MapKitTools.snap_shape_base(road_map, _shape), "Stand terrain shape on the land")
 
 
 func _build_road_users(column: VBoxContainer) -> void:

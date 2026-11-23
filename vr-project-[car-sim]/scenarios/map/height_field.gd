@@ -103,9 +103,10 @@ func span(area: Rect2) -> PackedInt32Array:
 	return PackedInt32Array([i0, j0, i1, j1])
 
 
-## Adds [param image] stretched over the whole field, its red channel times [param scale]: black
-## adds nothing, white [param scale] metres. Bilinear between the image's pixels.
-func add_image(image: Image, scale: float) -> void:
+## Adds [param image] stretched over the whole field, or over [param over] (x, z) when given, as
+## for a part of a larger field; its red channel times [param scale]: black adds nothing, white
+## [param scale] metres. Bilinear between the image's pixels.
+func add_image(image: Image, scale: float, over := Rect2()) -> void:
 	if image == null or image.is_empty():
 		return
 	var img := image
@@ -114,12 +115,15 @@ func add_image(image: Image, scale: float) -> void:
 		img.decompress()
 	var w := img.get_width()
 	var h := img.get_height()
+	var whole := over if over.has_area() else rect()
 	for j in count_z:
-		var v := float(j) / (count_z - 1) * (h - 1)
+		var v := clampf((origin.y + j * cell - whole.position.y) / whole.size.y, 0.0, 1.0) \
+			* (h - 1)
 		var y0 := mini(floori(v), maxi(h - 2, 0))
 		var ty := v - y0
 		for i in count_x:
-			var u := float(i) / (count_x - 1) * (w - 1)
+			var u := clampf((origin.x + i * cell - whole.position.x) / whole.size.x, 0.0, 1.0) \
+				* (w - 1)
 			var x0 := mini(floori(u), maxi(w - 2, 0))
 			var tx := u - x0
 			var x1 := mini(x0 + 1, w - 1)
@@ -154,6 +158,24 @@ func intersect_ray(from: Vector3, direction: Vector3, reach := 2000.0) -> Varian
 		above = now_above
 		previous = at
 	return null
+
+
+## The part of the field from grid point [param i0], [param j0] to [param i1], [param j1]
+## inclusive, its heights its own.
+func part(i0: int, j0: int, i1: int, j1: int) -> HeightField:
+	var out := HeightField.new(origin + Vector2(i0, j0) * cell, cell, i1 - i0 + 1, j1 - j0 + 1)
+	for j in out.count_z:
+		for i in out.count_x:
+			out.heights[j * out.count_x + i] = heights[(j0 + j) * count_x + i0 + i]
+	return out
+
+
+## Writes [param other]'s heights over this field's from grid point [param i0], [param j0]: a part
+## of the same grid, as [method part] gives.
+func paste(other: HeightField, i0: int, j0: int) -> void:
+	for j in other.count_z:
+		for i in other.count_x:
+			heights[(j0 + j) * count_x + i0 + i] = other.heights[j * other.count_x + i]
 
 
 ## A copy, its heights its own.
