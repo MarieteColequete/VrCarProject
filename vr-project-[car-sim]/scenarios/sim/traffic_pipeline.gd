@@ -31,7 +31,6 @@ var count := 0
 
 var _table: AgentTable
 var _armed := PackedByteArray()
-var _snapshot: TrafficSnapshot
 var _lanes := {}
 var _markings: MarkingIndex
 var _dt := 0.0
@@ -63,7 +62,7 @@ func begin(world: World, dt: float) -> void:
 	var routes := RouteTable.of_world(world)
 	_table.use_routes(routes, LaneRules.evaluate(routes, world, _table, LaneRules.by_lane(_table),
 		car, _lanes))
-	_snapshot = snapshot_of(world, _table, car)
+	_table.see(snapshot_of(world, _table, car))
 	if parallel and count >= PARALLEL_FROM:
 		# A task per run of rows rather than one per road user: enough to use the cores without the
 		# threads queuing on each other.
@@ -90,7 +89,6 @@ func finish() -> Delta:
 			d.emit(WorldEvent.new(event[0], table.ids[i], event[1]))
 	table.write_to(d)
 	_table = null
-	_snapshot = null
 	commit_usec = Time.get_ticks_usec() - started
 	return d
 
@@ -105,7 +103,7 @@ static func snapshot_of(world: World, table: AgentTable, car: CarState) -> Traff
 		var flat := Vector2(f.x, f.z).normalized()
 		var at := table.position[i]
 		snapshot.add(table.ids[i], Vector2(at.x, at.z), flat, size.z * 0.5, size.x * 0.5,
-			flat * table.current_speed[i], true)
+			flat * table.current_speed[i], not table.crashed[i])
 	if car:
 		snapshot.add_box(car.entity, car.transform, car.hull_size, car.velocity, false)
 	var obstacles := world.store(Schema.OBSTACLE)
@@ -117,14 +115,13 @@ static func snapshot_of(world: World, table: AgentTable, car: CarState) -> Traff
 	return snapshot
 
 
-## Thinks the [param task]-th run of rows. The table and snapshot are read through locals, once.
+## Thinks the [param task]-th run of rows. The table is read through a local, once.
 func _think_run(task: int) -> void:
 	var table := _table
-	var snapshot := _snapshot
 	var dt := _dt
 	var n := table.size()
 	for i in range(n * task / _tasks, n * (task + 1) / _tasks):
-		table.think(i, snapshot, dt)
+		table.think(i, dt)
 
 
 func _wait() -> void:

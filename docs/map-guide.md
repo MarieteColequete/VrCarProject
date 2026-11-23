@@ -12,12 +12,13 @@ same tools in the order a map is built.
 3. [A first map, step by step](#a-first-map-step-by-step)
 4. [The Map Kit dock](#the-map-kit-dock)
 5. [Placing pieces and models](#placing-pieces-and-models)
-6. [The Asset Library](#the-asset-library)
-7. [Traffic and people](#traffic-and-people)
-8. [Trying a map](#trying-a-map)
-9. [Adding models: asset packs](#adding-models-asset-packs)
-10. [Known limits](#known-limits)
-11. [Example maps](#example-maps)
+6. [Land with height: terrain](#land-with-height-terrain)
+7. [The Asset Library](#the-asset-library)
+8. [Traffic and people](#traffic-and-people)
+9. [Trying a map](#trying-a-map)
+10. [Adding models: asset packs](#adding-models-asset-packs)
+11. [Known limits](#known-limits)
+12. [Example maps](#example-maps)
 
 ## What a map is
 
@@ -95,7 +96,7 @@ parent in the scene dock and press Ctrl+A (Add Child Node), then search for its 
    each way, the lane width, one way or not, the speed limit in km/h, the centre line, and the
    kerbs with their pavement width.
 
-   <img src="images/map-guide/04-palette.png" width="300" alt="The Palette section listing the road, lane, marking, traffic, sign, and zone pieces">
+   <img src="images/map-guide/04-palette.png" width="300" alt="The Palette section listing the road, lane, marking, traffic, sign, terrain, and zone pieces">
 
    ![A road piece armed for placing: its ghost over the ground and the placing hint at the bottom of the 3D view](images/map-guide/05-road-ghost.png)
 
@@ -185,6 +186,25 @@ with **Check now**. The problems and their fixes:
 - **Snap to grid** moves nodes onto the grid.
 - **Next look** steps map assets to the next model of their category, and props and scenery to
   their next look.
+- **Add terrain** gives the map a `Terrain`, sized to its ground, and turns the flat ground off.
+- **Drape on terrain** sets the heights of the selected nodes, or all of the map's, from the
+  terrain: roads follow the land no steeper than 12%, junctions stand on it, and lanes, markings,
+  spawns, signs and props lie on the road or the land under them.
+
+**Terrain shape.** Shown while one terrain shape (Hill, Valley, Ramp, Plateau) is selected (see
+[Land with height: terrain](#land-with-height-terrain)):
+
+- **Kind** turns it into another kind of shape.
+- **Height**, **Radius** (a ramp's **Length** and **Width**), and **Falloff** set its size on
+  sliders; a slider's drag is one undo step.
+- **Stand on the land** moves the shape's base onto the land under it, the land without this
+  shape, so a plateau's or a ramp's height counts from the ground.
+
+In the 3D view each shape's outline lies on the land: its full effect, and its falloff beyond, with
+a marker from the land up or down to the height it aims at. The selected shape has handles: drag
+the radius and the falloff on the land, and the height on the marker (a ramp's length, width,
+height, and falloff). They snap to half a metre, or a tenth with Shift held, and each drag is one
+undo step. While a shape changes, only the land it reaches is built again, so it follows the mouse.
 
 **Road users.** **Drive to checkpoint** turns the selected cars into road users that drive to the
 selected checkpoint (see [Traffic and people](#traffic-and-people)).
@@ -198,6 +218,7 @@ selected checkpoint (see [Traffic and people](#traffic-and-people)).
 | Traffic | Traffic light, Traffic source, Checkpoint |
 | Signs | Stop, Give way, Speed limit, No entry, Pedestrian crossing, Roundabout, No parking, One way |
 | Zones and places | Spawn, Trigger zone, No-parking zone, Crossing area, Parking bay |
+| Terrain | Hill, Valley, Ramp, Plateau |
 
 Each piece goes under the map's node of its kind (`Roads`, `Lanes`, `Markings`, `Traffic`,
 `Signs`, `Zones`), which keeps the scene tree in order.
@@ -242,6 +263,86 @@ placement is one undo step.
 | Badge at the top right | The map's title, and its warning and notice counts |
 
 The overlay button on the 3D view's toolbar also shows or hides it.
+
+## Land with height: terrain
+
+A new map is flat. Hills, valleys, slopes, and raised ground come from a `Terrain`, the map's land
+as a grid of heights, shaped by terrain shapes placed from the palette. The roads are then laid
+onto that land. `maps/hill_road/` is built this way, and the pictures here are taken from it.
+
+![hill_road from above: a crossroads on a plateau, two hills and a valley around it, each shape's outline drawn on the land](images/map-guide/24-terrain-overview.png)
+
+1. **Add the land.** Under **Selection**, press **Add terrain**. The map gets a `Terrain` node the
+   size of its ground, and the flat ground is turned off; both are one undo step. Select the
+   `Terrain` node to set, in the inspector:
+   - **Size**: the land's width and length, in metres.
+   - **Cell**: how far apart its heights are, 1 m by default. A smaller cell gives finer land and
+     takes longer to build.
+   - **Heightmap** and **Heightmap height**: an optional greyscale image for the land's relief,
+     white standing that many metres above black. The shapes go on top of it.
+   - **Road blend**: how far, in metres, the land eases back to its own height beside a road.
+   - **Rebuild**: builds the whole land again, if it ever looks out of date.
+
+   <img src="images/map-guide/25-selection-terrain.png" width="300" alt="The Selection section of the Map Kit dock with the Add terrain and Drape on terrain buttons">
+
+2. **Place shapes.** The palette's **Terrain** section has four shapes. Pick one and click in the
+   3D view to place it, like any piece; each goes under the `Terrain` node, and they apply in
+   tree order.
+   - **Hill** raises the land by its height within its radius, easing out over its falloff.
+   - **Valley** lowers the land the same way.
+   - **Plateau** makes the land within its radius flat, at its height above the node, easing out
+     over its falloff: ground for a town or a junction to stand on.
+   - **Ramp** is a straight slope over a rectangle, from the node's height at one end to its
+     height above that at the other, easing out at the sides.
+
+   <img src="images/map-guide/26-palette-terrain.png" width="300" alt="The palette with its Terrain section: Hill, Valley, Ramp, and Plateau">
+
+3. **Shape them in the 3D view.** Each shape's outline lies on the land: an inner line where its
+   full effect ends, and an outer one where its falloff ends. An upright marker runs from the land
+   to the height the shape aims at. Shapes that are not selected are drawn dimmed. The selected
+   shape has round handles:
+   - on a hill, valley, or plateau, one on the inner line for the radius and one on the outer line
+     for the falloff, dragged across the land, and one on the marker for the height, dragged up or
+     down;
+   - on a ramp, its length, width, height, and falloff.
+
+   Handles snap to half a metre, or to a tenth of a metre with Shift held, and each drag is one
+   undo step. Only the land the shape reached and now reaches is built again, so the ground follows
+   the mouse; the solid ground the car drives on catches up a moment after the drag ends. Move or
+   turn a shape with the usual move and rotate tools.
+
+   ![A hill selected: its inner and outer outlines on the land, the height marker, and its handles](images/map-guide/27-hill-handles.png)
+
+   ![The plateau the main road climbs onto, selected, its wide falloff reaching past the crossroads](images/map-guide/29-plateau-handles.png)
+
+   ![A ramp selected: its rectangle and falloff outlined on the land, with its handles](images/map-guide/30-ramp-handles.png)
+
+4. **Or set them in the dock.** While one shape is selected, the dock shows a **Terrain shape**
+   section: **Kind** turns it into another of the four shapes, and sliders set its **Height**,
+   **Radius** (a ramp's **Length** and **Width**), and **Falloff**; one slider drag is one undo
+   step. **Stand on the land** moves the shape's base onto the land under it, the land without the
+   shape itself, so a plateau's or a ramp's height counts from the ground there. Use it after
+   placing a plateau or a ramp on ground that is not at height 0.
+
+   <img src="images/map-guide/28-terrain-shape-dock.png" width="300" alt="The Terrain shape section for a hill: its kind, a note, the Height, Radius, and Falloff sliders, and Stand on the land">
+
+5. **Lay the roads on the land.** Roads and junctions are drawn at their own heights; under each
+   one the land is cut or filled to just below the road, across the asphalt, the pavements, and a
+   metre beyond, and eased back to the land over the road blend. To make the roads follow the
+   land instead of keeping their heights, press **Drape on terrain** under **Selection**: with
+   nodes selected it drapes those, with none the whole map. Roads take the land's heights along
+   their length, never steeper than 12%; junctions stand on the land; lanes, markings, spawns,
+   signs, and props settle onto the road or the land under them. Drape again after reshaping the
+   land under a road.
+
+   ![A side road draped on the land, falling away from the crossroads on the plateau](images/map-guide/31-draped-road.png)
+
+6. **Check and drive.** Clear **Problems**, then **Play**. The car climbs and descends the land,
+   and road users keep to the roads' heights. The `hill_start` scenario on `hill_road` stops the
+   car halfway up the main road and judges a hill start.
+
+Roads never pass over one another: traffic and the exam's checks work on the ground plan, with
+heights from the roads, so a bridge or an underpass cannot be built.
 
 ## The Asset Library
 
@@ -322,11 +423,21 @@ standing.
 ## Trying a map
 
 **Play** saves the map and drives it in free drive, in the map sandbox. The controls are in the
-README's [Controls](../README.md#controls); in the sandbox, M moves to the next map. The driver
-sits in the car's cockpit, where the instruments show the speed, the indicators, and the
-handbrake, headlights, and reverse lights; V switches to a view from behind the car.
+README's [Controls](../README.md#controls), and driving is in [Driving](driving-guide.md); in the sandbox, N moves to the next map. Enter begins
+the drive after the free drive note. The car starts with its engine running and the automatic in
+P: Shift moves the lever to D (Ctrl to R), and W drives.
 
-![The driver's view in sample_town at 28 km/h: the instrument panel behind the steering wheel shows the speed and the right indicator arrow lit](images/map-guide/21-cockpit.png)
+The driver sits in the Kiri '86's cabin, with an interior mirror and two door mirrors on the
+car's own glass. The instrument cluster in the binnacle behind the wheel shows the speed and the
+revolutions, fuel and coolant gauges, the indicator arrows, the handbrake, headlights, and reverse
+tell-tales, and the engine, oil, battery, ABS, stability, and low fuel lights.
+
+![The driver's view in sample_town at 28 km/h: the textured cabin, the interior and door mirrors, and the instrument cluster behind the steering wheel](images/map-guide/21-cockpit.png)
+
+![The instrument cluster close up: the fuel gauge, the speed at 28 km/h, the rev counter, the coolant gauge, and the warning lights along its bottom](images/map-guide/21b-cluster.png)
+
+V switches to a view from behind the car, which the mouse or the right stick orbits round the car
+and the mouse wheel brings closer or farther; C puts it back behind the car.
 
 ![The view from behind the car, switched with V](images/map-guide/22-chase.png)
 
@@ -343,7 +454,7 @@ With **Dev HUD when playing** on, the game shows the Dev HUD:
 
 A check box on its panel draws the trigger zones and lanes in 3D.
 
-![The cockpit with the Dev HUD: the session at the top left, and at the top right the frame times, the car's speed, position, lane, the road users near it, the lights, the time scale, and the spawn; the lanes are drawn in 3D as yellow lines](images/map-guide/20-play-dev-hud.png)
+![The cabin with the Dev HUD: the session at the top left, and at the top right the frame times, the car's speed, position, lane, the road users near it, the lights, the time scale, and the spawn; the lanes are drawn in 3D as yellow lines, and the right indicator is lit on the cluster](images/map-guide/20-play-dev-hud.png)
 
 ![The free camera, F4, flying over the paused drive](images/map-guide/23-free-camera.png)
 
@@ -402,14 +513,17 @@ is not.
 - Props and scenery are no longer in the palette; existing ones still work with **Next look** and
   **Drive to checkpoint**.
 - Creating, renaming, duplicating, and deleting maps cannot be undone.
-- The VR controllers are not yet bound to driving; the sandbox is driven with a keyboard or a
-  gamepad.
+- VR controllers without face buttons (Vive wands, Windows Mixed Reality) have no layout, and
+  a steering wheel the platform does not present as a gamepad needs its axes set by hand in
+  `user://controls.cfg`; a wheel's force feedback is not driven.
 
 ## Example maps
 
 `maps/sample_town/` is built with the Map Kit alone: a main road crossed by two side roads that
 give way, oncoming traffic, signs, parked cars, buildings, and trees, so it shows the kit's
-roads, junctions, and generated lanes together.
+roads, junctions, and generated lanes together. `maps/hill_road/` is the same town on a
+`Terrain`: a plateau the main road climbs onto at about 12%, two hills and a valley, with every
+road draped on the land.
 
 The other maps were drawn by hand, lane by lane, before the kit:
 

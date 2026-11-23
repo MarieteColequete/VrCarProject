@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="CarSpec" format=3]
+
+[ext_resource type="Script" path="res://scenarios/vehicle/car_spec.gd" id="spec"]
+
+[resource]
+script = ExtResource("spec")
+title = "Saloon"
+mass = 1500.0
+yaw_inertia = 2500.0
+wheelbase = 2.8
+track = 1.58
+cog_height = 0.53
+front_share = 0.58
+wheel_radius = 0.32
+drive = 1
+diff_lock = 0.0
+torque_curve = PackedFloat64Array(150, 220, 270, 280, 280, 275, 260, 230, 180)
+redline_rpm = 6300.0
+gear_ratios = PackedFloat64Array(3.9, 2.3, 1.5, 1.14, 0.95, 0.79)
+final_drive = 3.6
+up_full = 5800.0
+brake_torque = 5000.0
+grip = 0.92
+drag_area = 0.65
+downforce_area = 0.0

@@ -28,7 +28,3 @@ static func step(p: Dictionary, s: Dictionary, f: RuleFrame, live: bool) -> Rule
 			n.satisfied = true
 		n.stop = next
 	return r
-
-
-static func finish(_p: Dictionary, s: Dictionary, _f: RuleFrame, _live: bool) -> RuleResult:
-	return RuleResult.new(s)

@@ -4,7 +4,7 @@ extends RefCounted
 ## [WorldRunner]. The [ExamRunner] uses it with the exam; tests use it without, on a world they
 ## build by hand.
 ##
-## Stages: 1 the car's motion; 2 zones and contacts; 3 lights and traffic sources; 4 the rules and
+## Stages: 1 the car's motion; 2 zones, contacts and crashes ([Impacts]); 3 lights and traffic sources; 4 the rules and
 ## the session. Road users think across ticks on worker threads, through the returned pipeline.
 
 
@@ -14,6 +14,7 @@ static func add_systems(runner: WorldRunner, exam := true) -> TrafficPipeline:
 	runner.add_system(VehicleLogic.run, 1)
 	runner.add_system(Detection.zones, 2)
 	runner.add_system(Detection.contacts, 2)
+	runner.add_system(Impacts.run, 2)
 	runner.add_system(LightLogic.run, 3)
 	runner.add_system(SourceLogic.run, 3)
 	if exam:
@@ -46,6 +47,5 @@ static func add_path(world: World, points: PackedVector3Array, settings := {}) -
 ## returns its entity.
 static func add_agent(world: World, lane: LaneData, settings := {}) -> int:
 	var id := world.create()
-	world.store(Schema.AGENT).add(id, AgentTable.spawn_values(settings, lane,
-		world.resources[Schema.LANES]))
+	world.store(Schema.AGENT).add(id, AgentTable.spawn_values(settings, lane))
 	return id

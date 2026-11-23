@@ -5,7 +5,7 @@ extends TestCase
 ## eyes off the road. The driver tilting the mirrors: the tilted plane, the mirror switch
 ## ([MirrorAdjust]), and the tilts kept between sessions; the housing out of the mirror's picture.
 
-const CAR := preload("res://scenarios/scenes/debug_car.tscn")
+const CAR := preload("res://scenarios/scenes/player_car.tscn")
 const SETTINGS := "user://car_mirror_test.cfg"
 
 
@@ -91,25 +91,22 @@ func _test_switch() -> void:
 		order.append(a.cycle(3))
 	expect(order == [0, 1, 2, -1], "the switch picks the interior, left, right, then none: %s" % [order])
 	a.cycle(3)
-	var t := a.step(0.5, Vector2(1.0, -1.0), 0.0)
+	var t := a.step(0.5, Vector2(1.0, -1.0))
 	expect(t.x > 0.0 and t.y > 0.0, "the look controls right and up tilt it right and up: %s" % t)
 	var idle := 0.0
 	while a.active() and idle < 10.0:
-		a.step(0.1, Vector2.ZERO, 0.0)
+		a.step(0.1, Vector2.ZERO)
 		idle += 0.1
 	expect(not a.active() and absf(idle - MirrorAdjust.IDLE) < 0.15,
 		"left untouched, the switch lets go after %.1f s" % idle)
 	a.cycle(3)
-	a.step(0.1, Vector2.ZERO, 0.0, true)
-	expect(a.active(), "the mouse keeps it")
-	a.step(0.1, Vector2(1.0, 0.0), 3.0)
-	expect(not a.active(), "and it lets go once the car moves")
+	for i in 50:
+		a.step(0.1, Vector2(0.2, 0.0))
+	expect(a.active(), "tilted now and then, it keeps the mirror picked, the car standing or driving")
 
 
 func _test_on_car() -> void:
-	var car: Node3D = CAR.instantiate()
-	car.settings_path = "user://none_such.cfg"
-	root.add_child(car)
+	var car: Node3D = spawn_car({settings_path = "user://none_such.cfg"})
 	await physics_frame
 	var mirrors: Array = car.mirrors
 	var probe: VehicleProbe = car.probe
@@ -176,9 +173,7 @@ func _sight(mirror: CarMirror) -> Vector3:
 ## the look controls, the tilt turns its view, and the tilts come back in the next session.
 func _test_tilt_on_car() -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SETTINGS))
-	var car: Node3D = CAR.instantiate()
-	car.settings_path = SETTINGS
-	root.add_child(car)
+	var car: Node3D = spawn_car({settings_path = SETTINGS})
 	await physics_frame
 	var left: CarMirror = car.mirrors[1]
 	var before := _sight(left)
@@ -198,9 +193,7 @@ func _test_tilt_on_car() -> void:
 	var tilt := left.tilt
 	car.queue_free()
 	await process_frame
-	var again: Node3D = CAR.instantiate()
-	again.settings_path = SETTINGS
-	root.add_child(again)
+	var again: Node3D = spawn_car({settings_path = SETTINGS})
 	await physics_frame
 	expect(again.mirrors[1].tilt.is_equal_approx(tilt) and again.mirrors[0].tilt == Vector2.ZERO,
 		"the next session's mirrors are where the driver left them: %s" % again.mirrors[1].tilt)
@@ -211,8 +204,7 @@ func _test_tilt_on_car() -> void:
 func _test_off() -> void:
 	var before: Variant = ProjectSettings.get_setting(CAR.instantiate().MIRRORS_SETTING, null)
 	ProjectSettings.set_setting("car/mirrors", "off")
-	var car: Node3D = CAR.instantiate()
-	root.add_child(car)
+	var car: Node3D = spawn_car()
 	await physics_frame
 	expect(car.mirrors.is_empty() and car.probe.mirrors.size() == 3,
 		"with the mirrors off, none are drawn, and the checks still know where they are")

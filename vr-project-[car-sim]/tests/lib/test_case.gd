@@ -6,6 +6,7 @@ extends RefCounted
 ## failures for the runner.
 
 const RUNNER := preload("res://scenarios/scenes/exam_runner.tscn")
+const PLAYER_CAR := preload("res://scenarios/scenes/player_car.tscn")
 const STOP_JUNCTION := preload("res://scenarios/scenes/stop_junction/stop_junction.tscn")
 const FAULTS := "res://scenarios/data/faults/%s.tres"
 ## The centre of the right-hand lane; scenarios are built with the car driving towards -Z in it.
@@ -63,9 +64,59 @@ func at(z: float, x := LANE_X) -> Vector3:
 	return Vector3(x, 0.0, z)
 
 
+## A flat road under [member root] for a car driven without a map, its top at y = 0, of the
+## asphalt's [BodyType], or [param type]'s. The caller frees it.
+func ground(size := 400.0, type := &"asphalt") -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = "TestGround"
+	BodyType.of(type).apply(body)
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(size, 0.2, size)
+	shape.shape = box
+	shape.position.y = -0.1
+	body.add_child(shape)
+	root.add_child(body)
+	return body
+
+
 func frames(n: int) -> void:
 	for i in n:
 		await physics_frame
+
+
+## The player's car, with [param settings] (property to value) set before it enters the tree,
+## added under [member root]. The caller frees it.
+func spawn_car(settings := {}) -> Node3D:
+	var car: Node3D = PLAYER_CAR.instantiate()
+	for key: StringName in settings:
+		car.set(key, settings[key])
+	root.add_child(car)
+	return car
+
+
+## Whether input action [param action] has a binding of the class [param type].
+static func has_event(action: StringName, type: String) -> bool:
+	for event in InputMap.action_get_events(action):
+		if event.is_class(type):
+			return true
+	return false
+
+
+## The Asset Library's entry for the model [param model_name]; null when there is none.
+static func catalogue_entry(model_name: String) -> AssetCatalogue.Entry:
+	for entry in AssetCatalogue.scan():
+		if entry.model_name == model_name:
+			return entry
+	return null
+
+
+## A straight curve [param length] metres long along -Z, centred on the origin.
+static func straight(length: float) -> Curve3D:
+	var curve := Curve3D.new()
+	curve.add_point(Vector3(0, 0, length / 2.0))
+	curve.add_point(Vector3(0, 0, -length / 2.0))
+	return curve
 
 
 ## Drives a scenario's car along [param legs] and returns the result.

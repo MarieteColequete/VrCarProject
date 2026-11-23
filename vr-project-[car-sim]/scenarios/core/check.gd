@@ -17,8 +17,8 @@ extends Node3D
 @export var active_steps: Array[ScenarioStep] = []
 
 
-## The script holding the rule's static [code]initial[/code], [code]step[/code], and
-## [code]finish[/code] functions.
+## The script holding the rule's static [code]initial[/code] and [code]step[/code] functions, and
+## a [code]finish[/code] when the rule has something to close at the end of the attempt.
 @abstract func rule_script() -> Script
 
 

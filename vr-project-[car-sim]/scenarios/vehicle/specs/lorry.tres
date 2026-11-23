@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="CarSpec" format=3]
+
+[ext_resource type="Script" path="res://scenarios/vehicle/car_spec.gd" id="spec"]
+
+[resource]
+script = ExtResource("spec")
+title = "Lorry"
+mass = 9000.0
+yaw_inertia = 42000.0
+wheelbase = 4.6
+track = 2.0
+cog_height = 1.3
+front_share = 0.42
+wheel_radius = 0.48
+drive = 0
+diff_lock = 0.0
+torque_curve = PackedFloat64Array(500, 900, 1300, 1250, 1100, 800, 500, 300, 200)
+idle_rpm = 650.0
+crank_time = 1.5
+stall_rpm = 400.0
+redline_rpm = 3000.0
+launch_rpm = 1500.0
+gear_ratios = PackedFloat64Array(7.2, 4.6, 3.0, 2.0, 1.4, 1.0)
+final_drive = 4.2
+up_gentle = 1400.0
+up_full = 2500.0
+down_rpm = 900.0
+brake_torque = 38000.0
+grip = 0.8
+drag_area = 5.0
+downforce_area = 0.0

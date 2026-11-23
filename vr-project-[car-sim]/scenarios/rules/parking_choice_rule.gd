@@ -32,10 +32,6 @@ static func step(p: Dictionary, s: Dictionary, f: RuleFrame, live: bool) -> Rule
 	return r
 
 
-static func finish(_p: Dictionary, s: Dictionary, _f: RuleFrame, _live: bool) -> RuleResult:
-	return RuleResult.new(s)
-
-
 static func _in_no_parking(p: Dictionary, f: RuleFrame) -> bool:
 	for zone in f.zones_of(&"no_parking"):
 		if f.inside(zone):

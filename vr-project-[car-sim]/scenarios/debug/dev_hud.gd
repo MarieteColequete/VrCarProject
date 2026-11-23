@@ -25,8 +25,6 @@ const LIGHT_NAMES := ["red", "red-amber", "green", "amber"]
 const ZONE_COLOUR := Color(1.0, 0.4, 0.8)
 const LANE_COLOUR := Color(1.0, 0.85, 0.2)
 const PATH_COLOUR := Color(0.6, 0.8, 1.0)
-const KEYS: Array[StringName] = [&"dev_toggle_hud", &"dev_free_camera", &"dev_slower",
-	&"dev_faster", &"dev_pause", &"dev_step", &"dev_next_spawn"]
 
 @export var runner: ExamRunner
 

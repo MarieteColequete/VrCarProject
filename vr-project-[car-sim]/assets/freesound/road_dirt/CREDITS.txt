@@ -1,0 +1,9 @@
+auto truck int driving on dirt road +small rocks hitting bottom of car.flac
+by kyles, from Freesound, https://freesound.org/people/kyles/sounds/637192/
+
+Licensed under Creative Commons CC0 1.0 Universal (public domain):
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Changes: source/ holds Freesound's high-quality OGG preview of the recording, as downloaded.
+road_dirt.wav is 5 to 25 s of it in mono, made a seamless loop and brought to -14 dB RMS by
+tools/car_recordings.gd.

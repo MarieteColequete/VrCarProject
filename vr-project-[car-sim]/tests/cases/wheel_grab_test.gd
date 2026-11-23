@@ -2,7 +2,6 @@ extends TestCase
 ## Steering with the hands on the wheel ([WheelGrab]): taking hold near the rim only, turning with
 ## one hand and with two, letting go and the wheel centring, and the car's wheel frame.
 
-const CAR := preload("res://scenarios/scenes/debug_car.tscn")
 const RADIUS := 0.18
 const STEP := 1.0 / 60.0
 
@@ -49,9 +48,11 @@ func _test_grab() -> void:
 	w.step(STEP, frame, RADIUS, [_rim(135.0), _rim(-110.0)], [true, true], 0.0)
 	expect(absf(rad_to_deg(w.angle) - 35.0) < 0.5,
 		"with both hands, the wheel turns by their average: %.1f°" % rad_to_deg(w.angle))
-	for i in 600:
-		w.step(STEP, frame, RADIUS, [_rim(0.0), _rim(0.0)], [true, true], 0.0)
-		w.step(STEP, frame, RADIUS, [_rim(170.0), _rim(170.0)], [true, true], 0.0)
+	# Turned on round and round, several turns past the lock, a little at a time.
+	var at := 135.0
+	for i in 300:
+		at += 10.0
+		w.step(STEP, frame, RADIUS, [_rim(at), _rim(at)], [true, true], 0.0)
 	expect(is_equal_approx(w.angle, w.lock), "the wheel stops at its lock")
 	for i in 120:
 		w.step(STEP, frame, RADIUS, [far, far], [false, false], 0.0)
@@ -62,8 +63,7 @@ func _test_grab() -> void:
 
 
 func _test_car() -> void:
-	var car: Node3D = CAR.instantiate()
-	root.add_child(car)
+	var car: Node3D = spawn_car()
 	await physics_frame
 	var model: PlayerCarModel = car.model
 	var frame := car.global_transform * model.steering_frame()

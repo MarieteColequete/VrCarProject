@@ -18,7 +18,3 @@ static func step(p: Dictionary, s: Dictionary, f: RuleFrame, live: bool) -> Rule
 		if (watched.is_empty() or watched.has(event.entity)) and event.data.cause == f.car.entity:
 			r.report_here(p.fault, f, event.entity)
 	return r
-
-
-static func finish(_p: Dictionary, s: Dictionary, _f: RuleFrame, _live: bool) -> RuleResult:
-	return RuleResult.new(s)

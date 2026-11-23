@@ -32,7 +32,7 @@ static func run(world: World, dt: float) -> Delta:
 		var colours: Array = src.colours
 		if not colours.is_empty():
 			config.colour = colours[src.spawned % colours.size()]
-		d.spawn({agent = AgentTable.spawn_values(config, lane, lanes)})
+		d.spawn({agent = AgentTable.spawn_values(config, lane)})
 		d.write_all(Schema.SOURCE, id, {spawned = src.spawned + 1,
 			next_at = clock + rng.randf_range(src.min_headway, src.max_headway),
 			rng_state = rng.state})

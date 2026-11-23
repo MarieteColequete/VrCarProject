@@ -89,6 +89,15 @@ func _start(loaded: Scenario) -> void:
 	assert(start != null, "The scenario needs a spawn point or a map with a MapSpawn")
 	var car_scene := car_scene_override if car_scene_override else scenario.definition.car_scene
 	car = car_scene.instantiate() as Node3D
+	# An exam attempt drives with the exam's aids; free drive with the player's setting.
+	if &"assist_preset" in car and scenario.definition != Scenario.FREE_DRIVE:
+		car.set(&"assist_preset", "exam")
+	if &"start" in car and scenario.definition.car_start:
+		car.set(&"start", scenario.definition.car_start)
+	if &"key_live" in car:
+		# The key that begins the attempt is not the car's until it is let go.
+		car.set(&"key_live", false)
+		session.started.connect(car.set.bind(&"key_live", true), CONNECT_ONE_SHOT)
 	car.transform = global_transform.affine_inverse() * start.global_transform
 	add_child(car)
 	car.reset_physics_interpolation()
@@ -121,7 +130,13 @@ func _wire(probe: VehicleProbe, bake: Bake) -> void:
 	for row in w.store(Schema.SOURCE).size():
 		capacity += w.store(Schema.SOURCE).column(&"count")[row]
 	_traffic_view = TrafficView.new(scenario, capacity)
+	if car is CollisionObject3D:
+		_traffic_view.ignore = (car as CollisionObject3D).get_rid()
 	world_runner.add_view(_traffic_view.draw)
+	# The knocks road users give the car ([Impacts]).
+	world_runner.add_view(func(world: World) -> void:
+		if is_instance_valid(car) and car.has_method(&"knock"):
+			car.call(&"knock", world.store(Schema.VEHICLE).get_value(vehicle, &"impulse")))
 	var authored := bake.nodes
 	world_runner.add_view(func(world: World) -> void: SceneViews.draw_lights(world, authored))
 	SceneViews.place_parked_cars(w, authored)
@@ -130,9 +145,10 @@ func _wire(probe: VehicleProbe, bake: Bake) -> void:
 
 
 ## Adds a road user authored after the scenario loaded, such as by a test or a director: bakes it
-## into the world, frees the node, and returns its entity.
+## into the world through the runner, frees the node, and returns its entity.
 func add_road_user(agent: ScriptedAgent) -> int:
-	var id := _bake.add_agent(agent)
+	world_runner.apply_now(_bake.agent_delta(agent))
+	var id := _bake.id_of(agent)
 	if agent.is_inside_tree():
 		agent.queue_free()
 	else:
@@ -143,7 +159,7 @@ func add_road_user(agent: ScriptedAgent) -> int:
 ## Adds the box shapes of a static body placed after the scenario loaded, such as a van parked
 ## during the attempt, as obstacles road users see and the car touches.
 func add_obstacle(body: StaticBody3D) -> void:
-	_bake.add_obstacles([body])
+	world_runner.apply_now(Bake.obstacles([body]))
 
 
 func _start_session(runner: WorldRunner) -> void:

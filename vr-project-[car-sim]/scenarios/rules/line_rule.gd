@@ -46,10 +46,6 @@ static func step(p: Dictionary, s: Dictionary, f: RuleFrame, live: bool) -> Rule
 	return r
 
 
-static func finish(_p: Dictionary, s: Dictionary, _f: RuleFrame, _live: bool) -> RuleResult:
-	return RuleResult.new(s)
-
-
 ## The kerb lines a tyre touches, [code][marking, wheel][/code]: its centre, front, or back
 ## ([param along] from the centre) within its half width and [param reach] of one. The front
 ## counts for a tyre driven straight at a kerb, which meets it head on.

@@ -45,11 +45,11 @@ func _test_packs() -> void:
 			labels[entry.pack.short_title()] = entry.label
 	expect(labels == {Commercial = "Building a · Commercial", Industrial = "Building a · Industrial"},
 		"a model name two packs use is labelled with its pack: %s" % [labels])
-	var house := _entry("building-type-a")
+	var house := catalogue_entry("building-type-a")
 	expect(house.label == "Building type a", "a name only one pack uses keeps its plain label")
-	var shop := _entry("building-skyscraper-a")
-	var awning := _entry("detail-awning")
-	var container := _entry("shipping-container-a")
+	var shop := catalogue_entry("building-skyscraper-a")
+	var awning := catalogue_entry("detail-awning")
+	var container := catalogue_entry("shipping-container-a")
 	expect(shop.category == "Skyscrapers" and shop.body() == BodyType.of(&"obstacle")
 		and awning.body() == null and container.category == "Shipping containers",
 		"the commercial and industrial models have their categories and body types")
@@ -57,9 +57,9 @@ func _test_packs() -> void:
 	expect(size.x > 2.3 and size.x < 2.8 and size.z > 5.5 and size.z < 6.2,
 		"a shipping container is about the size of a real 20 foot one: %s" % size)
 
-	var tram := _entry("train-tram-modern")
-	var rail := _entry("railroad-straight")
-	var wagon := KitModels.size_of(_entry("train-carriage-box").path)
+	var tram := catalogue_entry("train-tram-modern")
+	var rail := catalogue_entry("railroad-straight")
+	var wagon := KitModels.size_of(catalogue_entry("train-carriage-box").path)
 	expect(tram.category == "Trams" and tram.body() == BodyType.of(&"vehicle") and rail.body() == null
 		and wagon.x > 2.8 and wagon.x < 3.2,
 		"trains are vehicles about 3 m wide, and the railway track is looks only")
@@ -81,26 +81,19 @@ func _test_plain_folder() -> void:
 	expect(size.x > 0.6 and size.x < 0.8, "its models keep their own size")
 
 
-func _entry(model_name: String) -> AssetCatalogue.Entry:
-	for entry in AssetCatalogue.scan():
-		if entry.model_name == model_name:
-			return entry
-	return null
-
-
 func _test_map_asset() -> void:
-	var car := AssetCatalogue.make(_entry("taxi"))
+	var car := AssetCatalogue.make(catalogue_entry("taxi"))
 	root.add_child(car)
 	expect(car.bodies().size() == 1 and car.size().is_equal_approx(Vector3(1.8, 1.5, 4.3)),
 		"a car from the pane is solid and fitted to a car's size")
 	car.free()
-	var tree := AssetCatalogue.make(_entry("tree-large"))
+	var tree := AssetCatalogue.make(catalogue_entry("tree-large"))
 	root.add_child(tree)
 	var box: Vector3 = (tree.bodies()[0].get_child(0) as CollisionShape3D).shape.size
 	expect(is_equal_approx(box.y, tree.size().y) and box.x < tree.size().x,
 		"a tree is solid at its trunk only")
 	tree.free()
-	var path := AssetCatalogue.make(_entry("path-long"))
+	var path := AssetCatalogue.make(catalogue_entry("path-long"))
 	root.add_child(path)
 	expect(path.bodies().is_empty() and path.get_child_count(true) == 1,
 		"a path is looks only")
@@ -114,14 +107,14 @@ func _test_map_asset() -> void:
 
 
 func _test_next_look() -> void:
-	var house := AssetCatalogue.make(_entry("building-type-a"))
+	var house := AssetCatalogue.make(catalogue_entry("building-type-a"))
 	root.add_child(house)
-	MapKitTools.next_look([house]).apply(house)
+	AssetTools.next_look([house]).apply(house)
 	expect(house.model.ends_with("building-type-b.glb"),
 		"next look steps to the category's next model")
-	var last := AssetCatalogue.make(_entry("building-type-u"))
+	var last := AssetCatalogue.make(catalogue_entry("building-type-u"))
 	root.add_child(last)
-	MapKitTools.next_look([last]).apply(last)
+	AssetTools.next_look([last]).apply(last)
 	expect(last.model.ends_with("building-type-a.glb"), "and wraps round")
 	house.free()
 	last.free()
@@ -131,9 +124,9 @@ func _test_bake() -> void:
 	var road_map := RoadMap.new()
 	road_map.name = "Assets"
 	var spawn := MapSpawn.new()
-	var van := AssetCatalogue.make(_entry("van"))
+	var van := AssetCatalogue.make(catalogue_entry("van"))
 	van.position = Vector3(5, 0, -10)
-	var path := AssetCatalogue.make(_entry("path-short"))
+	var path := AssetCatalogue.make(catalogue_entry("path-short"))
 	for node: Node in [spawn, van, path]:
 		road_map.add_child(node)
 		node.owner = road_map

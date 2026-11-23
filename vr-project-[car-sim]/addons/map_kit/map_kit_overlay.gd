@@ -39,7 +39,7 @@ static func marks(road_map: RoadMap) -> Dictionary:
 			var length := lane.length()
 			if length <= 0.0:
 				continue
-			var into := MapKitTools.to_map(lane, road_map)
+			var into := RoadMap.to_map(lane, road_map)
 			var at := minf(ARROW_SPACING / 2.0, length / 2.0)
 			while at < length:
 				var point := into * lane.curve.sample_baked(at)
@@ -52,21 +52,21 @@ static func marks(road_map: RoadMap) -> Dictionary:
 			var spawn := node as MapSpawn
 			var text := "%d %s" % [spawn_number, spawn.label if not spawn.label.is_empty()
 				else String(spawn.name)]
-			out.labels.append([MapKitTools.to_map(spawn, road_map).origin, text, SPAWN])
+			out.labels.append([RoadMap.to_map(spawn, road_map).origin, text, SPAWN])
 		elif node is ScriptedAgent and (node as ScriptedAgent).destination:
 			var agent := node as ScriptedAgent
-			var from := MapKitTools.to_map(agent, road_map).origin
-			var to := MapKitTools.to_map(agent.destination, road_map).origin
+			var from := RoadMap.to_map(agent, road_map).origin
+			var to := RoadMap.to_map(agent.destination, road_map).origin
 			out.routes.append([from, to])
 			out.labels.append([from, "to %s" % agent.destination.name, ROUTE])
 		elif node is Checkpoint:
 			var checkpoint := node as Checkpoint
-			out.labels.append([MapKitTools.to_map(checkpoint, road_map).origin,
+			out.labels.append([RoadMap.to_map(checkpoint, road_map).origin,
 				checkpoint.label if not checkpoint.label.is_empty() else String(checkpoint.name),
 				ROUTE])
 		elif node is TriggerZone:
-			out.labels.append([MapKitTools.to_map(node, road_map).origin, String(node.name), ZONE])
-	for end in MapKitTools.road_ends(road_map):
+			out.labels.append([RoadMap.to_map(node, road_map).origin, String(node.name), ZONE])
+	for end in RoadNetwork.road_ends(road_map):
 		out.open.append(end.transform.origin)
 	return out
 
@@ -112,7 +112,7 @@ func draw(control: Control, camera: Camera3D, road_map: RoadMap, problems: Array
 func _badge(control: Control, font: Font, size: int, road_map: RoadMap,
 		problems: Array[Dictionary]) -> void:
 	var warnings := problems.filter(func(p: Dictionary) -> bool:
-		return p.severity == MapKitTools.WARNING).size()
+		return p.severity == MapProblems.WARNING).size()
 	var title := road_map.title if not road_map.title.is_empty() else String(road_map.name)
 	var count := "no problems" if problems.is_empty() \
 		else "%d warnings, %d notices" % [warnings, problems.size() - warnings]
