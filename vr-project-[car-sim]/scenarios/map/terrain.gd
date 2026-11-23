@@ -65,8 +65,9 @@ var _rebuild_queued := false
 ## space).
 var _whole_dirty := false
 var _dirty := Rect2()
-## The ground each shape reached at the last build, by its instance id, in the terrain's space.
-var _shape_areas := {}
+## The ground each piece that shapes the land (a shape, a road, a junction) reached at the last
+## build, by its instance id, in the terrain's space.
+var _areas := {}
 var _collider_wait := 0
 ## How many chunks the last build drew, for tests.
 var chunks_drawn := 0
@@ -127,39 +128,71 @@ static func notify_changed(node: Node) -> void:
 		var terrain := of(map_of(node))
 		if terrain == null:
 			return
-		if node is TerrainShape:
-			terrain._shape_changed(node)
+		if _shapes_land(node):
+			terrain._piece_changed(node)
 		else:
 			terrain.queue_rebuild(), CONNECT_ONE_SHOT)
 
 
-## Tells the terrain a shape [param shape] is leaving the tree: the ground it reached is built
-## again without it. Only in the editor, and only for shapes the scene saves.
-static func notify_leaving(shape: TerrainShape) -> void:
-	if not Engine.is_editor_hint() or shape.owner == null or not shape.is_inside_tree():
+## Tells the terrain a piece [param node] that shapes the land (a [TerrainShape], [RoadSegment] or
+## [RoadJunction]) is leaving the tree: the ground it reached is built again without it. Only in
+## the editor, and only for pieces the scene saves.
+static func notify_leaving(node: Node3D) -> void:
+	if not Engine.is_editor_hint() or node.owner == null or not node.is_inside_tree():
 		return
-	var terrain := of(map_of(shape))
-	if terrain == null or terrain == shape:
+	var terrain := of(map_of(node))
+	if terrain == null or terrain == node:
 		return
-	var id := shape.get_instance_id()
-	if terrain._shape_areas.has(id):
-		terrain.queue_rebuild_area(terrain._shape_areas[id])
-		terrain._shape_areas.erase(id)
+	var id := node.get_instance_id()
+	if terrain._areas.has(id):
+		terrain.queue_rebuild_area(terrain._areas[id])
+		terrain._areas.erase(id)
 	else:
 		terrain.queue_rebuild()
 
 
+## Whether [param node] shapes the land: a shape, a road, or a junction.
+static func _shapes_land(node: Node) -> bool:
+	return node is TerrainShape or node is RoadSegment or node is RoadJunction
+
+
 ## The ground [param shape] reaches now, in the terrain's space.
 func shape_area(shape: TerrainShape) -> Rect2:
+	return piece_area(shape)
+
+
+## The ground [param node] (a shape, a road, or a junction) reaches now, its blend into the land
+## included, in the terrain's space.
+func piece_area(node: Node3D) -> Rect2:
 	var map := map_of(self)
-	return shape.area(to_space(self, map).affine_inverse() * to_space(shape, map))
+	var placed := to_space(self, map).affine_inverse() * to_space(node, map)
+	if node is TerrainShape:
+		return (node as TerrainShape).area(placed)
+	if node is RoadSegment:
+		var road := node as RoadSegment
+		var reach := road.width() / 2.0 + (road.pavement if road.kerbs else 0.0) + SHOULDER \
+			+ road_blend
+		var out := Rect2()
+		var first := true
+		for frame: Array in road.frames():
+			var at := placed * (frame[0] as Vector3)
+			var flat := Vector2(at.x, at.z)
+			out = Rect2(flat, Vector2.ZERO) if first else out.expand(flat)
+			first = false
+		return out.grow(reach)
+	if node is RoadJunction:
+		var junction := node as RoadJunction
+		var far := junction.road_width / 2.0 + junction.arm_length + RoadKit.PAVEMENT \
+			+ SHOULDER + road_blend
+		return Rect2(Vector2(placed.origin.x, placed.origin.z), Vector2.ZERO).grow(far * sqrt(2.0))
+	return Rect2()
 
 
-func _shape_changed(shape: TerrainShape) -> void:
-	var now := shape_area(shape)
-	var id := shape.get_instance_id()
-	var reached: Variant = _shape_areas.get(id)
-	_shape_areas[id] = now
+func _piece_changed(node: Node3D) -> void:
+	var now := piece_area(node)
+	var id := node.get_instance_id()
+	var reached: Variant = _areas.get(id)
+	_areas[id] = now
 	queue_rebuild_area(now.merge(reached) if reached != null else now)
 
 
@@ -425,12 +458,12 @@ func rebuild() -> void:
 	if not is_inside_tree():
 		return
 	_field = build_field()
-	_shape_areas.clear()
+	_areas.clear()
 	var found: Array[Node] = []
 	Scenario.collect(map_of(self), found)
 	for node in found:
-		if node is TerrainShape:
-			_shape_areas[node.get_instance_id()] = shape_area(node)
+		if _shapes_land(node):
+			_areas[node.get_instance_id()] = piece_area(node)
 	for chunk in _chunks:
 		if is_instance_valid(chunk):
 			remove_child(chunk)

@@ -432,7 +432,7 @@ func _show(delta: float) -> void:
 	var right := probe.indicator == VehicleProbe.Indicator.RIGHT and lit
 	var headlights := probe.headlights == VehicleProbe.Toggle.ON
 	if model:
-		model.drive(delta, dynamics.spin, _steer, left, right, signals.brake_light,
+		model.drive(delta, dynamics.spin, steering, left, right, signals.brake_light,
 			signals.reverse_light, headlights)
 		model.lean(delta, _accel.x, _accel.y)
 	if sound:

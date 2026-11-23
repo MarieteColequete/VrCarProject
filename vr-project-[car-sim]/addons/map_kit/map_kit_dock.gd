@@ -200,7 +200,8 @@ func _problem_row(problem: Dictionary) -> Control:
 	row.add_child(text)
 	if problem.fix != null:
 		var action := "%s for %s" % [problem.fix_label, node.name]
-		row.add_child(_button(problem.fix_label, func() -> void: plugin.apply(problem.fix, action),
+		row.add_child(_button(problem.fix_label, func() -> void:
+			plugin.apply((problem.fix as Callable).call(), action),
 			"Fix it: %s." % problem.fix_label.to_lower()))
 	return row
 
@@ -679,7 +680,7 @@ func _fix_everything() -> void:
 	var count := 0
 	for problem: Dictionary in plugin.problems:
 		if problem.fix != null:
-			edit.merge(problem.fix)
+			edit.merge((problem.fix as Callable).call())
 			count += 1
 	if plugin.apply(edit, "Fix %d map problems" % count):
 		_say("Applied %d fixes." % count)

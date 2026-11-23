@@ -31,6 +31,8 @@ var _group_of := {}
 # Pedestrian entity to its model.
 var _walkers := {}
 var _bodies := {}
+## The agent store's removals when the view last let go of the road users gone.
+var _removals := -1
 
 
 ## A view under [param parent], with room for [param capacity] road users per model to start with.
@@ -59,7 +61,8 @@ func draw(world: World) -> void:
 	var store := world.store(Schema.AGENT)
 	if store == null:
 		return
-	if _group_of.size() + _walkers.size() > store.size():
+	if store.removals != _removals:
+		_removals = store.removals
 		_release(store)
 	if store.size() == 0:
 		return

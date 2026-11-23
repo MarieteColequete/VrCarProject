@@ -14,10 +14,6 @@ const TEXTURES := FOLDER + "textures/"
 ## The cabin's materials, CC0 sets from ambientCG, as downloaded but for the carpet's colour,
 ## made grey by tools/cabin_textures.gd.
 const CABIN_FOLDER := "res://assets/ambientcg/"
-## How far the front wheels turn at full steering, radians.
-const WHEEL_LOCK := deg_to_rad(32.0)
-## How far the steering wheel turns at full steering, radians.
-const STEERING_LOCK := deg_to_rad(150.0)
 const BLINKER := Color(1.0, 0.55, 0.05)
 const BRAKE := Color(1.0, 0.05, 0.03)
 const REVERSE := Color(1.0, 1.0, 0.95)
@@ -138,15 +134,16 @@ static func make(wheelbase: float) -> PlayerCarModel:
 
 ## Moves the live parts for a step of [param delta] seconds: each wheel turning at its own
 ## [param spins] (rad/s, forward positive, in [CarDynamics]' order), so a locked wheel stands still
-## and a spinning one spins, the front ones steered by [param steer] (-1 full right to 1 full
-## left), with the lights as given; the blinkers [param left_on] and [param right_on] are lit or
+## and a spinning one spins, each front one at its road angle from [param steering] and the
+## steering wheel at its turn, with the lights as given; the blinkers [param left_on] and [param right_on] are lit or
 ## dark at this moment of their blink.
-func drive(delta: float, spins: PackedFloat64Array, steer: float, left_on: bool, right_on: bool,
-		braking: bool, reversing: bool, headlights: bool) -> void:
-	var lock := clampf(steer, -1.0, 1.0)
+func drive(delta: float, spins: PackedFloat64Array, steering: Steering, left_on: bool,
+		right_on: bool, braking: bool, reversing: bool, headlights: bool) -> void:
 	for wheel in wheels:
 		var rest: Transform3D = wheel.rest
-		var turn := Basis(Vector3.UP, lock * WHEEL_LOCK) if wheel.front else Basis.IDENTITY
+		var turn := Basis.IDENTITY
+		if wheel.front and wheel.index >= 0 and wheel.index < steering.angles.size():
+			turn = Basis(Vector3.UP, steering.angles[wheel.index])
 		var turned: float = wheel.roll
 		if wheel.index >= 0 and wheel.index < spins.size():
 			turned = fmod(turned + spins[wheel.index] * delta, TAU)
@@ -156,7 +153,7 @@ func drive(delta: float, spins: PackedFloat64Array, steer: float, left_on: bool,
 	if steering_wheel:
 		# Steering left turns the wheel anticlockwise as the driver sees it.
 		steering_wheel.transform = _steering_rest \
-			* Transform3D(Basis(steering_axis, lock * STEERING_LOCK), Vector3.ZERO)
+			* Transform3D(Basis(steering_axis, steering.turn * Steering.WHEEL_TURN), Vector3.ZERO)
 	_light(&"blinkers_left", left_on)
 	_light(&"blinkers_right", right_on)
 	_light(&"brake", braking)
@@ -313,7 +310,8 @@ func _build(model: Node3D, wheelbase: float) -> void:
 			_leaning.append({node = part, rest = (part as Node3D).transform})
 	# The body leans about the middle of its wheels, at their axles.
 	_lean_pivot = (front + rear) / 2.0
-	drive(0.0, PackedFloat64Array([0.0, 0.0, 0.0, 0.0]), 0.0, false, false, false, false, false)
+	drive(0.0, PackedFloat64Array([0.0, 0.0, 0.0, 0.0]), Steering.new(), false, false, false, false,
+		false)
 
 
 ## The direction across the flattest extent of [param mesh]'s points: a disc's axis.

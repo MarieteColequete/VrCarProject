@@ -290,7 +290,7 @@ func _test_fixes() -> void:
 		"a missing spawn, a zone without a box, and a bare road have fixes %s" % [labels])
 	for problem in found:
 		if problem.fix != null:
-			problem.fix.apply(road_map)
+			(problem.fix as Callable).call().apply(road_map)
 	var left := MapKitTools.problems(road_map).filter(func(p: Dictionary) -> bool:
 		return p.severity == MapKitTools.WARNING)
 	expect(left.is_empty(), "fixing each problem leaves no warning %s"

@@ -475,9 +475,10 @@ static func link_lanes(map: Node, pending: Edit = null) -> Edit:
 
 ## Every problem of [param map] and its nodes, as
 ## [code]{node, message, severity, fix, fix_label}[/code]: the nodes' configuration warnings and
-## the kit's own checks, the severity [constant WARNING] or [constant NOTICE], and a fix, an
-## [MapKitTools.Edit], where one is known (null otherwise). One entry when [param map] is not a
-## [RoadMap].
+## the kit's own checks, the severity [constant WARNING] or [constant NOTICE], and a fix where
+## one is known (null otherwise): a [Callable] that builds the [MapKitTools.Edit] when it is
+## applied, so a list made and dropped on every check builds no nodes. One entry when [param map]
+## is not a [RoadMap].
 static func problems(map: Node) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if not map is RoadMap:
@@ -492,9 +493,12 @@ static func problems(map: Node) -> Array[Dictionary]:
 		for message: String in node.call(&"_get_configuration_warnings"):
 			var entry := _problem(node, message)
 			if node == map and message.contains("MapSpawn"):
-				_fix(entry, "Add spawn", Edit.new().add(map, _spawn_on_road(road_map)))
+				_fix(entry, "Add spawn", func() -> Edit:
+					return Edit.new().add(map, _spawn_on_road(road_map)))
 			elif node is TriggerZone and (node as TriggerZone).box_data() == null:
-				_fix(entry, "Add box", Edit.new().add(node, _box(Vector3(4, 3, 4))))
+				var zone := node
+				_fix(entry, "Add box", func() -> Edit:
+					return Edit.new().add(zone, _box(Vector3(4, 3, 4))))
 			out.append(entry)
 	for node in all:
 		if node is RoadSegment:
@@ -502,14 +506,14 @@ static func problems(map: Node) -> Array[Dictionary]:
 			if segment.generated(RoadSegment.LANES).is_empty() \
 					and segment.generated(RoadSegment.MARKINGS).is_empty():
 				out.append(_fix(_problem(node, "The road has no lanes or markings yet."),
-					"Generate", regenerate(segment)))
+					"Generate", regenerate.bind(segment)))
 	_lane_problems(road_map, out)
 	_spawn_problems(road_map, out)
 	if Terrain.of(road_map) == null:
 		for node in road_map.nodes():
 			if node is TerrainShape:
 				out.append(_fix(_problem(node, "The map has no terrain for the shape to shape."),
-					"Add terrain", add_terrain(road_map)))
+					"Add terrain", add_terrain.bind(road_map)))
 				break
 	for node in road_map.nodes():
 		if node is ScriptedAgent and (node as ScriptedAgent).destination:
@@ -906,8 +910,8 @@ static func _lane_problems(map: RoadMap, out: Array[Dictionary]) -> void:
 			next.append_array(links[lane])
 			var names := ", ".join(links[lane].map(func(l: TrafficLane) -> String: return l.name))
 			var message := "The lane ends where %s starts but is not linked." % names
-			out.append(_fix(_problem(lane, message), "Connect",
-				Edit.new().set_value(lane, &"next", next)))
+			out.append(_fix(_problem(lane, message), "Connect", func() -> Edit:
+				return Edit.new().set_value(lane, &"next", next)))
 		elif lane.next.is_empty():
 			out.append(_problem(lane, "The lane leads nowhere; road users leave the map there.",
 				NOTICE))
@@ -932,10 +936,10 @@ static func _problem(node: Node, message: String, severity := WARNING) -> Dictio
 	return {node = node, message = message, severity = severity, fix = null, fix_label = ""}
 
 
-static func _fix(entry: Dictionary, label: String, edit: Edit) -> Dictionary:
-	if not edit.is_empty():
-		entry.fix = edit
-		entry.fix_label = label
+## Gives [param entry] its fix: [param make] builds the [MapKitTools.Edit] when it is applied.
+static func _fix(entry: Dictionary, label: String, make: Callable) -> Dictionary:
+	entry.fix = make
+	entry.fix_label = label
 	return entry
 
 

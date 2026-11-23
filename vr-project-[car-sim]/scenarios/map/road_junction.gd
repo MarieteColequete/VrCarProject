@@ -60,6 +60,18 @@ func _ready() -> void:
 	_mesh_instance = MeshInstance3D.new()
 	add_child(_mesh_instance, false, INTERNAL_MODE_BACK)
 	rebuild()
+	set_notify_transform(true)
+
+
+## Moved, it tells the terrain, which builds the land again where it was and is; leaving, it tells
+## the terrain to build the land it reached without it.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSFORM_CHANGED:
+		Terrain.notify_changed(self)
+
+
+func _exit_tree() -> void:
+	Terrain.notify_leaving(self)
 
 
 ## The junction's arms.

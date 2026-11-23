@@ -14,7 +14,7 @@ const CENTRING := 4.0
 ## The wheel's turn, radians, anticlockwise as the driver sees it (to the left) positive.
 var angle := 0.0
 ## The most the wheel turns either way, radians.
-var lock := deg_to_rad(150.0)
+var lock := Steering.WHEEL_TURN
 ## Each hand's hold: its angle round the rim last step, or null while it does not hold the wheel.
 var holds: Array = [null, null]
 

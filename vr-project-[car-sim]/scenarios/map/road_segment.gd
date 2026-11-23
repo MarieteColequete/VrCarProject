@@ -68,6 +68,18 @@ func _ready() -> void:
 	if not curve_changed.is_connected(_queue_rebuild):
 		curve_changed.connect(_queue_rebuild)
 	rebuild()
+	set_notify_transform(true)
+
+
+## Moved, it tells the terrain, which builds the land again where it was and is; leaving, it tells
+## the terrain to build the land it reached without it.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSFORM_CHANGED:
+		Terrain.notify_changed(self)
+
+
+func _exit_tree() -> void:
+	Terrain.notify_leaving(self)
 
 
 ## The road's full width, metres.

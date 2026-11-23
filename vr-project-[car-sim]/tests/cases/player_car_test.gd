@@ -141,8 +141,11 @@ func _test_live() -> void:
 		return
 
 	var rolling := PackedFloat64Array([10.0, 10.0, 10.0, 10.0])
-	model.drive(0.5, rolling, 1.0, true, false, true, false, true)
-	expect(model.wheel_turn() > deg_to_rad(20.0), "steering left turns the front wheels left: %.0f°"
+	var rack := Steering.new()
+	rack.steer(car.spec.packed(), 1.0)
+	model.drive(0.5, rolling, rack, true, false, true, false, true)
+	expect(absf(model.wheel_turn() - rack.angles[CarDynamics.FL]) < 0.001,
+		"steering left turns the front wheels left, drawn at the steering's own angle: %.1f°"
 		% rad_to_deg(model.wheel_turn()))
 	expect(model.is_lit(&"blinkers_left") and not model.is_lit(&"blinkers_right")
 		and model.is_lit(&"brake") and model.is_lit(&"headlights") and not model.is_lit(&"reverse"),
@@ -152,8 +155,8 @@ func _test_live() -> void:
 		expect((x < -0.3) if side == "BlinkersLeft" else (x > 0.3),
 			"the %s are on the car's %s side: %.2f m across" % [side, "left" if side
 			== "BlinkersLeft" else "right", x])
-	model.drive(0.1, PackedFloat64Array([0.0, 0.0, 0.0, 0.0]), 0.0, false, false, false, true,
-		false)
+	model.drive(0.1, PackedFloat64Array([0.0, 0.0, 0.0, 0.0]), Steering.new(), false, false,
+		false, true, false)
 	expect(is_zero_approx(model.wheel_turn()) and model.is_lit(&"reverse")
 		and not model.is_lit(&"blinkers_left"), "and change as the car does")
 

@@ -8,6 +8,9 @@ extends RefCounted
 ## rolls round one centre on the line of the rear axle. Node free: it keeps
 ## its own state from step to step and reads nothing but its arguments.
 
+## How far the steering wheel turns at full lock either way, radians.
+const WHEEL_TURN := deg_to_rad(150.0)
+
 ## The steering wheel's turn, -1 (full right) to 1 (full left).
 var turn := 0.0
 ## Each wheel's road angle, radians, left positive, in [CarDynamics]' order; the rears are 0.
