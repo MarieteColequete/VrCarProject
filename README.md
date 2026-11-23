@@ -294,8 +294,9 @@ out on the main thread from the car's state, by geometry, so the same car state 
 crash.
 
 The car has an interior mirror and two door mirrors (`CarMirror`), their picture on the model's
-own glass: `PlayerCarModel` cuts each housing's face out of the model when the car is built, as it
-splits the blinkers, and gives it UVs across the face. Each shows what a mirror there would: a camera at the driver's eye reflected across the
+own glass: `PlayerCarModel` cuts each housing's face out of the model (`MeshCut`) when the car is
+built, as it splits the blinkers, and gives it UVs across the face. Each shows what a mirror
+there would: a camera at the driver's eye reflected across the
 glass looks back through it, cut to the glass's edges, so the picture moves with the head as a real
 mirror's does. The door mirrors see a little wider than flat glass, as convex mirrors do. The
 reflecting plane is turned within the glass, so the housing round it is cut out of the model too,
@@ -453,8 +454,8 @@ fault. Its `to_dict()` gives
 the same as plain data: the scenario, the outcome, each fault with its description, and each tier's
 count against the policy's limit.
 
-`scenarios/debug/scenario_sandbox.tscn` runs any catalogued scenario, and any map in free drive,
-with the `DebugHud`, a flat
+`scenarios/debug/scenario_sandbox.tscn`, the project's main scene, runs any catalogued scenario,
+and any map in free drive, with the `DebugHud`, a flat
 overlay showing the briefing, the current step, the time against the limit, faults as they are
 committed, how other road users react, the frame and physics times with the traffic pipeline's
 share of the main thread, and the result. It runs from the editor. The HUD only listens to the
@@ -611,8 +612,10 @@ from a quarter to double, F7 pauses, F8 steps one tick while paused, and F9 move
 next spawn; a check box on its panel draws the world's trigger zones and lanes in 3D.
 
 Every change the dock makes to the open map is one undo step; creating, renaming, duplicating,
-and deleting maps, and the save before playing, are not. The work behind it is `MapKitTools`,
-which runs without the editor. `maps/sample_town/` is built with the kit alone: a main road
+and deleting maps, and the save before playing, are not. The work behind it is `MapKitTools` and
+its modules (`MapFiles`, `MapPalette`, `RoadNetwork`, `MapProblems`, `TerrainAuthoring`,
+`AssetTools`), which run without the editor; the dock only wires them to its controls.
+`maps/sample_town/` is built with the kit alone: a main road
 crossed by two side roads that give way, oncoming traffic, signs, parked cars, buildings, and trees. `maps/hill_road/` is the same town on a hill: its main road climbs about 12% from the south onto
 a plateau, where the side roads cross it and fall away east and west; the `hill_start` scenario
 stops the car halfway up and judges it on rolling back.

@@ -5,12 +5,12 @@ extends RefCounted
 ## running, and stalls when a gear is forced on it; running, it turns on its own inertia, coupled to
 ## the driven wheels through a clutch or torque converter that is open, slipping or locked; its
 ## torque goes through a limited slip differential to the driven wheels; the brakes, the handbrake
-## and the park pawl hold the wheels back; the aids ([Assists]) step in; each wheel's spin follows
-## its torques and its tyre's grip, carrying the engine's inertia while locked to it; and each tyre
-## ([TyreModel]) pushes on the road. It knows nothing of nodes: whoever drives it measures each
-## wheel's load and how its contact patch moves, and applies the forces it gives back
-## ([member force]) at the contact patches. The player's car does so on a rigid body; the tests on
-## flat ground.
+## and the park pawl hold the wheels back, eased where the control units ask ([CarSystems]); each
+## wheel's spin follows its torques and its tyre's grip, carrying the engine's inertia while locked
+## to it; and each tyre ([TyreModel]) pushes on the road. It knows nothing of nodes: whoever
+## drives it measures each wheel's load and how its contact patch moves, and applies the forces it
+## gives back ([member force]) at the contact patches. The player's car does so on a rigid body;
+## the tests on flat ground.
 ##
 ## Wheels are in the order front left, front right, rear left, rear right. A wheel's frame has
 ## along forward and across to the left.
@@ -119,14 +119,6 @@ func _init(p_spec: PackedFloat64Array, p_aids := Assists.preset("exam"), p_manua
 	wheels = WheelSet.new(spec)
 	engine_spin = spec[CarSpec.IDLE_RPM] * CarSpec.RPM
 	rpm = spec[CarSpec.IDLE_RPM]
-
-
-## Where wheel [param i]'s contact patch is from the centre of mass, in the car's frame
-## (forward is -Z, left is -X), on the ground [param below] metres down.
-func wheel_offset(i: int, below := 0.0) -> Vector3:
-	var x := spec[CarSpec.TRACK] * 0.5 * (-1.0 if i % 2 == 0 else 1.0)
-	var z := -CarSpec.to_front(spec) if i < 2 else CarSpec.to_rear(spec)
-	return Vector3(x, -below, z)
 
 
 ## Whether wheel [param i] is driven.

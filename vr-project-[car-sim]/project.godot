@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="VR Project [Car sim]"
-run/main_scene="uid://cfgeaxu7ecgti"
+run/main_scene="res://scenarios/debug/scenario_sandbox.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 config/icon="res://icon.svg"
 

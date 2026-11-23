@@ -42,7 +42,7 @@ const KIND_NAMES: Array[StringName] = [&"", &"following", &"stopped", &"waiting_
 ## The columns that change as road users drive, with their starting values.
 const DYNAMIC := {
 	state = 0, progress = 0.0, current_speed = 0.0, reaction = 0, lane = 0, length = 0.0,
-	upcoming = 0, rng_state = 0, committed = false, blocked_for = 0.0, shift = Vector3.ZERO,
+	upcoming = 0, rng_state = 0, committed = false, blocked_for = 0.0,
 	shift_left = 0.0, armed = false, clock = 0.0, paused_for = 0.0, paused_this_lap = false,
 	braking_hard = false, position = Vector3.ZERO, facing = Vector3.FORWARD, grade = 0.0,
 	jumped = false,
@@ -75,8 +75,7 @@ var upcoming := PackedInt64Array()
 var rng_state := PackedInt64Array()
 var committed := PackedByteArray()
 var blocked_for := PackedFloat64Array()
-## The offset from the lane during a lane change, and the seconds left until it fades out.
-var shift := PackedVector3Array()
+## The seconds left of a lane change, while it steers across to the new lane.
 var shift_left := PackedFloat64Array()
 var armed := PackedByteArray()
 var clock := PackedFloat64Array()
@@ -663,7 +662,6 @@ func _move_to(i: int, target: LaneData, blocker: int, events: Array) -> void:
 	# Where it is now, off the new lane: it steers across to it.
 	lateral[i] = offset.dot(Vector3.UP.cross(along.normalized())) if along.length() > 0.001 \
 		else 0.0
-	shift[i] = Vector3.ZERO
 	shift_left[i] = change_time[i]
 	blocked_for[i] = 0.0
 	reaction[i] = Kind.CHANGING_LANE

@@ -107,10 +107,6 @@ var _loose_name := BodyType.of(&"ground").title
 var steering := Steering.new()
 var suspension := Suspension.new()
 var wheel_contacts := WheelContacts.new()
-## How far each wheel's spring is compressed, metres ([member Suspension.compression]).
-var compression: PackedFloat64Array:
-	get:
-		return suspension.compression
 ## The car as drawn; null when its model does not load.
 var model: PlayerCarModel
 var instruments: InstrumentCluster
@@ -418,8 +414,6 @@ func _drive(delta: float) -> void:
 		(THROTTLE_OPEN if c.throttle > throttle else THROTTLE_CLOSE) * delta)
 	var brake: float = c.brake
 	probe.handbrake = VehicleProbe.Toggle.ON if c.handbrake > 0.5 else VehicleProbe.Toggle.OFF
-
-	# The brake only brakes; the throttle drives whichever way the gearbox is in.
 
 	_turn_wheel(c, delta)
 	var kerb := _cast_wheels(up)

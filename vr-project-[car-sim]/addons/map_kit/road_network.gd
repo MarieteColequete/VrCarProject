@@ -150,7 +150,7 @@ static func regenerate(road: Node3D) -> MapKitTools.Edit:
 	elif road is RoadJunction:
 		var junction := road as RoadJunction
 		for old in junction.generated(RoadJunction.LINES) \
-				+ junction.generated(RoadJunction.LANES) + _old_junction_lines(junction):
+				+ junction.generated(RoadJunction.LANES):
 			edit.remove(old)
 		for made: Node in junction.make_lines() + junction.make_lanes():
 			edit.add(junction, made)
@@ -343,15 +343,6 @@ static func _end_of(map: Node, road: Node, near: Vector3) -> Dictionary:
 ## [param end] turned to face back the way it came.
 static func _facing_back(end: Transform3D) -> Transform3D:
 	return Transform3D(end.basis.rotated(Vector3.UP, PI), end.origin)
-
-
-## Lines generated before the junction told lines from lanes.
-static func _old_junction_lines(junction: RoadJunction) -> Array[Node]:
-	var out: Array[Node] = []
-	for child in junction.get_children():
-		if child.get_meta(RoadJunction.GENERATED, null) is bool:
-			out.append(child)
-	return out
 
 
 static func _inside(node: Node, ancestors: Array[Node]) -> bool:

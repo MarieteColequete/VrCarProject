@@ -15,8 +15,9 @@ var events: Array[WorldEvent] = []
 ## Data shared by the whole simulation that no tick changes, built when a scenario is baked: the
 ## marking index, the lanes, the scenario's steps. Systems read it freely.
 var resources := {}
-## Values derived from the stores and kept while the stores they read are unchanged, each as
-## [code][version, value][/code]: a cache, never state.
+## Values derived from the stores and kept while the stores they read are unchanged, each with
+## what it was derived from (a store's version and the store, or a count) ahead of the value, as
+## its owner checks it: a cache, never state.
 var memo := {}
 
 var _next_id := 1

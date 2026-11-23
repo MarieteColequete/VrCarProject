@@ -88,7 +88,7 @@ static func define(world: World) -> void:
 		rng_state = 0, clock = 0.0, next_at = 0.0, spawned = 0,
 	})
 	world.define(RULE, {
-		name = &"", script = null, params = {}, state = {}, active_steps = PackedInt64Array(),
+		name = &"", params = {}, state = {}, active_steps = PackedInt64Array(),
 		order = 0,
 		# The script's step and finish, bound once; finish is empty for a rule without one.
 		step = Callable(), finish = Callable(),

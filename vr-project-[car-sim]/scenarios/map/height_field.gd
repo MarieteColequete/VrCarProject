@@ -162,26 +162,9 @@ func intersect_ray(from: Vector3, direction: Vector3, reach := 2000.0) -> Varian
 	return null
 
 
-## The part of the field from grid point [param i0], [param j0] to [param i1], [param j1]
-## inclusive, its heights its own.
-func part(i0: int, j0: int, i1: int, j1: int) -> HeightField:
-	var out := HeightField.new(origin + Vector2(i0, j0) * cell, cell, i1 - i0 + 1, j1 - j0 + 1)
-	for j in out.count_z:
-		for i in out.count_x:
-			out.heights[j * out.count_x + i] = heights[(j0 + j) * count_x + i0 + i]
-	return out
-
-
 ## Writes [param other]'s heights over this field's from grid point [param i0], [param j0]: a part
-## of the same grid, as [method part] gives.
+## of the same grid, its cells the same size.
 func paste(other: HeightField, i0: int, j0: int) -> void:
 	for j in other.count_z:
 		for i in other.count_x:
 			heights[(j0 + j) * count_x + i0 + i] = other.heights[j * other.count_x + i]
-
-
-## A copy, its heights its own.
-func copy() -> HeightField:
-	var out := HeightField.new(origin, cell, count_x, count_z)
-	out.heights = heights.duplicate()
-	return out

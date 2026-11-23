@@ -1,8 +1,8 @@
 class_name LaneData
 extends RefCounted
 ## One path road users follow, as data: a [TrafficLane] with its rules, or a plain [Path3D] such
-## as a pedestrian's walk. Baked once when a scenario loads and never changed, so worker threads
-## read it freely; its curve is baked on the main thread before any thread samples it.
+## as a pedestrian's walk. Baked once when a scenario loads and never changed. Read on the main
+## thread: road users thinking on worker threads read lanes through the [RouteTable]'s columns.
 
 var id := 0
 var name: StringName
@@ -31,7 +31,7 @@ var right := 0
 
 ## A lane [param id] along [param curve] placed at [param p_transform], with [param settings]
 ## for its other fields (such as [code]is_lane[/code] or [code]speed_limit[/code]). The curve is
-## baked here, on the main thread, so sampling it from worker threads only reads the cache.
+## baked here, once, so sampling it only reads the cache.
 static func of(id: int, curve: Curve3D, p_transform := Transform3D(),
 		settings := {}) -> LaneData:
 	var lane := LaneData.new()

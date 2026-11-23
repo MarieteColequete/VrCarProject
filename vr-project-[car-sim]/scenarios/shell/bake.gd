@@ -299,7 +299,7 @@ func _rules() -> void:
 		for step in check.active_steps:
 			if step_index(step) >= 0:
 				active.append(step_index(step))
-		world.spawn({rule = {name = check.name, script = script, params = params,
+		world.spawn({rule = {name = check.name, params = params,
 			state = script.call(&"initial", params), active_steps = active, order = order,
 			step = Callable(script, &"step"), finish = _bound(script, &"finish")}})
 		order += 1

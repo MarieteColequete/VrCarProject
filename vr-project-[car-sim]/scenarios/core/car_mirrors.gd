@@ -1,7 +1,7 @@
 class_name CarMirrors
 extends Node
 ## The player's car's three mirrors: their glass on the model, set for the driver's seat, at the
-## quality the project setting [constant PlayerCar.MIRRORS_SETTING] picks; the mirror switch that
+## quality the project setting [code]car/mirrors[/code] picks; the mirror switch that
 ## tilts the picked one with the look controls; the hands that tilt one they hold; the driver's
 ## tilts kept between sessions; and the drawing, spread over the frames.
 

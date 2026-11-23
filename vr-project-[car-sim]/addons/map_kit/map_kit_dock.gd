@@ -11,6 +11,7 @@ extends EditorDock
 ## terrain, and drape roads and places on it.
 ## [br]- Terrain shape: shown while one [TerrainShape] is selected; its kind, height, size and
 ## falloff with sliders (a drag is one undo action), and standing its base on the land.
+## [br]- Road users: the selected cars made road users driving along the lanes to a checkpoint.
 ## [br]- Palette: pieces to place by clicking in the 3D view, with a search box.
 ## [br]- View: the overlay, the Dev HUD when playing, and the grid step.
 ## [br]The work is the [MapKitPlugin]'s and [MapKitTools]'.

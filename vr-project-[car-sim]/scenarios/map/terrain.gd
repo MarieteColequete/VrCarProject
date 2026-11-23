@@ -8,8 +8,9 @@ extends Node3D
 ## [constant ROAD_SINK] below the road, across the asphalt, the pavements, and a
 ## [constant SHOULDER] beyond, and eased back to the land over [member road_blend]. The land is drawn
 ## as a mesh in chunks of [constant CHUNK] cells and is solid ground, a [HeightMapShape3D] of the
-## ground [BodyType]; the map's [RoadEnvironment] then has its flat ground off. Rebuilt in the editor
-## when it, a shape, or a road changes; built once when a map loads. A shape that moves or changes
+## ground [BodyType]; the map's [RoadEnvironment] should have its flat ground off, which Map Kit's
+## Add terrain does and the terrain warns of otherwise. Rebuilt in the editor when it, a shape, or
+## a road changes, moves or goes; built once when a map loads. A shape that moves or changes
 ## rebuilds only the ground it reached and now reaches, and only the chunks over it, and the
 ## collider follows a moment after the last change ([constant COLLIDER_DELAY]), so a shape
 ## dragged in the editor follows the mouse.
