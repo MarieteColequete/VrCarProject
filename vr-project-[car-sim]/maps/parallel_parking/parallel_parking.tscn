@@ -1,17 +1,16 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://boh6ajkolfel"]
 
-[ext_resource type="PackedScene" path="res://scenarios/kit/map_base.tscn" id="map_base"]
-
+[ext_resource type="Script" uid="uid://ya4qbr4a3pfd" path="res://scenarios/map/road_sign.gd" id="3_wel2v"]
+[ext_resource type="PackedScene" uid="uid://b3ur1lrinkftu" path="res://assets/kenney/city_kit_suburban/building-type-a.glb" id="4_orweq"]
+[ext_resource type="PackedScene" uid="uid://krt4xq4mc11t" path="res://assets/kenney/city_kit_suburban/building-type-b.glb" id="5_55m07"]
+[ext_resource type="PackedScene" uid="uid://bb4lro3drgns1" path="res://assets/kenney/city_kit_suburban/building-type-c.glb" id="6_q4f33"]
+[ext_resource type="PackedScene" uid="uid://dxsbevdtcpkwc" path="res://assets/kenney/city_kit_suburban/building-type-d.glb" id="7_ax3bc"]
+[ext_resource type="PackedScene" uid="uid://c7f4564raoxcl" path="res://assets/kenney/city_kit_suburban/building-type-e.glb" id="8_u6mxr"]
 [ext_resource type="Material" path="res://scenarios/kit/asphalt.tres" id="asphalt"]
-
+[ext_resource type="Script" uid="uid://dlwcmrkap7aew" path="res://scenarios/road/parking_bay.gd" id="bay"]
+[ext_resource type="PackedScene" path="res://scenarios/kit/map_base.tscn" id="map_base"]
+[ext_resource type="Script" uid="uid://cn1xe8vcfx6uc" path="res://scenarios/road/road_marking.gd" id="marking"]
 [ext_resource type="PackedScene" path="res://scenarios/kit/parked_car.tscn" id="parked"]
-
-[ext_resource type="Script" path="res://scenarios/road/parking_bay.gd" id="bay"]
-
-[ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="marking"]
-
-[sub_resource type="BoxMesh" id="Mesh_road"]
-size = Vector3(9.3, 0.02, 80)
 
 [sub_resource type="Curve3D" id="Curve_KerbRight"]
 _data = {
@@ -41,57 +40,125 @@ _data = {
 }
 point_count = 2
 
-[node name="ParallelParking" instance=ExtResource("map_base")]
+[sub_resource type="BoxMesh" id="Mesh_road"]
+size = Vector3(9.3, 0.02, 80)
+
+[node name="ParallelParking" unique_id=1692735803 instance=ExtResource("map_base")]
 id = &"parallel_parking"
 title = "Parallel parking"
 description = "A kerbside row of parking spaces between parked cars."
 
-[node name="Environment" parent="."]
+[node name="Environment" parent="." index="0"]
 ground_size = Vector2(60, 90)
 ground_offset = Vector3(0, 0, -20)
 
-[node name="Spawn" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 0)
-
-[node name="Asphalt" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.15, 0.01, -20)
-mesh = SubResource("Mesh_road")
-surface_material_override/0 = ExtResource("asphalt")
-
-[node name="Bays" type="Node3D" parent="."]
-
-[node name="Bay1" type="Node3D" parent="Bays"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.65, 0, -21.25)
-script = ExtResource("bay")
-size = Vector2(2.3, 6.3)
-facing = 0
-reserved = false
-draw_edges = false
-
-[node name="ParkedCars" type="Node3D" parent="."]
-
-[node name="Parked1" parent="ParkedCars" instance=ExtResource("parked")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.65, 0.75, -16)
-
-[node name="Parked2" parent="ParkedCars" instance=ExtResource("parked")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.65, 0.75, -26.5)
-
-[node name="KerbRight" type="Path3D" parent="Markings"]
+[node name="KerbRight" type="Path3D" parent="Markings" index="0" unique_id=1985757351]
 curve = SubResource("Curve_KerbRight")
 script = ExtResource("marking")
 kind = 8
 
-[node name="KerbLeft" type="Path3D" parent="Markings"]
+[node name="KerbLeft" type="Path3D" parent="Markings" index="1" unique_id=522923011]
 curve = SubResource("Curve_KerbLeft")
 script = ExtResource("marking")
 kind = 8
 
-[node name="CentreLine" type="Path3D" parent="Markings"]
+[node name="CentreLine" type="Path3D" parent="Markings" index="2" unique_id=2113592651]
 curve = SubResource("Curve_CentreLine")
 script = ExtResource("marking")
 kind = 1
 
-[node name="KerbNoParking" type="Path3D" parent="Markings"]
+[node name="KerbNoParking" type="Path3D" parent="Markings" index="3" unique_id=1542202364]
 curve = SubResource("Curve_KerbNoParking")
 script = ExtResource("marking")
 kind = 7
+
+[node name="NoParkingSign" type="Node3D" parent="Signs" index="0" unique_id=1494668131]
+transform = Transform3D(1.1924881e-08, 0, -1, 0, 1, 0, 1, 0, 1.1924881e-08, 6, 0, 9)
+script = ExtResource("3_wel2v")
+kind = 6
+
+[node name="NoParkingSign2" type="Node3D" parent="Signs" index="1" unique_id=159866563]
+transform = Transform3D(1.1924881e-08, 0, -1, 0, 1, 0, 1, 0, 1.1924881e-08, 6.5, 0, -36)
+script = ExtResource("3_wel2v")
+kind = 6
+
+[node name="building-type-a2" parent="Props" index="0" unique_id=1700925689 instance=ExtResource("4_orweq")]
+transform = Transform3D(-3.059797e-07, 0, 7, 0, 7, 0, -7, 0, -3.059797e-07, 10.829591, 3.8146973e-06, 14.50476)
+
+[node name="building-type-a3" parent="Props" index="1" unique_id=165930332 instance=ExtResource("4_orweq")]
+transform = Transform3D(-3.059797e-07, 0, 7, 0, 7, 0, -7, 0, -3.059797e-07, 10.829591, 3.8146973e-06, -54.942398)
+
+[node name="building-type-b2" parent="Props" index="2" unique_id=370647945 instance=ExtResource("5_55m07")]
+transform = Transform3D(-3.059797e-07, 0, 7, 0, 7, 0, -7, 0, -3.059797e-07, 10.829591, 3.8146973e-06, 3.091632)
+
+[node name="building-type-b3" parent="Props" index="3" unique_id=1886395903 instance=ExtResource("5_55m07")]
+transform = Transform3D(-3.059797e-07, 0, 7, 0, 7, 0, -7, 0, -3.059797e-07, 10.829591, 3.8146973e-06, -43.145947)
+
+[node name="building-type-c2" parent="Props" index="4" unique_id=91293606 instance=ExtResource("6_q4f33")]
+transform = Transform3D(-3.059797e-07, 0, 7, 0, 7, 0, -7, 0, -3.059797e-07, 10.829591, 3.8146973e-06, -9.073615)
+
+[node name="building-type-c4" parent="Props" index="5" unique_id=1602735945 instance=ExtResource("6_q4f33")]
+transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, 16.597729, 3.8146973e-06, 23.828083)
+
+[node name="building-type-c5" parent="Props" index="6" unique_id=4349314 instance=ExtResource("6_q4f33")]
+transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, -11.793196, 3.8146973e-06, 23.828083)
+
+[node name="building-type-d2" parent="Props" index="7" unique_id=1255020588 instance=ExtResource("7_ax3bc")]
+transform = Transform3D(-3.059797e-07, 0, 7, 0, 7, 0, -7, 0, -3.059797e-07, 10.829591, 3.8146973e-06, -20.866016)
+
+[node name="building-type-e2" parent="Props" index="8" unique_id=1805307630 instance=ExtResource("8_u6mxr")]
+transform = Transform3D(-3.059797e-07, 0, 7, 0, 7, 0, -7, 0, -3.059797e-07, 10.829591, 3.8146973e-06, -32.45673)
+
+[node name="building-type-a4" parent="Props" index="9" unique_id=38528361 instance=ExtResource("4_orweq")]
+transform = Transform3D(-3.059797e-07, 0, -7, 0, 7, 0, 7, 0, -3.059797e-07, -8.470437, 3.8146973e-06, -55.329987)
+
+[node name="building-type-a5" parent="Props" index="10" unique_id=5382814 instance=ExtResource("4_orweq")]
+transform = Transform3D(-3.059797e-07, 0, -7, 0, 7, 0, 7, 0, -3.059797e-07, -8.470443, 3.8146973e-06, 14.11717)
+
+[node name="building-type-b4" parent="Props" index="11" unique_id=1902773263 instance=ExtResource("5_55m07")]
+transform = Transform3D(-3.059797e-07, 0, -7, 0, 7, 0, 7, 0, -3.059797e-07, -8.470438, 3.8146973e-06, -43.916862)
+
+[node name="building-type-b5" parent="Props" index="12" unique_id=1977859923 instance=ExtResource("5_55m07")]
+transform = Transform3D(-3.059797e-07, 0, -7, 0, 7, 0, 7, 0, -3.059797e-07, -8.470442, 3.8146973e-06, 2.3207169)
+
+[node name="building-type-b6" parent="Props" index="13" unique_id=1711762947 instance=ExtResource("5_55m07")]
+transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, 1.3034768, 3.8146973e-06, 25.11844)
+
+[node name="building-type-c6" parent="Props" index="14" unique_id=1149567596 instance=ExtResource("6_q4f33")]
+transform = Transform3D(-7, 0, -6.119594e-07, 0, 7, 0, 6.119594e-07, 0, -7, -15.317648, 3.8146973e-06, -65.163055)
+
+[node name="building-type-c7" parent="Props" index="15" unique_id=663875865 instance=ExtResource("6_q4f33")]
+transform = Transform3D(-7, 0, -6.119594e-07, 0, 7, 0, 6.119594e-07, 0, -7, 13.0732765, 3.8146973e-06, -65.163055)
+
+[node name="building-type-b7" parent="Props" index="16" unique_id=469954582 instance=ExtResource("5_55m07")]
+transform = Transform3D(-7, 0, -6.119594e-07, 0, 7, 0, 6.119594e-07, 0, -7, -0.023395538, 3.8146973e-06, -66.453415)
+
+[node name="building-type-c3" parent="Props" index="17" unique_id=786642765 instance=ExtResource("6_q4f33")]
+transform = Transform3D(-3.059797e-07, 0, -7, 0, 7, 0, 7, 0, -3.059797e-07, -8.470439, 3.8146973e-06, -31.751614)
+
+[node name="building-type-d3" parent="Props" index="18" unique_id=1728195880 instance=ExtResource("7_ax3bc")]
+transform = Transform3D(-3.059797e-07, 0, -7, 0, 7, 0, 7, 0, -3.059797e-07, -8.47044, 3.8146973e-06, -19.959213)
+
+[node name="building-type-e3" parent="Props" index="19" unique_id=594522102 instance=ExtResource("8_u6mxr")]
+transform = Transform3D(-3.059797e-07, 0, -7, 0, 7, 0, 7, 0, -3.059797e-07, -8.470441, 3.8146973e-06, -8.3685)
+
+[node name="Asphalt" type="MeshInstance3D" parent="." index="9" unique_id=299393723]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.15, 0.01, -20)
+mesh = SubResource("Mesh_road")
+surface_material_override/0 = ExtResource("asphalt")
+
+[node name="Bays" type="Node3D" parent="." index="10" unique_id=1967388951]
+
+[node name="Bay1" type="Node3D" parent="Bays" index="0" unique_id=1974211391]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.65, 0, -21.25)
+script = ExtResource("bay")
+size = Vector2(2.3, 6.3)
+draw_edges = false
+
+[node name="ParkedCars" type="Node3D" parent="." index="11" unique_id=1093430902]
+
+[node name="Parked1" parent="ParkedCars" index="0" unique_id=486969447 instance=ExtResource("parked")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.65, 0.75, -16)
+
+[node name="Parked2" parent="ParkedCars" index="1" unique_id=641349520 instance=ExtResource("parked")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.65, 0.75, -26.5)
