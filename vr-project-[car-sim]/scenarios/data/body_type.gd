@@ -37,6 +37,8 @@ func judged() -> bool:
 func material() -> PhysicsMaterial:
 	if _material == null:
 		_material = PhysicsMaterial.new()
+		# Named after the type, so what stands on it can tell which surface it is.
+		_material.resource_name = title
 		_material.friction = friction
 		_material.bounce = bounce
 	return _material

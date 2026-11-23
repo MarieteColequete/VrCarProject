@@ -1,0 +1,9 @@
+VEHCar_NISSAN SENTRA-TURNING SIGNAL_MP.wav
+by MPierluissi, from Freesound, https://freesound.org/people/MPierluissi/sounds/446322/
+
+Licensed under Creative Commons CC0 1.0 Universal (public domain):
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Changes: source/ holds Freesound's high-quality OGG preview of the recording, as downloaded.
+indicator_on.wav and indicator_off.wav are the relay's clicks at 0.43 and 0.78 s, 0.1 s each, in
+mono, cut by tools/car_recordings.gd.

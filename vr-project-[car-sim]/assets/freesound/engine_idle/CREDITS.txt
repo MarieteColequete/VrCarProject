@@ -1,0 +1,9 @@
+car_idle_loop.wav
+by AndrewAlexander, from Freesound, https://freesound.org/people/AndrewAlexander/sounds/369053/
+
+Licensed under Creative Commons CC0 1.0 Universal (public domain):
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Changes: source/ holds Freesound's high-quality OGG preview of the recording, as downloaded.
+engine_idle.wav is 0.5 to 14 s of it in mono, made a seamless loop and brought to -16 dB RMS, the loudness
+of the sound CarSound makes in its place, by tools/car_recordings.gd.

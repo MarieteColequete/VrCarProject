@@ -235,8 +235,8 @@ car that starts moving; without one the car starts running, in P. The engine tur
 freely and settles back to idle; in gear a torque converter (or the clutch, in the manual) slips to
 pull away and locks to the driven wheels once they catch up, so the revolutions are the engine's
 own, held at the redline by the limiter, and off the ground they climb or fall at the engine's
-pace. The tyres squeal as they near
-their grip, and the controllers buzz as the anti-lock brakes work.
+pace. The tyres squeal when they slide sideways past
+their grip and skid when they lock or spin, and the controllers buzz as the anti-lock brakes work.
 
 Road users drive on the same model, as two axles on the lane's grade (`PlanarVehicle`), each with the
 spec its size picks (`TrafficSpecs`: a hatchback, a saloon, a van or a lorry). The Intelligent
@@ -275,9 +275,30 @@ on the head's turn.
 
 The car sounds from its cabin (`CarSound`), on an audio bus of its own, `Car`. The engine pitches
 and swells with the revolutions and the throttle and dips as a gear changes, the indicator ticks as
-it blinks, the tyres squeal near their grip at speed, and a tyre thumps when it meets a kerb. The
-sounds are made by the game when the car is built, so it carries no recordings: the engine is a
-four-cylinder's firing pulses and their harmonics, made once slow and once fast and crossfaded.
+it blinks, the tyres rumble on the road louder with speed, and a tyre thumps when it meets a kerb. The tyres
+have three voices, each driven by its own slip and smoothed so one step's spike passes unheard
+(`CarSound.tyre_voices`): a soft scrub that grows as they work toward their grip, there through
+any turn or stop; a squeal only when they slide sideways well past their peak slip angle, so a
+full-lock turn at 20 km/h stays quiet while one at 30 km/h or a handbrake slide sings; and a
+skid, lower and rougher, when the wheels lock or spin, which pulses softly while the anti-lock
+brakes work through a hard stop. A gentle stop makes neither. Each surface sounds its own,
+crossfading by the share of wheels on it: on the roads the scrub is the roar of a car's tyres on
+asphalt; on the loose ground (grass and dirt) the car rolls as on a dirt road, scrubs with the
+crunch of tyres on gravel, and any slide, sideways or locked, sprays gravel instead of squealing. The engine at idle,
+the road heard from the cabin, and the indicator's relay are CC0 recordings from Freesound, in
+`vr-project-[car-sim]/assets/freesound/` with their credits and the downloaded previews they are
+cut from by `tools/car_recordings.gd`: [car_idle_loop.wav](https://freesound.org/people/AndrewAlexander/sounds/369053/)
+by AndrewAlexander, [Car Driving Interior](https://freesound.org/people/squareal/sounds/237374/)
+by squareal, and [Nissan Sentra turning signal](https://freesound.org/people/MPierluissi/sounds/446322/)
+by MPierluissi; the tyres on asphalt, [Car rolling on asphalt](https://freesound.org/people/orlandorizo/sounds/591079/)
+by orlandorizo; and the loose ground's, a [truck on a dirt road](https://freesound.org/people/kyles/sounds/637192/)
+by kyles, a [tyre on gravel](https://freesound.org/people/TRP/sounds/577504/) by TRP, and
+[tyres on a gravel shoulder](https://freesound.org/people/UnplugTheFridge/sounds/529225/) by
+UnplugTheFridge. The rest is made by the game when the car is built, and so is each recording's
+stand-in when its file is missing: the engine's fast loop is a four-cylinder's firing pulses and
+their harmonics, crossfaded with the idle as the revolutions rise, the squeal is noise rung
+through a few of the tread's resonances, so it rasps like rubber rather than whistling, and the
+skid is broad noise with no rings at all.
 
 The Map Kit's roads take the look of City Kit (Roads) (`RoadKit`). The kit's straight road tile is a
 cross-section (asphalt, a darker band by the kerb, the kerb, and the pavement) swept along each

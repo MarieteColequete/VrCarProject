@@ -83,6 +83,11 @@ var wheel_angle := 0.0
 var held_controls := {}
 ## Whether each wheel touches the road, and how far its spring is compressed, metres.
 var grounded := PackedByteArray([0, 0, 0, 0])
+## Whether each wheel stands on loose ground (the ground [BodyType]: grass and dirt), which the
+## sound reads.
+var on_loose := PackedByteArray([0, 0, 0, 0])
+## The loose ground's surface, by its material's name ([method BodyType.material]).
+var _loose_name := BodyType.of(&"ground").title
 var compression := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
 ## The car as drawn; null when its model does not load.
 var model: PlayerCarModel
@@ -370,12 +375,10 @@ func _show(delta: float) -> void:
 	if sound:
 		var blinking := probe.indicator == VehicleProbe.Indicator.LEFT \
 			or probe.indicator == VehicleProbe.Indicator.RIGHT
-		var work := 0.0
-		for i in 4:
-			if grounded[i]:
-				work = maxf(work, dynamics.usage[i])
-		sound.follow(rpm, throttle, dynamics.shifting > 0.0, blinking and lit, work,
-			current_speed, dynamics.engine)
+		var tyres := CarSound.tyre_voices(_packed, dynamics.ratio, dynamics.angle, dynamics.force,
+			grounded, current_speed, on_loose)
+		sound.follow(rpm, throttle, dynamics.shifting > 0.0, blinking and lit, tyres,
+			current_speed, dynamics.engine, dynamics.abs_active, delta)
 	if instruments:
 		var parked := probe.handbrake == VehicleProbe.Toggle.ON
 		instruments.redline = spec.redline_rpm
@@ -461,6 +464,7 @@ func _drive(delta: float) -> void:
 		_ray.to = top - up * length
 		var hit := space.intersect_ray(_ray)
 		grounded[i] = 1 if not hit.is_empty() else 0
+		on_loose[i] = 0
 		if hit.is_empty():
 			squeezed[i] = 0.0
 			contacts[i] = top - up * length
@@ -475,6 +479,7 @@ func _drive(delta: float) -> void:
 			var material: PhysicsMaterial = other.get(&"physics_material_override")
 			if material:
 				mu[i] = material.friction
+				on_loose[i] = 1 if material.resource_name == _loose_name else 0
 	for i in 4:
 		if not grounded[i]:
 			compression[i] = 0.0
