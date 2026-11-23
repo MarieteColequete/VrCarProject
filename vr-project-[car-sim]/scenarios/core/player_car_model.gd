@@ -709,12 +709,12 @@ static func _pick(column: Variant, rows: PackedInt32Array, tangent: bool) -> Var
 func _split_blinkers(mesh: MeshInstance3D) -> void:
 	if mesh == null:
 		return
-	# In the model, +X is ahead and +Z to the right.
+	# In the model, +X is ahead and +Z to the left (measured: the car's left is the model's +Z).
 	for side: StringName in [&"blinkers_left", &"blinkers_right"]:
 		var part := MeshInstance3D.new()
 		part.name = String(side).to_pascal_case()
 		part.mesh = split_mesh(mesh.mesh, func(centroid: Vector3) -> bool:
-			return (centroid.z < 0.0) == (side == &"blinkers_left"))
+			return (centroid.z > 0.0) == (side == &"blinkers_left"))
 		part.transform = mesh.transform
 		mesh.get_parent().add_child(part)
 		_glow(part, side, BLINKER)

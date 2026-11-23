@@ -147,6 +147,11 @@ func _test_live() -> void:
 	expect(model.is_lit(&"blinkers_left") and not model.is_lit(&"blinkers_right")
 		and model.is_lit(&"brake") and model.is_lit(&"headlights") and not model.is_lit(&"reverse"),
 		"the lights show the left indicator, the brake, and the headlights")
+	for side in ["BlinkersLeft", "BlinkersRight"]:
+		var x := _drawn_x(model.find_child(side, true, false) as MeshInstance3D, car)
+		expect((x < -0.3) if side == "BlinkersLeft" else (x > 0.3),
+			"the %s are on the car's %s side: %.2f m across" % [side, "left" if side
+			== "BlinkersLeft" else "right", x])
 	model.drive(0.1, PackedFloat64Array([0.0, 0.0, 0.0, 0.0]), 0.0, false, false, false, true,
 		false)
 	expect(is_zero_approx(model.wheel_turn()) and model.is_lit(&"reverse")
@@ -214,3 +219,20 @@ func _test_instruments() -> void:
 	cluster.free()
 	expect(CAR_SCRIPT.blink_on(0.0) and CAR_SCRIPT.blink_on(0.3) and not CAR_SCRIPT.blink_on(0.4)
 		and CAR_SCRIPT.blink_on(0.75), "an indicator is lit, then dark, in turn")
+
+
+## How far across the car (its left negative) [param part]'s drawn triangles sit, on average.
+func _drawn_x(part: MeshInstance3D, car: Node3D) -> float:
+	if part == null:
+		return 0.0
+	var to_car := car.global_transform.affine_inverse() * part.global_transform
+	var total := 0.0
+	var count := 0
+	for surface in part.mesh.get_surface_count():
+		var arrays := part.mesh.surface_get_arrays(surface)
+		var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		for i in index:
+			total += (to_car * points[i]).x
+			count += 1
+	return total / maxi(count, 1)
