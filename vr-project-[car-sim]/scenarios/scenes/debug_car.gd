@@ -65,8 +65,8 @@ const ACCEL_SMOOTHING := 30.0
 ## in park (the manual in neutral), standing still.
 @export var start: CarStart
 
-## The body's true speed along its length, m/s, negative reversing: the plant's, for the forces on
-## it (drag, rolling resistance) and for tests watching it. Nothing the driver reads or the car's
+## The body's true speed along its length, m/s, negative reversing: the plant's, for tests watching
+## it. Nothing the driver reads or the car's
 ## electronics use comes from it: they read [member signals].
 var current_speed := 0.0
 ## The engine, the gearbox, the brakes and the tyres: the plant.
@@ -95,14 +95,22 @@ var wheel_angle := 0.0
 ## [code]select[/code] a lever position by letter (P, R, N, D) to put the gearbox in, and
 ## [code]ignition[/code] whether the key is held; empty to read the player's controls.
 var held_controls := {}
-## Whether each wheel touches the road, and how far its spring is compressed, metres.
+## Whether each wheel touches the road.
 var grounded := PackedByteArray([0, 0, 0, 0])
 ## Whether each wheel stands on loose ground (the ground [BodyType]: grass and dirt), which the
 ## sound reads.
 var on_loose := PackedByteArray([0, 0, 0, 0])
 ## The loose ground's surface, by its material's name ([method BodyType.material]).
 var _loose_name := BodyType.of(&"ground").title
-var compression := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
+## The plant's parts: the steering ([Steering]), the corners' springs ([Suspension]), and where the
+## tyres meet the road ([WheelContacts]).
+var steering := Steering.new()
+var suspension := Suspension.new()
+var wheel_contacts := WheelContacts.new()
+## How far each wheel's spring is compressed, metres ([member Suspension.compression]).
+var compression: PackedFloat64Array:
+	get:
+		return suspension.compression
 ## The car as drawn; null when its model does not load.
 var model: PlayerCarModel
 var instruments: InstrumentCluster
@@ -132,7 +140,6 @@ var _blink_clock := 0.0
 var _mirror_held := false
 var _abs_was := false
 var _shifting_was := false
-var _settled := false
 var _shift := 0
 ## The park button pressed since the last step, and the gamepad's shift_down held, for how long.
 var _park := false
@@ -394,7 +401,7 @@ func _apply_freeze() -> void:
 	if not input_enabled:
 		linear_velocity = Vector3.ZERO
 		angular_velocity = Vector3.ZERO
-		_settled = false
+		suspension.reset()
 	elif _launch > 0.0 and is_inside_tree():
 		# A car that starts moving gets its speed the first time it is let go.
 		linear_velocity = -global_basis.z * _launch
@@ -482,6 +489,7 @@ func _drive(delta: float) -> void:
 	if not input_enabled or delta <= 0.0:
 		throttle = 0.0
 		_steer = 0.0
+		steering.steer(_packed, 0.0)
 		wheel_angle = 0.0
 		_accel = Vector2.ZERO
 		return
@@ -497,28 +505,21 @@ func _drive(delta: float) -> void:
 
 	# The brake only brakes; the throttle drives whichever way the gearbox is in.
 
-	# Hands on the wheel steer it directly; the keys and sticks ease toward their steering, with
-	# the aids' lock at speed and their counter-steer.
-	var by_hand: bool = not c.held and driver_view.wheel.held()
-	if by_hand:
+	# The driver turns the steering wheel: hands on it turn it directly; the keys and sticks turn
+	# it as a hand would, at a hand's pace toward where they point. The steering only turns the
+	# front wheels; nothing else steers.
+	if not c.held and driver_view.wheel.held():
 		_steer = driver_view.wheel.steer()
-		wheel_angle = _steer * spec.steer_lock
 	else:
 		var outward: bool = absf(c.steer) > absf(_steer) and c.steer * _steer >= 0.0
 		_steer = move_toward(_steer, clampf(c.steer, -1.0, 1.0),
 			(STEER_RATE if outward else RETURN_RATE) * delta)
-		# Steering help reads the car's sensors: its speed from the wheels, and the rear's slide
-		# from the gyro and the accelerometer. It assumes dry asphalt: it cannot see the road.
-		wheel_angle = _steer * Assists.steer_lock(dynamics.aids, _packed, signals.vehicle_speed,
-			1.0) + Assists.counter_steer(dynamics.aids, _packed, signals.rear_slip)
-		wheel_angle = clampf(wheel_angle, -spec.steer_lock, spec.steer_lock)
+	steering.steer(_packed, _steer)
+	wheel_angle = steering.rack
 
 	# The suspension: each wheel cast down to the road.
 	var space := get_world_3d().direct_space_state
 	var length := spec.travel + spec.wheel_radius
-	var loads := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
-	var along := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
-	var across := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
 	var mu := PackedFloat64Array([1.0, 1.0, 1.0, 1.0])
 	var contacts := PackedVector3Array([Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, Vector3.ZERO])
 	var normals := PackedVector3Array([up, up, up, up])
@@ -546,40 +547,19 @@ func _drive(delta: float) -> void:
 			if material:
 				mu[i] = material.friction
 				on_loose[i] = 1 if material.resource_name == _loose_name else 0
+	# Each spring pushes its own corner up off the road, along the road's normal: the body
+	# pitches and rolls on them, and the weight on each wheel is what its spring carries.
+	var loads := suspension.loads(_packed, squeezed, grounded, delta)
 	for i in 4:
-		if not grounded[i]:
-			compression[i] = 0.0
-			continue
-		var partner := i ^ 1
-		var rate := (squeezed[i] - compression[i]) / delta if _settled else 0.0
-		var spring := CarDynamics.corner_load(_packed, squeezed[i], rate, squeezed[partner])
-		# Hitting the end of its travel, a bump stop takes the rest.
-		if squeezed[i] > spec.travel:
-			spring += (squeezed[i] - spec.travel) * spec.spring_rate * 20.0
-		compression[i] = squeezed[i]
-		# Each spring pushes its own corner up, so the body pitches and rolls on them, and the
-		# weight on each wheel is what its spring carries.
-		apply_force(up * spring, contacts[i] - global_position)
-		loads[i] = spring
-	_settled = true
-	var weight := spec.mass * CarSpec.G
+		if grounded[i]:
+			apply_force(normals[i] * loads[i], contacts[i] - global_position)
 
-	# Each tyre works on the ground's plane under it: its heading and side, along the slope.
-	var headings := PackedVector3Array([forward, forward, forward, forward])
-	var sides := PackedVector3Array([forward, forward, forward, forward])
-	for i in 4:
-		var n := normals[i]
-		var aim := forward.rotated(up, wheel_angle) if i < 2 else forward
-		var flat := aim - n * aim.dot(n)
-		headings[i] = flat.normalized() if flat.length_squared() > 0.0001 else aim
-		sides[i] = n.cross(headings[i])
+	# Each tyre works on the ground's plane under it, at its wheel's road angle.
 	var centre := global_transform * center_of_mass
-	for i in 4:
-		var heading := headings[i]
-		var side := sides[i]
-		var moving := velocity + angular_velocity.cross(contacts[i] - centre)
-		along[i] = moving.dot(heading)
-		across[i] = moving.dot(side)
+	wheel_contacts.measure(forward, up, velocity, angular_velocity, centre, steering.angles,
+		contacts, normals)
+	var along := wheel_contacts.along
+	var across := wheel_contacts.across
 	var patches := 0.0
 	for i in 4:
 		if grounded[i]:
@@ -598,8 +578,8 @@ func _drive(delta: float) -> void:
 		specific_force = Vector3(specific.dot(forward), specific.dot(left), specific.dot(up))},
 		{steer_angle = wheel_angle, throttle = throttle, brake = brake, handbrake = c.handbrake})
 	systems.decide(_packed, dynamics.aids, delta)
-	var step := {throttle = throttle, brake = brake, handbrake = c.handbrake, steer = wheel_angle,
-		shift = c.shift, starter = c.ignition, park = c.park}
+	var step := {throttle = throttle, brake = brake, handbrake = c.handbrake,
+		angles = steering.angles, shift = c.shift, starter = c.ignition, park = c.park}
 	if not str(c.select).is_empty():
 		step.select = SELECTOR_LETTERS.find(str(c.select))
 	dynamics.step(delta, step, loads, along, across, mu, systems.signals)
@@ -607,13 +587,12 @@ func _drive(delta: float) -> void:
 		if not grounded[i]:
 			continue
 		var f := dynamics.force[i]
-		apply_force(headings[i] * f.x + sides[i] * f.y, contacts[i] - global_position)
+		apply_force(wheel_contacts.headings[i] * f.x + wheel_contacts.sides[i] * f.y,
+			contacts[i] - global_position)
 	var speed := velocity.length()
 	if speed > 0.01:
 		apply_central_force(-velocity * 0.5 * CarSpec.AIR * spec.drag_area * speed)
 		apply_central_force(-up * 0.5 * CarSpec.AIR * spec.downforce_area * speed * speed)
-	if absf(current_speed) > 0.3 and grounded.count(1) > 0:
-		apply_central_force(-forward * signf(current_speed) * spec.rolling * weight)
 
 	# What the driver feels through the controllers comes from the car's signals: a change
 	# beginning or going through, a refusal, a stall, the starter, ABS working. The kerb below is

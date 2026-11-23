@@ -207,29 +207,38 @@ each is tinted to the car's black cabin.
 The car drives on a vehicle model in the spirit of the open-world racing games, real enough to
 learn on and forgiving enough to enjoy (`scenarios/vehicle/`). The car is a rigid body of its
 spec's mass (`CarSpec`; the Kiri '86 is a rear-wheel drive coupé of 1250 kg) on four suspended
-wheels, each cast down to the road for its spring, damper and anti-roll bar. The engine's torque
-curve, a six speed gearbox, a limited slip differential, the brakes and the handbrake turn each
-wheel, and each tyre grips by a simplified Pacejka magic formula over its combined slip, so
-braking or pulling hard leaves less grip for turning, grip grows less than the load on the tyre,
-and a tyre past its peak slides (`TyreModel`, `Powertrain`, `CarDynamics`). The weight moves
-between the wheels as the car brakes, pulls and turns. The surface under each wheel gives its
-friction, from the body it lies on (`BodyType`). The body is free: each spring pushes at its own
-wheel, so it pitches as it brakes and pulls away, rolls in a turn, follows hills and crests, and
-can roll over (the attempt's restart is the way back). The driver's view is fixed to the car, so
-in a headset the world tilts around the driver as in a real car. Each tyre grips along the ground
-under it, so a slope pulls the car down it, and a wheel held still by the brake or the park pawl
+wheels, each cast down to the road for its spring, damper, anti-roll bar and bump stop
+(`Suspension`). The engine's torque curve, a six speed gearbox, a limited slip differential, the
+brakes, the handbrake and each tyre's rolling resistance turn each wheel (`Powertrain`,
+`CarDynamics`). Each tyre's tread is a brush with a relaxation length (`TyreModel.contact`): it
+deflects only as its contact patch slides over the road, and rolling at speed its force settles
+to a simplified Pacejka magic formula over its combined slip, so braking or pulling hard leaves
+less grip for turning, grip grows less than the load on the tyre, and a tyre past its peak
+slides. A still patch pushes nothing, and a wheel held by its brake grips as static friction. The
+steering (`Steering`) is geometry only: the steering wheel turns the rack, and the rack turns the
+front wheels by Ackermann's geometry, the inner one further. It pushes nothing and nothing else
+steers, so steered standing still the car stays put, and it turns only as its tyres grip while
+it rolls (`WheelContacts` measures how each patch moves along and across its wheel). The weight
+moves between the wheels as the car brakes, pulls and turns. The surface under each wheel gives
+its friction, from the body it lies on (`BodyType`). The body is free: each spring pushes its own
+corner off the road along the road's normal, so it pitches as it brakes and pulls away, rolls in
+a turn, follows hills and crests, and can roll over (the attempt's restart is the way back).
+The driver's view is fixed to the car, so in a headset the world tilts around the driver as in a
+real car. Each tyre grips along the ground under it, so a slope pulls the car down it, and a wheel held still by the brake or the park pawl
 holds it there. The model also dips under braking, squats under acceleration and rolls out of a
 turn, cockpit, instruments and mirrors included.
 
 The driving aids (`Assists`) come in three presets, set by the project setting `car/assists`:
 `exam`, the default and always the one in an exam attempt, with anti-lock brakes, traction
-control, stability control, and steering help for keys and sticks (the lock shrinks with speed to
-what the tyres can use, and counter-steer catches a slide); `sport`, with anti-lock brakes, a late
-traction control and less steering help; and `sim`, with anti-lock brakes only. The steering wheel
-held in VR always steers the wheels directly.
+control and stability control; `sport`, with anti-lock brakes and a late traction control; and
+`sim`, with anti-lock brakes only. They act through the brakes and the engine, as on a road car,
+and never steer. The steering wheel held in VR turns the wheels directly; the keys and sticks turn
+it as a hand would, at a hand's pace, the same at any speed, so at speed a small turn is a big
+one.
 
-The player's car is built in layers, as a real car is. The plant is the physics: the body, its
-contacts, the wheels and tyres (`CarDynamics`, `TyreModel`). Its sensors (`CarSensors`) measure it
+The player's car is built in layers, as a real car is. The plant is the physics: the body, the
+suspension, the steering, the contacts, the wheels and tyres (`Suspension`, `Steering`,
+`WheelContacts`, `CarDynamics`, `TyreModel`). Its sensors (`CarSensors`) measure it
 as hardware does into one record each step (`CarSignals`): each wheel's speed from its own spin,
 the output shaft, the crank, a yaw-rate gyro, an accelerometer (it feels 1 g up at rest and nothing
 in free fall), the steering angle, the throttle position, and the brake, handbrake and reverse
@@ -241,8 +250,8 @@ brakes, traction control and stability control on those estimates; the transmiss
 body controller (`BodyController`) lights the brake lamps from the pedal's switch and the reversing
 lamps from the reverse switch. Everything the driver reads or feels follows the signals: the
 speedometer shows the ABS module's speed from the wheels, so a car falling through the air shows
-what its wheels turn at, not its fall, and the lamps, the dash, the controllers' buzz, steering
-help and the mirror lock read the same record. What is physical follows the plant: the tyres are
+what its wheels turn at, not its fall, and the lamps, the dash, the controllers' buzz and the
+mirror lock read the same record. What is physical follows the plant: the tyres are
 heard where they touch the road, each wheel turns at its own spin, and the body leans with its
 motion. The exam judges the car from its pose, as an examiner sees it.
 

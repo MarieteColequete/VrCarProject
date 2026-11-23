@@ -12,7 +12,8 @@ extends RefCounted
 ## wheels; a car driven at every wheel has none, so it follows the slowest, never rising faster
 ## than the car can accelerate ([constant ACCEL_LIMIT]), so spinning wheels do not drag it up. Each wheel's slip is its speed against that. The body's sideways
 ## drift is integrated from the accelerometer and the gyro, leaking away, for the rear axle's slip
-## angle; the road's grip is judged from the most the accelerometer has felt lately.
+## angle; the road's grip is judged from the most the accelerometer has felt lately. Its valves
+## ease every brake on a locking wheel, stability control's own as well as the driver's.
 
 ## The most the estimated speed falls in a second braking, and rises driving on a car driven at
 ## every wheel, m/s².
@@ -114,6 +115,10 @@ func step(signals: CarSignals, spec: PackedFloat64Array, aids: PackedFloat64Arra
 		var wheel := (CarDynamics.FR if right else CarDynamics.FL) if oversteer \
 			else (CarDynamics.RR if right else CarDynamics.RL)
 		signals.brake_extra[wheel] = minf(absf(error) * ESC_TORQUE, ESC_MOST)
+		# The same valves ease its own braking on a wheel that locks, as the driver's.
+		var easing := Assists.brake(aids, spec, 1.0, signals.wheel_slip[wheel] * heading)
+		signals.brake_extra[wheel] *= easing
+		signals.abs_active = signals.abs_active or easing < 1.0
 
 
 ## The speed the wheels that roll free say: the undriven ones' mean, or on a car driven at every

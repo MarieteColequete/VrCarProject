@@ -4,7 +4,8 @@ extends RefCounted
 ## ([CarSensors]) and what its control units made of it ([AbsModule], [TransmissionUnit],
 ## [BodyController]). The control units and everything the driver sees, hears from the
 ## instruments, or feels through the aids read the car only through this record; only the plant
-## (the body, its contacts, [CarDynamics]' wheel solve) reads the physics itself.
+## (the body, [Suspension], [Steering], [WheelContacts], [CarDynamics]' wheel solve) reads the
+## physics itself.
 ##
 ## Wheels are in [CarDynamics]' order: front left, front right, rear left, rear right.
 

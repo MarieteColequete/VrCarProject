@@ -21,6 +21,8 @@ enum Coupling { OPEN, SLIPPING, LOCKED }
 ## The share of the converter's slipping revolutions below which a locked automatic slips again;
 ## it locks at 0.97 of them, so it does not flutter between the two.
 const CONVERTER_LET_GO := 0.85
+## How far the engine may run ahead of the wheel side for the drive to lock, as a share.
+const LOCK_SLIP := 1.03
 ## The engine: off, turned over by the starter, or running.
 enum EngineState { OFF, CRANKING, RUNNING }
 
@@ -32,8 +34,6 @@ const RR := 3
 const SOLVE_STEPS := 18
 ## The park pawl's hold on each driven wheel, Nm.
 const PAWL_TORQUE := 30000.0
-## How fast a held wheel draws back what it has crept, per second.
-const HOLD_PULL := 6.0
 ## The speed, m/s, above which the park pawl ratchets past its notches instead of holding.
 const PAWL_SPEED := 0.4
 ## The idle governor's most torque, Nm, given in full 150 rpm below idle.
@@ -66,8 +66,9 @@ var gear: int:
 var shifting: float:
 	get:
 		return gearbox.shifting
-## How far each wheel's contact has crept since the wheel was held still, metres.
-var held_drift := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
+## Each tyre's tread deflection at its contact, as a share of its peak's (along, across), in the
+## wheel's frame: see [method TyreModel.contact].
+var deflect := PackedVector2Array([Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO])
 ## Each wheel's spin, rad/s, forward positive.
 var spin := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
 ## Each wheel's slip ratio and slip angle in the last step.
@@ -96,6 +97,8 @@ var shifted := false
 var shift_refused := false
 ## The key held through a switch-off or a start, ignored until it is let go.
 var _key_latched := false
+## Each wheel's road angle in the last step, radians.
+var _angles := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
 var _key_was := false
 
 
@@ -143,10 +146,9 @@ static func corner_load(p_spec: PackedFloat64Array, compression: float, rate: fl
 
 
 ## One step of [param dt] seconds. [param controls]: [code]throttle[/code] and [code]brake[/code]
-## 0 to 1, [code]handbrake[/code] 0 to 1, [code]steer[/code] the front wheels' angle in radians
-## (left positive), [code]shift[/code] +1 or -1 to move the lever or change gear,
-## [code]park[/code] the park button pressed, and, for tests
-## and spawns, [code]select[/code] a [enum Gearbox.Selector] to put the lever at, and
+## 0 to 1, [code]handbrake[/code] 0 to 1, [code]angles[/code] each wheel's road angle in radians
+## (left positive, [member Steering.angles]), [code]shift[/code] +1 or -1 to move the lever or
+## change gear, [code]park[/code] the park button pressed, and, for tests and spawns, [code]select[/code] a [enum Gearbox.Selector] to put the lever at, and
 ## [code]starter[/code] whether the key is held to start the engine (a fresh press of it switches a
 ## running engine off). Each wheel's
 ## [param loads] newtons, its contact patch's speed [param along] and [param across] its own frame
@@ -196,6 +198,11 @@ func step(dt: float, controls: Dictionary, loads: PackedFloat64Array, along: Pac
 		if parked and driven(i):
 			brakes[i] += PAWL_TORQUE
 
+	var turned: PackedFloat64Array = controls.get("angles", _angles)
+	for i in 4:
+		_turn_tread(i, turned[i] - _angles[i])
+	_angles = turned.duplicate()
+
 	var base := spec[CarSpec.WHEEL_INERTIA]
 	for i in 4:
 		var inertia := base + (carried.y if driven(i) else 0.0)
@@ -219,6 +226,7 @@ func place(running: bool, selector: Gearbox.Selector, speed := 0.0) -> void:
 	gearbox.select(selector, speed)
 	for i in 4:
 		spin[i] = speed / spec[CarSpec.WHEEL_RADIUS]
+		deflect[i] = Vector2.ZERO
 	engine = EngineState.RUNNING if running else EngineState.OFF
 	cranked = 0.0
 	coupling = Coupling.OPEN
@@ -346,7 +354,9 @@ func _couple(dt: float) -> Vector2:
 			coupling = Coupling.SLIPPING
 		else:
 			engine_spin = wheel_side
-	elif wheel_side >= stall * 0.97:
+	elif wheel_side >= stall * 0.97 and engine_spin <= wheel_side * LOCK_SLIP:
+		# The lock-up clutch (or the clutch let out) closes once the two sides nearly agree, so
+		# it closes with no jolt.
 		coupling = Coupling.LOCKED
 		_lock(gearing, count)
 	else:
@@ -446,64 +456,69 @@ func _split(torque: float) -> PackedFloat64Array:
 
 
 ## Solves wheel [param i]'s spin at the end of the step, implicitly so a stiff tyre stays stable:
-## the spin at which the drive [param drive], the brake [param brake] and the tyre's pull balance
-## the change of spin of [param inertia], the wheel's own and any engine's locked to it. Then sets the wheel's slip and its tyre's force.
+## the spin at which the drive [param drive], the brakes [param brake] and the rolling resistance
+## (both against its turning, as friction) and the tread's pull ([method TyreModel.contact]) balance
+## the change of spin of [param inertia], the wheel's own and any engine's locked to it. Then sets
+## the tread's deflection, the tyre's force and, for whoever listens, its slip.
 func _solve_wheel(i: int, dt: float, drive: float, brake: float, load: float, ground: float,
 		side: float, mu: float, inertia: float) -> void:
 	var r := spec[CarSpec.WHEEL_RADIUS]
-	var slip_angle := TyreModel.slip_angle(ground, side)
 	var w := spin[i]
+	angle[i] = TyreModel.slip_angle(ground, side)
+	if load <= 0.0:
+		# In the air: only the drive and brake turn it, and the tread springs back.
+		w += drive * dt / inertia
+		w = move_toward(w, 0.0, brake * dt / inertia)
+		spin[i] = w
+		deflect[i] = Vector2.ZERO
+		ratio[i] = 0.0
+		force[i] = Vector2.ZERO
+		usage[i] = 0.0
+		return
+	brake += spec[CarSpec.ROLLING] * load * r
 	var rolling := ground / r
 	var reach := (absf(drive) + brake) * dt / inertia + absf(w - rolling) + 5.0
 	var lo := minf(w, rolling) - reach
 	var hi := maxf(w, rolling) + reach
-	if load <= 0.0:
-		# In the air: only the drive and brake turn it.
-		w += drive * dt / inertia
-		w = move_toward(w, 0.0, brake * dt / inertia)
-		spin[i] = w
-		ratio[i] = 0.0
-		angle[i] = slip_angle
-		force[i] = Vector2.ZERO
-		usage[i] = 0.0
-		return
 	for k in SOLVE_STEPS:
 		var mid := (lo + hi) * 0.5
-		if _residual(dt, w, mid, drive, brake, load, ground, slip_angle, mu, inertia) > 0.0:
+		var turning := _torque(i, dt, w, mid, drive, load, ground, side, mu, inertia)
+		if turning + brake * signf(mid) > 0.0:
 			hi = mid
 		else:
 			lo = mid
 	var solved := (lo + hi) * 0.5
-	# A braked wheel this close to still is held still.
-	if absf(solved) < 0.05 and brake > 0.0:
+	# Friction holds a wheel this close to still while it can.
+	if absf(solved) < 0.05 and absf(_torque(i, dt, w, 0.0, drive, load, ground, side, mu,
+			inertia)) <= brake:
 		solved = 0.0
+	var touch := TyreModel.contact(spec, deflect[i], solved * r, ground, side, load, mu, dt)
 	spin[i] = solved
+	deflect[i] = Vector2(touch.z, touch.w)
+	force[i] = Vector2(touch.x, touch.y)
 	ratio[i] = TyreModel.slip_ratio(solved * r, ground)
-	angle[i] = slip_angle
-	var f := TyreModel.force(spec, ratio[i], slip_angle, load, mu)
-	# At walking pace the tyre pushes sideways no harder than stops the slide within the step.
-	var most := spec[CarSpec.MASS] * 0.25 * absf(side) / dt
-	f.y = clampf(f.y, -most, most)
-	if solved == 0.0 and absf(ground) < 1.5:
-		# A wheel held still at a crawl grips as static friction: as hard as stops the car's share
-		# within the step and draws back what it has crept since it was held, so a slope cannot
-		# ease it down a little every step; up to the tyre's grip.
-		held_drift[i] += ground * dt
-		var top := TyreModel.peak(spec, load, mu)
-		f.x = clampf(-spec[CarSpec.MASS] * 0.25 * (ground + held_drift[i] * HOLD_PULL) / dt,
-			-top, top)
-	else:
-		held_drift[i] = 0.0
-	force[i] = f
-	usage[i] = TyreModel.usage(spec, ratio[i], slip_angle)
+	usage[i] = TyreModel.usage(spec, ratio[i], angle[i])
 
 
-## The imbalance on a wheel spinning [param from] at the start of the step and [param to] at its
-## end: positive when [param to] is too fast.
-func _residual(dt: float, from: float, to: float, drive: float, brake: float, load: float,
-		ground: float, slip_angle: float, mu: float, inertia: float) -> float:
+## Turns wheel [param i] by [param by] radians, left positive, over its tread: the tread's
+## deflection stays where it lies on the road, so in the wheel's frame it turns the other way. A
+## wheel turned on a still car deflects nothing new.
+func _turn_tread(i: int, by: float) -> void:
+	if by == 0.0 or deflect[i] == Vector2.ZERO:
+		return
+	var sigma := spec[CarSpec.RELAXATION]
+	var px := sigma * spec[CarSpec.PEAK_RATIO]
+	var py := sigma * tan(spec[CarSpec.PEAK_ANGLE])
+	# Where the tread's surface lies on the road from the wheel, metres: a tread driven ahead of
+	# the road (a positive deflection along) has its surface pushed back.
+	var lying := Vector2(-deflect[i].x * px, deflect[i].y * py).rotated(-by)
+	deflect[i] = Vector2(-lying.x / px, lying.y / py)
+
+
+## The torque left over on wheel [param i] spinning [param from] at the start of the step and
+## [param to] at its end, brakes aside: positive when [param to] is too fast.
+func _torque(i: int, dt: float, from: float, to: float, drive: float, load: float, ground: float,
+		side: float, mu: float, inertia: float) -> float:
 	var r := spec[CarSpec.WHEEL_RADIUS]
-	var k := TyreModel.slip_ratio(to * r, ground)
-	var pull := TyreModel.force(spec, k, slip_angle, load, mu).x
-	var held := brake * signf(to)
-	return inertia * (to - from) / dt - drive + pull * r + held
+	var pull := TyreModel.contact(spec, deflect[i], to * r, ground, side, load, mu, dt).x
+	return inertia * (to - from) / dt - drive + pull * r

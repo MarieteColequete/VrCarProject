@@ -1,20 +1,17 @@
 class_name Assists
 extends RefCounted
-## The driving aids, as in the racing games and in road cars: anti-lock brakes (ABS), traction
-## control (TCS), stability control (ESC), and steering help for keys and sticks (a lock that
-## shrinks with speed to what the tyres can use, and counter-steer that catches a slide). Three
-## presets: [code]exam[/code], every aid on and forgiving, the default in exam attempts;
-## [code]sport[/code], ABS and a late traction control only; [code]sim[/code], ABS only, as a
-## modern road car. A preset is a [PackedFloat64Array] read by the index constants. Pure and
-## allocation free.
+## The driving aids a road car's ABS module runs: anti-lock brakes (ABS), traction control (TCS)
+## and stability control (ESC). They act only through the brakes and the engine, as on a road
+## car; none of them steers, which is the driver's alone ([Steering]). Three presets:
+## [code]exam[/code], every aid on and forgiving, the default in exam attempts; [code]sport[/code],
+## ABS and a late traction control only; [code]sim[/code], ABS only. A preset is a
+## [PackedFloat64Array] read by the index constants. Pure and allocation free.
 
 ## Indices into a preset: each aid's strength, 0 off to 1 full.
 const ABS := 0
 const TCS := 1
 const ESC := 2
-const STEER_HELP := 3
-const COUNTER_STEER := 4
-const SIZE := 5
+const SIZE := 3
 const PRESETS := ["exam", "sport", "sim"]
 ## The project setting that picks the preset outside exam attempts.
 const SETTING := "car/assists"
@@ -23,10 +20,10 @@ const SETTING := "car/assists"
 static func preset(title: String) -> PackedFloat64Array:
 	match title:
 		"sim":
-			return PackedFloat64Array([1.0, 0.0, 0.0, 0.0, 0.0])
+			return PackedFloat64Array([1.0, 0.0, 0.0])
 		"sport":
-			return PackedFloat64Array([1.0, 0.5, 0.0, 0.6, 0.4])
-	return PackedFloat64Array([1.0, 1.0, 1.0, 1.0, 1.0])
+			return PackedFloat64Array([1.0, 0.5, 0.0])
+	return PackedFloat64Array([1.0, 1.0, 1.0])
 
 
 ## The preset the project settings pick, [code]exam[/code] by default.
@@ -78,28 +75,3 @@ static func yaw_error(aids: PackedFloat64Array, spec: PackedFloat64Array, speed:
 	if absf(error) < margin:
 		return 0.0
 	return (error - signf(error) * margin) * aids[ESC]
-
-
-## The front wheels' lock for keys and sticks at [param speed]: the spec's lock slowly, shrinking
-## with steering help toward the turn the tyres can hold at speed, plus their peak slip angle.
-static func steer_lock(aids: PackedFloat64Array, spec: PackedFloat64Array, speed: float,
-		mu: float) -> float:
-	var full := spec[CarSpec.STEER_LOCK]
-	var v2 := speed * speed
-	if v2 < 1.0 or aids[STEER_HELP] <= 0.0:
-		return full
-	var holds := atan(mu * spec[CarSpec.GRIP] * CarSpec.G * spec[CarSpec.WHEELBASE] / v2) \
-		+ spec[CarSpec.PEAK_ANGLE]
-	return lerpf(full, minf(full, holds), aids[STEER_HELP])
-
-
-## Counter-steer that catches a slide: steering, radians, toward where the rear axle slides at
-## slip angle [param rear_angle].
-static func counter_steer(aids: PackedFloat64Array, spec: PackedFloat64Array,
-		rear_angle: float) -> float:
-	if aids[COUNTER_STEER] <= 0.0:
-		return 0.0
-	var beyond := absf(rear_angle) - spec[CarSpec.PEAK_ANGLE] * 0.5
-	if beyond <= 0.0:
-		return 0.0
-	return signf(rear_angle) * beyond * aids[COUNTER_STEER]

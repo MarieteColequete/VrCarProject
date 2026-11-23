@@ -148,8 +148,10 @@ func _test_on_car() -> void:
 ## Scripted drives on a wide floor: what each voice reaches, heard, in ordinary driving and in
 ## hard driving.
 func _test_drives() -> void:
+	# A lane change at 50 km/h: about 2.7° at the wheels, some 3 m/s² across. The steering is the
+	# driver's alone, so a calm one is a small turn of the wheel.
 	var calm := await _drive(13.9, func(t: float) -> Dictionary:
-		return {steer = 0.3 if t < 0.6 else (-0.3 if t < 1.2 else 0.0)}, 2.5)
+		return {steer = 0.08 if t < 0.6 else (-0.08 if t < 1.2 else 0.0)}, 2.5)
 	expect(calm.squeal < CarSound.VOICE_FLOOR and calm.skid < CarSound.VOICE_FLOOR,
 		"a lane change at 50 km/h: no squeal, no skid (%.2f, %.2f)" % [calm.squeal, calm.skid])
 	var junction := await _drive(5.6, func(_t: float) -> Dictionary: return {steer = 1.0}, 3.0)

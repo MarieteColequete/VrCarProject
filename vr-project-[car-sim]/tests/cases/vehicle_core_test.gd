@@ -111,10 +111,6 @@ func _test_cornering() -> void:
 		car.tick({throttle = hold, steer = steer})
 		most = maxf(most, absf(car.ay))
 	expect(most > 7.5 and most < 11.0, "it corners at up to %.2f m/s² at 72 km/h" % most)
-	var exam := FlatCar.new(KIRI.packed(), Assists.preset("exam"))
-	var lock := Assists.steer_lock(exam.dyn.aids, exam.dyn.spec, 25.0, 1.0)
-	expect(lock < KIRI.steer_lock * 0.5, "with help, keys steer less at speed: %.1f°"
-		% rad_to_deg(lock))
 
 
 func _test_handbrake() -> void:
@@ -246,6 +242,9 @@ class FlatCar:
 		var loads := PackedFloat64Array([front * 0.5 - shift * b / l, front * 0.5 + shift * b / l,
 			rear * 0.5 - shift * a / l, rear * 0.5 + shift * a / l])
 		var steer := float(controls.get("steer", 0.0))
+		var fronts := Steering.ackermann(spec, steer)
+		var turned := PackedFloat64Array([fronts.x, fronts.y, 0.0, 0.0])
+		controls.angles = turned
 		var along := PackedFloat64Array()
 		var across := PackedFloat64Array()
 		var places: Array[Vector2] = [Vector2(a, half), Vector2(a, -half), Vector2(-b, half),
@@ -253,7 +252,7 @@ class FlatCar:
 		for i in 4:
 			var p := places[i]
 			var v := Vector2(vx - r * p.y, vy + r * p.x)
-			var angle := steer if i < 2 else 0.0
+			var angle := turned[i]
 			along.append(v.x * cos(angle) + v.y * sin(angle))
 			across.append(-v.x * sin(angle) + v.y * cos(angle))
 		systems.sense(dyn, {yaw_rate = r, specific_force = Vector3(ax, ay, CarSpec.G)},
@@ -262,12 +261,12 @@ class FlatCar:
 		systems.decide(spec, dyn.aids, DT)
 		dyn.step(DT, controls, loads, along, across, PackedFloat64Array([mu, mu, mu, mu]),
 			systems.signals)
-		var fx := -0.5 * CarSpec.AIR * spec[CarSpec.DRAG_AREA] * vx * absf(vx) \
-			- spec[CarSpec.ROLLING] * m * CarSpec.G * signf(vx)
+		# Rolling resistance is the tyres' own, in the wheel solve; only the air acts on the body.
+		var fx := -0.5 * CarSpec.AIR * spec[CarSpec.DRAG_AREA] * vx * absf(vx)
 		var fy := 0.0
 		var moment := 0.0
 		for i in 4:
-			var angle := steer if i < 2 else 0.0
+			var angle := turned[i]
 			var f := dyn.force[i]
 			var wx := f.x * cos(angle) - f.y * sin(angle)
 			var wy := f.x * sin(angle) + f.y * cos(angle)

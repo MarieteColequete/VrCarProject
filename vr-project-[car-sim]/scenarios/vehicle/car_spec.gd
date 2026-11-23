@@ -56,9 +56,10 @@ const CREEP_TORQUE := 40
 const CRANK_TIME := 41
 const STARTER_RPM := 42
 const STALL_RPM := 43
+const RELAXATION := 44
 ## The gears' ratios start here, first gear first, [constant GEAR_COUNT] of them; the torque
 ## curve follows them, [constant CURVE_SAMPLES] samples [constant CURVE_STEP] rpm apart from 0.
-const GEARS := 44
+const GEARS := 45
 const CURVE_SAMPLES := 9
 const CURVE_STEP := 1000.0
 ## Air density, kg/m³, and gravity, m/s².
@@ -134,6 +135,10 @@ const G := 9.81
 @export var peak_angle := deg_to_rad(7.0)
 ## The Pacejka shape factor: how much grip is left past the peak (1.45 keeps three quarters).
 @export_range(1.1, 1.9) var tyre_shape := 1.45
+## The tyre's relaxation length, metres: how far it rolls for its tread's deflection to build
+## toward a new slip. The tread deflects only as its contact patch slides over the road, so a
+## wheel turned on a car standing still deflects nothing and pushes nothing.
+@export var relaxation := 0.5
 @export_group("Suspension")
 ## Each corner's spring, N/m, and damper, N·s/m.
 @export var spring_rate := 38000.0
@@ -203,6 +208,7 @@ func packed() -> PackedFloat64Array:
 	p[CRANK_TIME] = crank_time
 	p[STARTER_RPM] = starter_rpm
 	p[STALL_RPM] = stall_rpm
+	p[RELAXATION] = relaxation
 	for i in gear_ratios.size():
 		p[GEARS + i] = gear_ratios[i]
 	var curve := GEARS + gear_ratios.size()
