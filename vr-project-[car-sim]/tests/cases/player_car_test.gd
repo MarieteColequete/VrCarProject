@@ -101,6 +101,13 @@ func _test_cabin() -> void:
 			after += _triangles(part.mesh)
 	for cut: Dictionary in [model.mirror_glass, model.mirror_housing]:
 		after += _triangles((cut[&"rear"] as MeshInstance3D).mesh)
+	var face := model.cluster_face
+	expect(face != null and _triangles(face.mesh) >= 8 and face.get_parent() == model.body
+		and (face.get_meta(&"size") as Vector2).x > 0.4,
+		"the gauge face behind the wheel is cut out of the interior: %d triangles, %s m"
+		% [_triangles(face.mesh) if face else 0, face.get_meta(&"size") if face else Vector2.ZERO])
+	if face:
+		after += _triangles(face.mesh)
 	expect(before > 3000 and after == before,
 		"the cabin's parts hold every triangle the interior had: %d of %d" % [after, before])
 	var wheel := model.steering_wheel as MeshInstance3D
@@ -149,6 +156,9 @@ func _test_live() -> void:
 	car.held_controls = {throttle = 1.0, select = "D"}
 	await frames(60)
 	var instruments: InstrumentCluster = car.instruments
+	expect(instruments.mounted != null and instruments.mounted == car.model.cluster_face
+		and instruments.mounted.material_override != null,
+		"the instruments are drawn on the model's own gauge face")
 	expect(instruments.speed_kmh > 10.0 and is_equal_approx(instruments.speed_kmh,
 		car.current_speed * 3.6), "the speedometer reads the car's speed: %.0f km/h"
 		% instruments.speed_kmh)

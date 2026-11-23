@@ -54,6 +54,13 @@ const MIRRORS := {
 		target = Vector3(2.6, 1.0, 20.0), widen = 1.6, width = 256},
 }
 
+## The instrument cluster's face, in the car's space for a 2.6 m wheelbase: the part that holds it,
+## the box it lies in, and how squarely it faces the driver (the least dot of its triangles' normals
+## with +Z). It is the model's own gauge panel, an inset face behind the steering wheel 0.46 m by
+## 0.14 m, cut out for the instruments to be drawn on.
+const CLUSTER := {part = "Interior", box = AABB(Vector3(-0.545, 0.8, -0.55), Vector3(0.475, 0.155,
+	0.015)), facing = 0.95}
+
 ## The cabin's parts, each its own mesh and material, cut out of the model's one interior mesh by
 ## where each triangle is in the car's space for a 2.6 m wheelbase and which way it faces (see
 ## [method cabin_zone]): each zone's material set, its tint, how many metres one repeat of the
@@ -111,6 +118,9 @@ var mirror_housing := {}
 ## Each mirror's glass, cut out of its housing: [code]rear[/code], [code]left[/code], and
 ## [code]right[/code], each with its frame and size in the car's space as metadata.
 var mirror_glass := {}
+## The instrument cluster's face, cut out of the model with UVs across it, its frame and size in the
+## car's space as metadata; null when the model has none.
+var cluster_face: MeshInstance3D
 ## What the car adds to its body in the car's space, the instruments, the mirrors, and the beams:
 ## it leans with the body, so they stay on it.
 var cabin: Node3D
@@ -283,6 +293,8 @@ func _build(model: Node3D, wheelbase: float) -> void:
 	_materials()
 	for key: StringName in MIRRORS:
 		_cut_glass(key, found.get(MIRRORS[key].part) as MeshInstance3D)
+	cluster_face = _cut_face(found.get(CLUSTER.part) as MeshInstance3D, CLUSTER.box,
+		CLUSTER.facing, "ClusterFace")
 	_split_cabin(found.get("Interior") as MeshInstance3D)
 	_dress_wheel(steering_wheel as MeshInstance3D)
 	_split_blinkers(found.get("Blinkers") as MeshInstance3D)
@@ -571,14 +583,26 @@ func _cut_housing(key: StringName, part: MeshInstance3D, to_car: Transform3D) ->
 	mirror_housing[key] = housing
 
 
-## Cuts the glass of mirror [param key] out of [param part]: the triangles in its box facing back.
-## The part keeps the rest, so the glass is not drawn twice, and the glass gets UVs across its face,
-## U to the driver's right and V down, for the mirror's picture.
+## Cuts the glass of mirror [param key] out of [param part]: the triangles in its box facing back,
+## and the housing round it.
 func _cut_glass(key: StringName, part: MeshInstance3D) -> void:
-	if part == null:
-		return
 	var spot: Dictionary = MIRRORS[key]
-	var box: AABB = spot.box
+	var glass := _cut_face(part, spot.box, spot.facing, "Mirror" + String(key).to_pascal_case())
+	if glass == null:
+		return
+	_cut_housing(key, part, body.transform * part.transform)
+	mirror_glass[key] = glass
+
+
+## Cuts a face out of [param part]: the triangles whose centres lie in [param box] (in the car's
+## space for a 2.6 m wheelbase) facing back toward the driver at least [param facing] (the dot of
+## their normal with +Z). The part keeps the rest, so the face is not drawn twice, and the face gets
+## UVs across it, U to the driver's right and V down, for a picture drawn on it. Returns it named
+## [param title], with its frame (its centre, facing the way its triangles do on average, upright)
+## and its size in the car's space as metadata; null when nothing is there.
+func _cut_face(part: MeshInstance3D, box: AABB, facing: float, title: String) -> MeshInstance3D:
+	if part == null:
+		return null
 	box = AABB(box.position * fit, box.size * fit)
 	var to_car := body.transform * part.transform
 	var normal_to_car := to_car.basis.inverse().transposed()
@@ -586,25 +610,23 @@ func _cut_glass(key: StringName, part: MeshInstance3D) -> void:
 		var centre := to_car * ((a + b + c) / 3.0)
 		# Godot's front faces wind clockwise: their outward normal is (c - a) x (b - a).
 		var normal := (normal_to_car * (c - a).cross(b - a)).normalized()
-		return box.has_point(centre) and normal.z >= spot.facing
-	var glass_mesh := cut_mesh(part.mesh, picks, true)
-	if glass_mesh.get_surface_count() == 0:
-		return
+		return box.has_point(centre) and normal.z >= facing
+	var face_mesh := cut_mesh(part.mesh, picks, true)
+	if face_mesh.get_surface_count() == 0:
+		return null
 	_cut_away(part, picks)
-	_cut_housing(key, part, to_car)
-	# The glass's frame: its centre, facing the way its triangles do on average, upright.
-	var arrays := glass_mesh.surface_get_arrays(0)
+	var arrays := face_mesh.surface_get_arrays(0)
 	var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var facing := Vector3.ZERO
+	var normal_sum := Vector3.ZERO
 	for t in range(0, points.size() - 2, 3):
-		facing += normal_to_car * (points[t + 2] - points[t]).cross(points[t + 1] - points[t])
+		normal_sum += normal_to_car * (points[t + 2] - points[t]).cross(points[t + 1] - points[t])
 	var in_car := PackedVector3Array()
 	for p in points:
 		in_car.append(to_car * p)
 	var bounds := AABB(in_car[0], Vector3.ZERO)
 	for p in in_car:
 		bounds = bounds.expand(p)
-	var frame := _facing(bounds.get_center(), facing.normalized())
+	var frame := _facing(bounds.get_center(), normal_sum.normalized())
 	var to_frame := frame.affine_inverse()
 	var low := Vector2(INF, INF)
 	var high := Vector2(-INF, -INF)
@@ -620,17 +642,17 @@ func _cut_glass(key: StringName, part: MeshInstance3D) -> void:
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	var glass := MeshInstance3D.new()
-	glass.name = "Mirror" + String(key).to_pascal_case()
-	glass.mesh = mesh
-	glass.transform = part.transform
-	glass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# The centre of the glass, not of the box round it: centred, the frame sits on the face.
+	var face := MeshInstance3D.new()
+	face.name = title
+	face.mesh = mesh
+	face.transform = part.transform
+	face.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# The centre of the face, not of the box round it: centred, the frame sits on the face.
 	frame.origin += frame.basis * Vector3((low.x + high.x) / 2.0, (low.y + high.y) / 2.0, 0.0)
-	glass.set_meta(&"frame", frame)
-	glass.set_meta(&"size", size)
-	part.get_parent().add_child(glass)
-	mirror_glass[key] = glass
+	face.set_meta(&"frame", frame)
+	face.set_meta(&"size", size)
+	part.get_parent().add_child(face)
+	return face
 
 
 ## The triangles of [param mesh] that [param picks] picks (given their three corners), or with

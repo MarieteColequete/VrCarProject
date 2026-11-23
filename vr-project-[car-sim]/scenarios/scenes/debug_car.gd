@@ -27,7 +27,8 @@ extends RigidBody3D
 const BLINK := 0.35
 ## Where the driver's eyes are from the steering wheel's centre, metres: above it and behind.
 const EYE_FROM_WHEEL := Vector3(0.0, 0.4, 0.5)
-## Where the instruments are from the steering wheel's centre, metres: above it and ahead.
+## Where the instruments are from the steering wheel's centre, metres, above it and ahead, when the
+## model has no gauge face to draw them on.
 const INSTRUMENTS_FROM_WHEEL := Vector3(0.0, 0.06, -0.15)
 ## The project setting for the mirrors: [code]full[/code], [code]low[/code] (half the pixels, one
 ## mirror a frame), or [code]off[/code].
@@ -150,10 +151,14 @@ func _ready() -> void:
 		add_child(model)
 		driver_view.position = model.steering_centre + EYE_FROM_WHEEL
 		instruments = InstrumentCluster.new()
-		instruments.position = model.steering_centre + INSTRUMENTS_FROM_WHEEL
-		# In the binnacle, facing the driver, leaning back.
-		instruments.rotation = Vector3(deg_to_rad(-20.0), 0.0, 0.0)
 		model.cabin.add_child(instruments)
+		if model.cluster_face:
+			# Drawn on the model's own gauge face behind the wheel.
+			instruments.mount(model.cluster_face)
+		else:
+			instruments.position = model.steering_centre + INSTRUMENTS_FROM_WHEEL
+			# In the binnacle, facing the driver, leaning back.
+			instruments.rotation = Vector3(deg_to_rad(-20.0), 0.0, 0.0)
 		_mount_mirrors()
 	sound = CarSound.new()
 	add_child(sound)
@@ -387,6 +392,8 @@ func _show(delta: float) -> void:
 	if instruments:
 		var parked := probe.handbrake == VehicleProbe.Toggle.ON
 		instruments.redline = spec.redline_rpm
+		instruments.dash.step(delta, dynamics.engine, rpm, throttle, dynamics.stalled,
+			dynamics.esc_active or dynamics.tcs_active)
 		instruments.show_state(delta, absf(current_speed) * 3.6, rpm,
 			dynamics.gearbox.letter(), left, right, parked, headlights,
 			reversing)

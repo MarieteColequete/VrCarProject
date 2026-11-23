@@ -172,9 +172,16 @@ car's wheelbase, left-hand drive, and the driver's eyes sit behind its steering 
 the car reports is in the car, as in a real one, since the view is VR: the wheels roll and the
 front ones steer, the steering wheel turns with the steering, the blinkers, brake lights, reversing
 lights, and headlights glow with the car's state, the headlamps cast dipped beams on the road, and
-the instrument panel in the binnacle (`InstrumentCluster`) shows the speed on a dial and in figures,
-the engine's revolutions and the gear, the indicator arrows blinking, and the handbrake, headlights,
-and reverse tell-tales; its needles follow their readings without overshooting. The paint has a
+the instrument panel (`InstrumentCluster`), drawn on the model's own gauge face behind the wheel
+(cut out of the cabin as the mirrors' glass is), shows the speed on a dial and in figures, the
+engine's revolutions and the gear, the indicator arrows blinking, the handbrake, headlights, and
+reverse tell-tales, a fuel gauge and a coolant gauge at its ends, and the warning lights; its
+needles follow their readings without overshooting. The fuel, the coolant and the warning lights
+are for show (`DashState`): with the key on and the engine not running the engine, oil, battery
+and ABS lights are lit, going out once it runs (the engine and ABS lights after their self-test),
+the stability light flashes while stability or traction control acts, the fuel drains with the
+engine's work (about 1% a minute in town) with a low-fuel light under 12%, and the coolant warms
+to 90 C over a few minutes and cools when the engine is off. The paint has a
 clear coat, and the number plates' letters, the badges, and the tyre walls stand out through normal
 maps made from the model's height maps by `tools/kiri86_normals.gd`.
 
