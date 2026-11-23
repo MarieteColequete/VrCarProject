@@ -223,7 +223,11 @@ brakes, and the throttle drives the way the lever is set, backward in R. Nothing
 out: R while rolling forward, or D while rolling backward, above a walking pace stalls the engine
 with a jolt, and below it the converter takes it up. In D the automatic picks the gear from
 the driven wheels' speed, changing up later the harder the throttle is pressed and kicking down
-when it goes to the floor, and holds each gear a moment so it never hunts. With `car/gearbox` set
+when it is held to the floor, and holds each gear a moment so it never hunts; with the driven
+wheels off the road (in the air, upside down) it holds its gear. The accelerator eases toward the
+pedal or key as a foot moves it, opening fully in 0.6 s and closing in an eighth of a second, so
+tapping a key cruises in top gear (6th from about 80 km/h) and holding it down kicks down to
+overtake. With `car/gearbox` set
 to `manual`, the same actions change gear through R, N and 1 to 6; a change down past the redline
 stalls the engine, and so does coming to a stop in gear with the throttle shut, the clutch let out.
 The engine is off, turned over, or running. The key (`ignition`) held turns it over with the

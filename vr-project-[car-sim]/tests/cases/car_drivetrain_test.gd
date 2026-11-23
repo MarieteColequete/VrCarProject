@@ -2,7 +2,9 @@ extends TestCase
 ## The player's car driving on the vehicle core ([CarDynamics] on its rigid body), and the damped
 ## spring ([Damped]): it starts in park, pulls away in drive through the gears, settles on its
 ## springs, brakes with the nose dipping and never reverses on the brake, reverses in R, turns along
-## its wheels with less lock at speed, and swings round on the handbrake.
+## its wheels with less lock at speed, and swings round on the handbrake; and a driver on the keys,
+## the accelerator easing as a foot does, cruises in top gear and kicks down only when holding the
+## key.
 
 const CAR := preload("res://scenarios/scenes/debug_car.tscn")
 
@@ -14,6 +16,7 @@ func run() -> void:
 	await _test_manual()
 	await _test_surfaces()
 	await _test_falling()
+	await _test_keys_cruise()
 
 
 func _test_spring() -> void:
@@ -183,6 +186,39 @@ func _test_falling() -> void:
 	expect(revs.size() > 30 and revs[-1] < revs[0] * 0.7 and flared == 0,
 		"falling with the throttle shut, the revs fall steadily and never flare: %.0f to %.0f rpm"
 		% [revs[0] if revs else 0.0, revs[-1] if revs else 0.0])
+	car.queue_free()
+	floor.queue_free()
+	await process_frame
+
+
+## A keyboard driver holding 90 km/h: the key down below it, up above it, every step. The
+## accelerator eases toward the key, so the automatic settles in top gear and never kicks down;
+## holding the key down then kicks it down to overtake.
+func _test_keys_cruise() -> void:
+	var floor := ground(6000.0)
+	var car: Node3D = CAR.instantiate()
+	root.add_child(car)
+	await physics_frame
+	var dyn: CarDynamics = car.dynamics
+	var top := Powertrain.gear_count(dyn.spec)
+	var target := 25.0
+	var kicks := 0
+	var last := 0
+	for k in 45 * 60:
+		car.held_controls = {throttle = 1.0 if car.current_speed < target else 0.0, select = "D"}
+		await physics_frame
+		if k > 20 * 60 and dyn.gear < last:
+			kicks += 1
+		last = dyn.gear
+	expect(dyn.gear == top and kicks == 0,
+		"cruising on the keys at 90 km/h settles in top gear: gear %d, %d kick-downs after 20 s"
+		% [dyn.gear, kicks])
+	expect(car.throttle < 1.0, "the accelerator never reaches the floor on taps: %.2f"
+		% car.throttle)
+	car.held_controls = {throttle = 1.0, select = "D"}
+	for k in 90:
+		await physics_frame
+	expect(dyn.gear < top, "holding the key kicks down to overtake: gear %d" % dyn.gear)
 	car.queue_free()
 	floor.queue_free()
 	await process_frame

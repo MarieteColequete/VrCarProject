@@ -18,6 +18,9 @@ extends RefCounted
 ## How the engine meets the driven wheels: apart (park, neutral, a gear change), slipping (pulling
 ## away, or below idle in gear), or locked to them.
 enum Coupling { OPEN, SLIPPING, LOCKED }
+## The share of the converter's slipping revolutions below which a locked automatic slips again;
+## it locks at 0.97 of them, so it does not flutter between the two.
+const CONVERTER_LET_GO := 0.85
 ## The engine: off, turned over by the starter, or running.
 enum EngineState { OFF, CRANKING, RUNNING }
 
@@ -165,7 +168,10 @@ func step(dt: float, controls: Dictionary, loads: PackedFloat64Array, along: Pac
 	var shift := int(controls.get("shift", 0))
 	shifted = shift != 0 and gearbox.request(shift, at)
 	shift_refused = shift != 0 and not shifted
-	gearbox.step(dt, pedal, at)
+	var on_road := false
+	for i in 4:
+		on_road = on_road or (driven(i) and loads[i] > 0.0)
+	gearbox.step(dt, pedal, at, on_road)
 	stalled = false
 	if gearbox.gear != before:
 		_engaged(at)
@@ -348,9 +354,13 @@ func _couple(dt: float) -> Vector2:
 		# Mid-change the automatic cuts the torque, as a gearbox's controller does.
 		_rev_freely(dt, throttle if gearbox.gear == 0 else 0.0)
 		return Vector2.ZERO
-	# It locks once the wheel side catches up with the slipping revolutions, and lets go only
-	# below idle, so a locked engine stays locked as the throttle opens.
+	# It locks once the wheel side catches up with the slipping revolutions. A clutch then lets go
+	# only below idle, so a locked engine stays locked as the throttle opens; an automatic's
+	# converter is a fluid coupling and slips again whenever the throttle asks for well more
+	# revolutions than the wheels turn it at, as a pedal opening from idle does.
 	var count := _driven_count()
+	if coupling == Coupling.LOCKED and not gearbox.manual and wheel_side < stall * CONVERTER_LET_GO:
+		coupling = Coupling.SLIPPING
 	if coupling == Coupling.LOCKED:
 		if _lugging():
 			if wheel_side < _stall_spin():

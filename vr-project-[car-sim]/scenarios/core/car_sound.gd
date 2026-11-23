@@ -53,8 +53,8 @@ const SKID_FROM := 2.0
 const SKID_FULL := 6.0
 ## The speeds, m/s, below which the tyres neither squeal nor skid, and from which they do fully: at
 ## walking pace a braked wheel's slip reads large though nothing slides.
-const SLIDE_SPEED_FROM := 3.0
-const SLIDE_SPEED_FULL := 7.0
+const SLIDE_SPEED_FROM := 4.0
+const SLIDE_SPEED_FULL := 8.0
 ## The skid while the anti-lock brakes work: its share, and how often it pulses, Hz.
 const ABS_SKID := 0.35
 const ABS_PULSE_HZ := 12.0

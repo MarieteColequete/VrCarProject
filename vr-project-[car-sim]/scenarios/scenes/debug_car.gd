@@ -41,6 +41,11 @@ const CAST_FROM := 0.38
 ## second.
 const STEER_RATE := 3.0
 const RETURN_RATE := 4.0
+## How fast the accelerator opens toward the pedal or key and closes, in full travels per second,
+## as a foot moves it: a key held opens it fully in [code]1 / THROTTLE_OPEN[/code] seconds, so a
+## tap is a part throttle the automatic cruises on, and only a key held down kicks it down.
+const THROTTLE_OPEN := 1.6
+const THROTTLE_CLOSE := 8.0
 ## The automatic's lever positions by letter, in [enum Gearbox.Selector]'s order, for
 ## [member held_controls]' [code]select[/code].
 const SELECTOR_LETTERS := ["P", "R", "N", "D"]
@@ -72,7 +77,7 @@ var gear: int:
 var rpm: float:
 	get:
 		return dynamics.rpm if dynamics else 850.0
-## The throttle held now, 0 to 1.
+## The accelerator now, 0 to 1, easing toward the pedal or key ([constant THROTTLE_OPEN]).
 var throttle := 0.0
 ## The front wheels' turn, radians, left positive.
 var wheel_angle := 0.0
@@ -414,6 +419,7 @@ func _key() -> bool:
 
 func _drive(delta: float) -> void:
 	if not input_enabled or delta <= 0.0:
+		throttle = 0.0
 		_steer = 0.0
 		wheel_angle = 0.0
 		_braking = false
@@ -424,7 +430,8 @@ func _drive(delta: float) -> void:
 	var velocity := linear_velocity
 	current_speed = velocity.dot(forward)
 	var c := _controls()
-	throttle = c.throttle
+	throttle = move_toward(throttle, clampf(c.throttle, 0.0, 1.0),
+		(THROTTLE_OPEN if c.throttle > throttle else THROTTLE_CLOSE) * delta)
 	var brake: float = c.brake
 	probe.handbrake = VehicleProbe.Toggle.ON if c.handbrake > 0.5 else VehicleProbe.Toggle.OFF
 
@@ -517,7 +524,7 @@ func _drive(delta: float) -> void:
 
 	_mu_mean = (mu[0] + mu[1] + mu[2] + mu[3]) * 0.25
 	dynamics.aids = _aids()
-	var step := {throttle = c.throttle, brake = brake, handbrake = c.handbrake, steer = wheel_angle,
+	var step := {throttle = throttle, brake = brake, handbrake = c.handbrake, steer = wheel_angle,
 		shift = c.shift, starter = c.ignition}
 	if not str(c.select).is_empty():
 		step.select = SELECTOR_LETTERS.find(str(c.select))

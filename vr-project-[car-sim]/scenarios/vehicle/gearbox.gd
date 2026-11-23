@@ -15,6 +15,10 @@ const HOLD := 0.8
 const CRAWL := 1.0
 ## Revolutions above the change-down point a change up must land at, so it is not undone.
 const UP_MARGIN := 300.0
+## The pedal past which the automatic kicks down, and the seconds it must stay there: the detent at
+## the end of the pedal's travel, pressed through, not brushed on the way.
+const KICK_PEDAL := 0.95
+const KICK_HOLD := 0.25
 
 var spec: PackedFloat64Array
 ## Whether the driver changes gear by hand.
@@ -25,6 +29,8 @@ var gear := 0
 var shifting := 0.0
 ## Seconds in the current gear.
 var held_for := 0.0
+## Seconds the pedal has been past [constant KICK_PEDAL].
+var floored_for := 0.0
 
 
 func _init(p_spec: PackedFloat64Array, p_manual := false) -> void:
@@ -75,12 +81,19 @@ func select(to: Selector, wheel_speed := 0.0) -> void:
 
 
 ## One step of [param dt] seconds: the change in hand goes through, and in D the automatic picks
-## the gear for the driven wheels' [param wheel_speed] m/s and the [param throttle].
-func step(dt: float, throttle: float, wheel_speed: float) -> void:
+## the gear for the driven wheels' [param wheel_speed] m/s and the [param throttle], holding it
+## while none of them is [param grounded].
+func step(dt: float, throttle: float, wheel_speed: float, grounded := true) -> void:
 	shifting = maxf(shifting - dt, 0.0)
-	held_for += dt
+	floored_for = floored_for + dt if throttle > KICK_PEDAL else 0.0
 	if manual or selector != Selector.DRIVE:
+		held_for += dt
 		return
+	if not grounded:
+		# No driven wheel on the road: their spin says nothing of the car's speed, so the gear
+		# holds, and its time in gear waits for the landing.
+		return
+	held_for += dt
 	if wheel_speed < CRAWL:
 		if gear != 1:
 			_engage(1)
@@ -95,7 +108,8 @@ func step(dt: float, throttle: float, wheel_speed: float) -> void:
 	if gear <= 1:
 		return
 	var lower := rpm_in(gear - 1, wheel_speed)
-	var kick := t > 0.95 and lower < spec[CarSpec.UP_FULL] * 0.85 and held_for >= HOLD * 0.4
+	var kick := floored_for >= KICK_HOLD and lower < spec[CarSpec.UP_FULL] * 0.85 \
+		and held_for >= HOLD * 0.4
 	var lugging := now < spec[CarSpec.DOWN_RPM] and lower < up * 0.85 and held_for >= HOLD
 	if kick or lugging:
 		_engage(gear - 1)

@@ -2,7 +2,8 @@ extends TestCase
 ## The gearbox ([Gearbox]) and the engine's own revolutions ([CarDynamics]), stepped by hand: the
 ## automatic's P-R-N-D lever, free to move at any speed, a gearbox that never moves between reverse and
 ## forward on its own however the car jitters at rest, an automatic that climbs through its gears
-## without hunting, the manual's gears and its refusal to over-rev, and an engine that revs freely
+## without hunting, kicks down only on a pedal floored and held, holds its gear with the driven
+## wheels in the air, the manual's gears and its refusal to over-rev, and an engine that revs freely
 ## out of gear, idles in the air with the throttle shut, and reaches its limiter, never past it.
 
 const KIRI := preload("res://scenarios/vehicle/specs/kiri86.tres")
@@ -12,6 +13,8 @@ func run() -> void:
 	_test_lever()
 	_test_standing_still()
 	_test_climbing()
+	_test_kick_down()
+	_test_airborne_gear()
 	_test_manual()
 	_test_letters()
 	_test_engine_out_of_gear()
@@ -95,6 +98,43 @@ func _test_climbing() -> void:
 	for i in 600:
 		slowing.step(DT, 0.0, maxf(25.0 - i * DT * 8.0, 0.0))
 	expect(slowing.gear == 1, "stopped, the automatic is back in first")
+
+
+func _test_kick_down() -> void:
+	var box := Gearbox.new(KIRI.packed())
+	box.select(Gearbox.Selector.DRIVE, 25.0)
+	for i in 300:
+		box.step(DT, 0.2, 25.0)
+	var cruising := box.gear
+	# Brushed past the detent for a tenth of a second, again and again.
+	for i in 240:
+		box.step(DT, 1.0 if i % 30 < 6 else 0.4, 25.0)
+	expect(box.gear == cruising, "brushing the pedal's end does not kick down: %d to %d"
+		% [cruising, box.gear])
+	for i in 60:
+		box.step(DT, 1.0, 25.0)
+	expect(box.gear < cruising, "pressed through and held, it does: %d to %d"
+		% [cruising, box.gear])
+
+
+func _test_airborne_gear() -> void:
+	var box := Gearbox.new(KIRI.packed())
+	box.select(Gearbox.Selector.DRIVE)
+	var speed := 0.0
+	# The driven wheels off the road, spinning up under full throttle.
+	for i in 600:
+		speed = minf(speed + 8.0 * DT, 60.0)
+		box.step(DT, 1.0, speed, false)
+	expect(box.gear == 1, "in the air the gear holds, however the wheels spin: %d" % box.gear)
+	for i in 120:
+		box.step(DT, 0.3, 20.0, true)
+	expect(box.gear > 1, "back on the road it changes again: %d" % box.gear)
+	var dyn := CarDynamics.new(KIRI.packed(), Assists.preset("sim"))
+	dyn.gearbox.select(Gearbox.Selector.DRIVE, 0.0)
+	_airborne_dyn(dyn, {throttle = 1.0}, 600)
+	expect(dyn.gearbox.gear == 1 and dyn.rpm <= KIRI.redline_rpm + 60.0,
+		"upside down at full throttle the car stays in first at its limiter: %d, %.0f rpm"
+		% [dyn.gearbox.gear, dyn.rpm])
 
 
 func _test_manual() -> void:
