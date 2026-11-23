@@ -211,6 +211,8 @@ class FlatCar:
 	var r := 0.0
 	var ax := 0.0
 	var ay := 0.0
+	## The car's sensors and control units, as on the player's car.
+	var systems := CarSystems.new()
 
 	func _init(p_spec: PackedFloat64Array, aids: PackedFloat64Array) -> void:
 		spec = p_spec
@@ -254,7 +256,12 @@ class FlatCar:
 			var angle := steer if i < 2 else 0.0
 			along.append(v.x * cos(angle) + v.y * sin(angle))
 			across.append(-v.x * sin(angle) + v.y * cos(angle))
-		dyn.step(DT, controls, loads, along, across, PackedFloat64Array([mu, mu, mu, mu]), vx, r)
+		systems.sense(dyn, {yaw_rate = r, specific_force = Vector3(ax, ay, CarSpec.G)},
+			{steer_angle = steer, throttle = controls.get("throttle", 0.0),
+			brake = controls.get("brake", 0.0), handbrake = controls.get("handbrake", 0.0)})
+		systems.decide(spec, dyn.aids, DT)
+		dyn.step(DT, controls, loads, along, across, PackedFloat64Array([mu, mu, mu, mu]),
+			systems.signals)
 		var fx := -0.5 * CarSpec.AIR * spec[CarSpec.DRAG_AREA] * vx * absf(vx) \
 			- spec[CarSpec.ROLLING] * m * CarSpec.G * signf(vx)
 		var fy := 0.0

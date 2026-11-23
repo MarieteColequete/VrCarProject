@@ -214,7 +214,7 @@ func _test_park() -> void:
 	var mu := PackedFloat64Array([1.0, 1.0, 1.0, 1.0])
 	var pushed := 0.0
 	for i in 60:
-		dyn.step(DT, {throttle = 1.0}, loads, zero, zero, mu, 0.0, 0.0)
+		dyn.step(DT, {throttle = 1.0}, loads, zero, zero, mu)
 		pushed = maxf(pushed, absf(dyn.force[CarDynamics.RL].x))
 	expect(pushed < 1.0 and dyn.gearbox.letter() == "P",
 		"in park the throttle only revs the engine: %.1f N at the rear tyres, %.0f rpm"
@@ -225,7 +225,11 @@ func _airborne_dyn(dyn: CarDynamics, controls: Dictionary, ticks: int) -> Array:
 	var revs := []
 	var zero := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
 	var mu := PackedFloat64Array([1.0, 1.0, 1.0, 1.0])
+	# The car's electronics see a body in free fall: no turn, and no specific force.
+	var systems := CarSystems.new()
 	for i in ticks:
-		dyn.step(DT, controls, zero, zero, zero, mu, 0.0, 0.0)
+		systems.sense(dyn, {yaw_rate = 0.0, specific_force = Vector3.ZERO}, controls)
+		systems.decide(dyn.spec, dyn.aids, DT)
+		dyn.step(DT, controls, zero, zero, zero, mu, systems.signals)
 		revs.append(dyn.rpm)
 	return revs

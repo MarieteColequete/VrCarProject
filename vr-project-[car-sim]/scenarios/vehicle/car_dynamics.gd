@@ -94,10 +94,6 @@ var throttle := 0.0
 ## lever was already at its end).
 var shifted := false
 var shift_refused := false
-## Whether each aid stepped in during the last step.
-var abs_active := false
-var tcs_active := false
-var esc_active := false
 ## The key held through a switch-off or a start, ignored until it is let go.
 var _key_latched := false
 var _key_was := false
@@ -153,14 +149,16 @@ static func corner_load(p_spec: PackedFloat64Array, compression: float, rate: fl
 ## [code]starter[/code] whether the key is held to start the engine (a fresh press of it switches a
 ## running engine off). Each wheel's
 ## [param loads] newtons, its contact patch's speed [param along] and [param across] its own frame
-## (m/s), and the surface's friction [param mu]; the car's [param speed] forward (m/s) and
-## [param yaw_rate] (rad/s, left positive).
+## (m/s), and the surface's friction [param mu]: the plant, as the body under it gives it. The
+## aids are not here: the car's control units decide from its sensors ([CarSystems]) and their
+## [param units] ask this step's brakes, engine and gear hold ([member CarSignals.brake_scale],
+## [member CarSignals.brake_extra], [member CarSignals.throttle_scale],
+## [member CarSignals.gear_hold]); without them the car drives with no aids.
 func step(dt: float, controls: Dictionary, loads: PackedFloat64Array, along: PackedFloat64Array,
-		across: PackedFloat64Array, mu: PackedFloat64Array, speed: float, yaw_rate: float) -> void:
+		across: PackedFloat64Array, mu: PackedFloat64Array, units: CarSignals = null) -> void:
 	var pedal := clampf(float(controls.get("throttle", 0.0)), 0.0, 1.0)
 	var brake := clampf(float(controls.get("brake", 0.0)), 0.0, 1.0)
 	var handbrake := clampf(float(controls.get("handbrake", 0.0)), 0.0, 1.0)
-	var steer := float(controls.get("steer", 0.0))
 	var at := wheel_speed()
 	var before := gearbox.gear
 	if controls.has("select") and int(controls.select) != gearbox.selector:
@@ -168,31 +166,12 @@ func step(dt: float, controls: Dictionary, loads: PackedFloat64Array, along: Pac
 	var shift := int(controls.get("shift", 0))
 	shifted = shift != 0 and gearbox.request(shift, at)
 	shift_refused = shift != 0 and not shifted
-	var on_road := false
-	for i in 4:
-		on_road = on_road or (driven(i) and loads[i] > 0.0)
-	gearbox.step(dt, pedal, at, on_road)
+	gearbox.step(dt, pedal, at, units == null or not units.gear_hold)
 	stalled = false
 	if gearbox.gear != before:
 		_engaged(at)
 	_ignition(dt, bool(controls.get("starter", false)))
-	var grip_mu := (mu[0] + mu[1] + mu[2] + mu[3]) * 0.25
-
-	# Stability control: brakes one wheel to turn the car back to what the driver means, and
-	# eases the throttle.
-	var error := Assists.yaw_error(aids, spec, speed, steer, yaw_rate, grip_mu)
-	esc_active = error != 0.0
-	pedal *= clampf(1.0 - absf(error) * 2.0, 0.2, 1.0)
-
-	# Traction control on the driven wheels' slip.
-	var drive_slip := 0.0
-	var count := 0
-	for i in 4:
-		if driven(i):
-			drive_slip = maxf(drive_slip, ratio[i] * signf(spin[i] if spin[i] != 0.0 else 1.0))
-			count += 1
-	throttle = Assists.throttle(aids, spec, pedal, drive_slip)
-	tcs_active = throttle < pedal - 0.001
+	throttle = pedal * (units.throttle_scale if units else 1.0)
 
 	var carried := _couple(dt)
 	var drives := _split(carried.x)
@@ -202,17 +181,9 @@ func step(dt: float, controls: Dictionary, loads: PackedFloat64Array, along: Pac
 		footbrake * spec[CarSpec.BRAKE_BIAS] * 0.5, footbrake * spec[CarSpec.BRAKE_BIAS] * 0.5,
 		footbrake * (1.0 - spec[CarSpec.BRAKE_BIAS]) * 0.5,
 		footbrake * (1.0 - spec[CarSpec.BRAKE_BIAS]) * 0.5])
-	abs_active = false
-	for i in 4:
-		var eased := Assists.brake(aids, spec, brakes[i], ratio[i] * signf(along[i]))
-		abs_active = abs_active or eased < brakes[i]
-		brakes[i] = eased
-	if error != 0.0:
-		# Too far left: brake the right; the front if the rear slides, else the rear.
-		var rear_slides := absf(angle[RL] + angle[RR]) > absf(angle[FL] + angle[FR])
-		var right := error > 0.0
-		var wheel := (FR if right else FL) if rear_slides else (RR if right else RL)
-		brakes[wheel] += minf(absf(error) * 5000.0, 1800.0)
+	if units:
+		for i in 4:
+			brakes[i] = brakes[i] * units.brake_scale[i] + units.brake_extra[i]
 	brakes[RL] += handbrake * spec[CarSpec.HANDBRAKE_TORQUE]
 	brakes[RR] += handbrake * spec[CarSpec.HANDBRAKE_TORQUE]
 	# The pawl ratchets past its notches while the car rolls, and drops in once it is slow.

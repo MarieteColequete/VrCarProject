@@ -222,6 +222,6 @@ func _air(dyn: CarDynamics, controls: Dictionary, ticks: int) -> Array:
 	var zero := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
 	var mu := PackedFloat64Array([1.0, 1.0, 1.0, 1.0])
 	for i in ticks:
-		dyn.step(DT, controls, zero, zero, zero, mu, 0.0, 0.0)
+		dyn.step(DT, controls, zero, zero, zero, mu)
 		revs.append(dyn.rpm)
 	return revs

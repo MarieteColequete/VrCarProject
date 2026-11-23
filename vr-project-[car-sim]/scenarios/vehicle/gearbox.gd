@@ -81,8 +81,9 @@ func select(to: Selector, wheel_speed := 0.0) -> void:
 
 
 ## One step of [param dt] seconds: the change in hand goes through, and in D the automatic picks
-## the gear for the driven wheels' [param wheel_speed] m/s and the [param throttle], holding it
-## while none of them is [param grounded].
+## the gear for the driven wheels' [param wheel_speed] m/s and the [param throttle]; with
+## [param grounded] false (the transmission unit sees the driven wheels flare, [TransmissionUnit])
+## it holds the gear.
 func step(dt: float, throttle: float, wheel_speed: float, grounded := true) -> void:
 	shifting = maxf(shifting - dt, 0.0)
 	floored_for = floored_for + dt if throttle > KICK_PEDAL else 0.0
@@ -90,8 +91,8 @@ func step(dt: float, throttle: float, wheel_speed: float, grounded := true) -> v
 		held_for += dt
 		return
 	if not grounded:
-		# No driven wheel on the road: their spin says nothing of the car's speed, so the gear
-		# holds, and its time in gear waits for the landing.
+		# The driven wheels flaring: their spin says nothing of the car's speed, so the gear holds,
+		# and its time in gear waits for them to grip.
 		return
 	held_for += dt
 	if wheel_speed < CRAWL:

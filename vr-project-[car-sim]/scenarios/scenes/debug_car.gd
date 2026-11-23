@@ -67,8 +67,14 @@ const ACCEL_SMOOTHING := 30.0
 
 ## The car's speed along its length, m/s, negative reversing.
 var current_speed := 0.0
-## The engine, the gearbox, the brakes and the tyres.
+## The engine, the gearbox, the brakes and the tyres: the plant.
 var dynamics: CarDynamics
+## The car's sensors and control units ([CarSystems]); [member signals] is what they measured and
+## decided, the only way the instruments, lights, aids and feedback read the car.
+var systems := CarSystems.new()
+var signals: CarSignals:
+	get:
+		return systems.signals
 ## The gearbox's gear: 1 and up, -1 reversing, 0 in neutral or park. The automatic's lever is
 ## [code]dynamics.gearbox.selector[/code]; the car starts in park.
 var gear: int:
@@ -115,6 +121,7 @@ var _steer := 0.0
 var _braking := false
 var _accel := Vector2.ZERO
 var _last_velocity := Vector3.ZERO
+var _settled_motion := false
 var _mirror_frame := 0
 var _on_kerb := false
 var _mirror_quality := "full"
@@ -132,7 +139,6 @@ var key_live := true:
 		key_live = value
 		_key_wait = value
 var _key_wait := false
-var _mu_mean := 1.0
 var _ray := PhysicsRayQueryParameters3D.new()
 
 @onready var probe: VehicleProbe = $VehicleProbe
@@ -388,12 +394,12 @@ func _show(delta: float) -> void:
 		var tyres := CarSound.tyre_voices(_packed, dynamics.ratio, dynamics.angle, dynamics.force,
 			grounded, current_speed, on_loose)
 		sound.follow(rpm, throttle, dynamics.shifting > 0.0, blinking and lit, tyres,
-			current_speed, dynamics.engine, dynamics.abs_active, delta)
+			current_speed, dynamics.engine, signals.abs_active, delta)
 	if instruments:
 		var parked := probe.handbrake == VehicleProbe.Toggle.ON
 		instruments.redline = spec.redline_rpm
 		instruments.dash.step(delta, dynamics.engine, rpm, throttle, dynamics.stalled,
-			dynamics.esc_active or dynamics.tcs_active)
+			signals.esc_active or signals.tcs_active)
 		instruments.show_state(delta, absf(current_speed) * 3.6, rpm,
 			dynamics.gearbox.letter(), left, right, parked, headlights,
 			reversing)
@@ -448,7 +454,6 @@ func _drive(delta: float) -> void:
 	# Hands on the wheel steer it directly; the keys and sticks ease toward their steering, with
 	# the aids' lock at speed and their counter-steer.
 	var by_hand: bool = not c.held and driver_view.wheel.held()
-	var surface := _surface_under()
 	if by_hand:
 		_steer = driver_view.wheel.steer()
 		wheel_angle = _steer * spec.steer_lock
@@ -456,9 +461,10 @@ func _drive(delta: float) -> void:
 		var outward: bool = absf(c.steer) > absf(_steer) and c.steer * _steer >= 0.0
 		_steer = move_toward(_steer, clampf(c.steer, -1.0, 1.0),
 			(STEER_RATE if outward else RETURN_RATE) * delta)
-		var rear_slide := (dynamics.angle[CarDynamics.RL] + dynamics.angle[CarDynamics.RR]) * 0.5
-		wheel_angle = _steer * Assists.steer_lock(dynamics.aids, _packed, current_speed, surface) \
-			+ Assists.counter_steer(dynamics.aids, _packed, rear_slide)
+		# Steering help reads the car's sensors: its speed from the wheels, and the rear's slide
+		# from the gyro and the accelerometer. It assumes dry asphalt: it cannot see the road.
+		wheel_angle = _steer * Assists.steer_lock(dynamics.aids, _packed, signals.vehicle_speed,
+			1.0) + Assists.counter_steer(dynamics.aids, _packed, signals.rear_slip)
 		wheel_angle = clampf(wheel_angle, -spec.steer_lock, spec.steer_lock)
 
 	# The suspension: each wheel cast down to the road.
@@ -529,13 +535,23 @@ func _drive(delta: float) -> void:
 		along[i] = moving.dot(heading)
 		across[i] = moving.dot(side)
 
-	_mu_mean = (mu[0] + mu[1] + mu[2] + mu[3]) * 0.25
+	# The car's electronics: its sensors measure the plant, its control units decide, and the plant
+	# then applies what they asked.
 	dynamics.aids = _aids()
+	var felt := (velocity - _last_velocity) / delta if _settled_motion else Vector3.ZERO
+	_last_velocity = velocity
+	_settled_motion = true
+	var specific := felt - get_gravity()
+	var left := up.cross(forward)
+	systems.sense(dynamics, {yaw_rate = angular_velocity.dot(up),
+		specific_force = Vector3(specific.dot(forward), specific.dot(left), specific.dot(up))},
+		{steer_angle = wheel_angle, throttle = throttle, brake = brake, handbrake = c.handbrake})
+	systems.decide(_packed, dynamics.aids, delta)
 	var step := {throttle = throttle, brake = brake, handbrake = c.handbrake, steer = wheel_angle,
 		shift = c.shift, starter = c.ignition}
 	if not str(c.select).is_empty():
 		step.select = SELECTOR_LETTERS.find(str(c.select))
-	dynamics.step(delta, step, loads, along, across, mu, current_speed, angular_velocity.dot(up))
+	dynamics.step(delta, step, loads, along, across, mu, systems.signals)
 	for i in 4:
 		if not grounded[i]:
 			continue
@@ -558,9 +574,9 @@ func _drive(delta: float) -> void:
 		driver_view.pulse(0.5, 0.15)
 	elif dynamics.engine == CarDynamics.EngineState.CRANKING:
 		driver_view.pulse(0.15, delta)
-	if dynamics.abs_active and not _abs_was:
+	if signals.abs_active and not _abs_was:
 		driver_view.pulse(0.3, 0.06)
-	_abs_was = dynamics.abs_active
+	_abs_was = signals.abs_active
 	for body in get_colliding_bodies():
 		var solid := body as CollisionObject3D
 		if solid and solid.collision_layer & Layers.PAVEMENT:
@@ -571,13 +587,8 @@ func _drive(delta: float) -> void:
 		driver_view.pulse(0.6, 0.12)
 	_on_kerb = kerb
 
-	# The acceleration felt in the car, along it and to its left, smoothed, for the model's lean.
-	var felt := (velocity - _last_velocity) / delta
-	_last_velocity = velocity
-	var target := Vector2(felt.dot(forward), felt.dot(up.cross(forward)))
-	_accel = _accel.lerp(target, clampf(ACCEL_SMOOTHING * delta, 0.0, 1.0))
+	# The body's acceleration along it and to its left, smoothed, for the model's lean: the plant's
+	# own motion, a physical effect, not a measurement (on a slope at rest it leans nothing).
+	_accel = _accel.lerp(Vector2(felt.dot(forward), felt.dot(left)),
+		clampf(ACCEL_SMOOTHING * delta, 0.0, 1.0))
 
-
-## The mean friction of the surface under the wheels in the last step.
-func _surface_under() -> float:
-	return _mu_mean
