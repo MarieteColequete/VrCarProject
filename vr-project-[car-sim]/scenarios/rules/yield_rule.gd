@@ -25,10 +25,6 @@ static func step(p: Dictionary, s: Dictionary, f: RuleFrame, live: bool) -> Rule
 	return r
 
 
-static func finish(_p: Dictionary, s: Dictionary, _f: RuleFrame, _live: bool) -> RuleResult:
-	return RuleResult.new(s)
-
-
 ## Seconds until the first priority road user reaches the conflict zone; 0 when one is in it, INF
 ## when none is coming.
 static func next_arrival(p: Dictionary, f: RuleFrame) -> float:

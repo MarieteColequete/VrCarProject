@@ -44,9 +44,11 @@ func create() -> int:
 	return id
 
 
-## A new entity with [param components]: component name to its values.
-func spawn(components: Dictionary) -> int:
-	var id := create()
+## A new entity with [param components]: component name to its values; entity [param id] when
+## given, one reserved with [method create].
+func spawn(components: Dictionary, id := 0) -> int:
+	if id == 0:
+		id = create()
 	for component: StringName in components:
 		_stores[component].add(id, components[component])
 	return id
@@ -103,8 +105,8 @@ func apply(delta: Delta) -> void:
 			s.remove(removal[1])
 	for id in delta.despawns:
 		despawn(id)
-	for components in delta.spawns:
-		spawn(components)
+	for k in delta.spawns.size():
+		spawn(delta.spawns[k], delta.spawn_ids[k])
 	for event in delta.events:
 		event.time = time
 		events.append(event)

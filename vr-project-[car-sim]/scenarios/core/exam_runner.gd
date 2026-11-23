@@ -145,9 +145,10 @@ func _wire(probe: VehicleProbe, bake: Bake) -> void:
 
 
 ## Adds a road user authored after the scenario loaded, such as by a test or a director: bakes it
-## into the world, frees the node, and returns its entity.
+## into the world through the runner, frees the node, and returns its entity.
 func add_road_user(agent: ScriptedAgent) -> int:
-	var id := _bake.add_agent(agent)
+	world_runner.apply_now(_bake.agent_delta(agent))
+	var id := _bake.id_of(agent)
 	if agent.is_inside_tree():
 		agent.queue_free()
 	else:
@@ -158,7 +159,7 @@ func add_road_user(agent: ScriptedAgent) -> int:
 ## Adds the box shapes of a static body placed after the scenario loaded, such as a van parked
 ## during the attempt, as obstacles road users see and the car touches.
 func add_obstacle(body: StaticBody3D) -> void:
-	_bake.add_obstacles([body])
+	world_runner.apply_now(Bake.obstacles([body]))
 
 
 func _start_session(runner: WorldRunner) -> void:

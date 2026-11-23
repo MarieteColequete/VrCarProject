@@ -31,27 +31,24 @@ static func from_settings() -> PackedFloat64Array:
 	return preset(str(ProjectSettings.get_setting(SETTING, "exam")))
 
 
-## A wheel's brake torque with ABS: eased off while the wheel's slip ratio [param ratio] shows it
-## locking under braking.
-static func brake(aids: PackedFloat64Array, spec: PackedFloat64Array, torque: float,
-		ratio: float) -> float:
-	if aids[ABS] <= 0.0 or torque <= 0.0:
-		return torque
-	var limit := -spec[CarSpec.PEAK_RATIO] * 1.2
-	if ratio < limit:
-		return torque * lerpf(1.0, 0.35, aids[ABS])
-	return torque
+## The share of a wheel's brake that ABS lets through: eased off while the wheel's slip ratio
+## [param ratio] shows it locking under braking.
+static func brake(aids: PackedFloat64Array, spec: PackedFloat64Array, ratio: float) -> float:
+	if aids[ABS] <= 0.0:
+		return 1.0
+	if ratio < -spec[CarSpec.PEAK_RATIO] * 1.2:
+		return lerpf(1.0, 0.35, aids[ABS])
+	return 1.0
 
 
-## The throttle with traction control: cut while the driven wheels' slip ratio
-## [param ratio] runs past the peak; a weaker control lets more slip through.
-static func throttle(aids: PackedFloat64Array, spec: PackedFloat64Array, input: float,
-		ratio: float) -> float:
+## The share of the throttle that traction control lets through: cut while the driven wheels'
+## slip ratio [param ratio] runs past the peak; a weaker control lets more slip through.
+static func throttle(aids: PackedFloat64Array, spec: PackedFloat64Array, ratio: float) -> float:
 	if aids[TCS] <= 0.0:
-		return input
+		return 1.0
 	var allowed := spec[CarSpec.PEAK_RATIO] * lerpf(3.0, 1.2, aids[TCS])
 	var over := (absf(ratio) - allowed) / allowed
-	return input * clampf(1.0 - over * 2.0, 0.15, 1.0) if over > 0.0 else input
+	return clampf(1.0 - over * 2.0, 0.15, 1.0) if over > 0.0 else 1.0
 
 
 ## The yaw rate a driver means with the front wheels at [param angle] radians at [param speed]

@@ -172,11 +172,12 @@ static func link_lanes(map: Node, pending: MapKitTools.Edit = null) -> MapKitToo
 			placed[node] = RoadMap.to_map(node, map)
 	var fresh: Array[TrafficLane] = []
 	if pending:
-		for pair: Array in pending.adds:
-			for node in MapKitTools.with_descendants(pair[1]):
+		for added in pending.adds:
+			for node in MapKitTools.with_descendants(added.node):
 				if node is TrafficLane:
 					fresh.append(node)
-					placed[node] = RoadMap.to_map(pair[0], map) * RoadMap.to_map(node, pair[1])
+					placed[node] = RoadMap.to_map(added.parent, map) \
+						* RoadMap.to_map(node, added.node)
 	var all: Array = lanes + fresh
 	var links := lane_links(all, 1.0, placed)
 	for lane in all:

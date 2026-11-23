@@ -40,17 +40,38 @@ class Piece:
 ## The plugin turns it into one undo action; [method apply] makes it at once.
 class Edit:
 	extends RefCounted
-	## [code][parent, node][/code] pairs.
-	var adds: Array = []
+
+	## A node added under a parent.
+	class Add:
+		extends RefCounted
+		var parent: Node
+		var node: Node
+
+		func _init(to: Node, added: Node) -> void:
+			parent = to
+			node = added
+
+	## A property of an object set to a value.
+	class Set:
+		extends RefCounted
+		var object: Object
+		var property: StringName
+		var value: Variant
+
+		func _init(on: Object, name: StringName, to: Variant) -> void:
+			object = on
+			property = name
+			value = to
+
+	var adds: Array[Add] = []
 	var removes: Array[Node] = []
-	## [code][object, property, value][/code] triples.
-	var sets: Array = []
+	var sets: Array[Set] = []
 
 	func is_empty() -> bool:
 		return adds.is_empty() and removes.is_empty() and sets.is_empty()
 
 	func add(parent: Node, node: Node) -> Edit:
-		adds.append([parent, node])
+		adds.append(Add.new(parent, node))
 		return self
 
 	func remove(node: Node) -> Edit:
@@ -59,7 +80,7 @@ class Edit:
 		return self
 
 	func set_value(object: Object, property: StringName, value: Variant) -> Edit:
-		sets.append([object, property, value])
+		sets.append(Set.new(object, property, value))
 		return self
 
 	func merge(other: Edit) -> Edit:
@@ -72,8 +93,8 @@ class Edit:
 	## The nodes it adds.
 	func added() -> Array[Node]:
 		var out: Array[Node] = []
-		for pair: Array in adds:
-			out.append(pair[1])
+		for added in adds:
+			out.append(added.node)
 		return out
 
 	## Makes the change without undo; added nodes are owned by [param scene_owner].
@@ -81,11 +102,11 @@ class Edit:
 		for node in removes:
 			node.get_parent().remove_child(node)
 			node.free()
-		for pair: Array in adds:
-			(pair[0] as Node).add_child(pair[1], true)
-			MapKitTools.own(pair[1], scene_owner)
-		for triple: Array in sets:
-			(triple[0] as Object).set(triple[1], triple[2])
+		for added in adds:
+			added.parent.add_child(added.node, true)
+			MapKitTools.own(added.node, scene_owner)
+		for change in sets:
+			change.object.set(change.property, change.value)
 
 
 ## Sets the owner of [param node] and of every descendant that is not internal, so a scene saves

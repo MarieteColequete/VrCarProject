@@ -11,6 +11,9 @@ var _columns: Array[StringName] = []
 var _values: Array = []
 ## Each spawn: a Dictionary of component name to its values.
 var spawns: Array[Dictionary] = []
+## Each spawn's entity, in the order of [member spawns]: one [method World.create] reserved, or 0
+## for a new one.
+var spawn_ids := PackedInt64Array()
 var despawns := PackedInt64Array()
 ## Each whole column written: [component, ids (row order the values follow), column, values].
 var columns: Array = []
@@ -44,9 +47,11 @@ func write_column(component: StringName, ids: PackedInt64Array, column: StringNa
 	return self
 
 
-## Creates an entity with [param components] (component name to its values) when applied.
-func spawn(components: Dictionary) -> Delta:
+## Creates an entity with [param components] (component name to its values) when applied: entity
+## [param id] when given, one reserved with [method World.create], else a new one.
+func spawn(components: Dictionary, id := 0) -> Delta:
 	spawns.append(components)
+	spawn_ids.append(id)
 	return self
 
 
@@ -76,6 +81,7 @@ func merge(other: Delta) -> Delta:
 	_values.append_array(other._values)
 	columns.append_array(other.columns)
 	spawns.append_array(other.spawns)
+	spawn_ids.append_array(other.spawn_ids)
 	despawns.append_array(other.despawns)
 	removals.append_array(other.removals)
 	events.append_array(other.events)

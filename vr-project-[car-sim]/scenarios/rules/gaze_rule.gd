@@ -60,10 +60,6 @@ static func step(p: Dictionary, s: Dictionary, f: RuleFrame, live: bool) -> Rule
 	return r
 
 
-static func finish(_p: Dictionary, s: Dictionary, _f: RuleFrame, _live: bool) -> RuleResult:
-	return RuleResult.new(s)
-
-
 static func signed(side: int, angle: float) -> float:
 	return angle if side == VehicleProbe.Indicator.LEFT else -angle
 

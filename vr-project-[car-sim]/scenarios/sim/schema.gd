@@ -90,7 +90,7 @@ static func define(world: World) -> void:
 	world.define(RULE, {
 		name = &"", script = null, params = {}, state = {}, active_steps = PackedInt64Array(),
 		order = 0,
-		# The script's step and finish, bound once.
+		# The script's step and finish, bound once; finish is empty for a rule without one.
 		step = Callable(), finish = Callable(),
 	})
 	world.define(SESSION, {

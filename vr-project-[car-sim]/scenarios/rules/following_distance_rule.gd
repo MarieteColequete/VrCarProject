@@ -21,10 +21,6 @@ static func step(p: Dictionary, s: Dictionary, f: RuleFrame, live: bool) -> Rule
 	return r
 
 
-static func finish(_p: Dictionary, s: Dictionary, _f: RuleFrame, _live: bool) -> RuleResult:
-	return RuleResult.new(s)
-
-
 static func time_gap(p: Dictionary, f: RuleFrame) -> float:
 	var car := f.car
 	if car.speed < p.min_speed:

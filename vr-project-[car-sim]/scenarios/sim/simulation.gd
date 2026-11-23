@@ -47,6 +47,5 @@ static func add_path(world: World, points: PackedVector3Array, settings := {}) -
 ## returns its entity.
 static func add_agent(world: World, lane: LaneData, settings := {}) -> int:
 	var id := world.create()
-	world.store(Schema.AGENT).add(id, AgentTable.spawn_values(settings, lane,
-		world.resources[Schema.LANES]))
+	world.store(Schema.AGENT).add(id, AgentTable.spawn_values(settings, lane))
 	return id

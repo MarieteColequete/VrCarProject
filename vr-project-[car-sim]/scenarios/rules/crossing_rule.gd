@@ -21,10 +21,6 @@ static func step(p: Dictionary, s: Dictionary, f: RuleFrame, live: bool) -> Rule
 	return r
 
 
-static func finish(_p: Dictionary, s: Dictionary, _f: RuleFrame, _live: bool) -> RuleResult:
-	return RuleResult.new(s)
-
-
 ## Whether any of the crossing's pedestrians is on it or about to step onto it.
 static func in_use(p: Dictionary, f: RuleFrame) -> bool:
 	for walker: int in p.pedestrians:

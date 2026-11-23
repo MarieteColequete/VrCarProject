@@ -181,18 +181,18 @@ func apply(edit: MapKitTools.Edit, action: String, select := false, merge := fal
 	undo.create_action(action, UndoRedo.MERGE_ENDS if merge else UndoRedo.MERGE_DISABLE, root)
 	for node in edit.removes:
 		undo.add_do_method(node.get_parent(), &"remove_child", node)
-	for pair: Array in edit.adds:
-		undo.add_do_method(pair[0], &"add_child", pair[1], true)
-		undo.add_do_method(MapKitTools, &"own", pair[1], root)
-		undo.add_do_reference(pair[1])
-	for triple: Array in edit.sets:
-		undo.add_do_property(triple[0], triple[1], triple[2])
+	for added in edit.adds:
+		undo.add_do_method(added.parent, &"add_child", added.node, true)
+		undo.add_do_method(MapKitTools, &"own", added.node, root)
+		undo.add_do_reference(added.node)
+	for change in edit.sets:
+		undo.add_do_property(change.object, change.property, change.value)
 	# Undone in reverse: what was set, then what was added, then what was removed, so restored
 	# nodes get their own names back.
-	for triple: Array in edit.sets:
-		undo.add_undo_property(triple[0], triple[1], (triple[0] as Object).get(triple[1]))
-	for pair: Array in edit.adds:
-		undo.add_undo_method(pair[0], &"remove_child", pair[1])
+	for change in edit.sets:
+		undo.add_undo_property(change.object, change.property, change.object.get(change.property))
+	for added in edit.adds:
+		undo.add_undo_method(added.parent, &"remove_child", added.node)
 	for node in edit.removes:
 		var parent := node.get_parent()
 		undo.add_undo_method(parent, &"add_child", node, true)

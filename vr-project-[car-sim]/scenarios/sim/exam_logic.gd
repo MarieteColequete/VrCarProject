@@ -149,13 +149,15 @@ static func _report(sess: Dictionary, source: int, def: FaultDef, at: Vector3, k
 	return (sess.definition as ScenarioDefinition).policy.is_eliminating(def)
 
 
-## Ends the attempt for [param reason]: every rule closes what it has open (its last faults still
-## count), then the attempt is scored.
+## Ends the attempt for [param reason]: every rule with a finish closes what it has open (its last
+## faults still count), then the attempt is scored.
 static func _finish(world: World, sess: Dictionary, reason: StringName, rules: Dictionary,
 		dt: float, d: Delta) -> void:
 	var f := RuleFrame.build(world, dt, sess.elapsed, _current(sess))
 	for k in rules.ids.size():
 		var finish: Callable = rules.finish[k]
+		if not finish.is_valid():
+			continue
 		var result: RuleResult = finish.call(rules.params[k], rules.state[k], f,
 			_live(rules.active_steps[k], sess))
 		rules.state[k] = result.state

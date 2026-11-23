@@ -34,12 +34,14 @@ const ESC_MOST := 1800.0
 ## The estimated grip, as a share of the tyres' grip on dry asphalt.
 var grip := GRIP_FLOOR
 
+var _speed := 0.0
 var _drift := 0.0
 var _started := false
 
 
 ## One step of [param dt] seconds for the car [param spec] with the driver's [param aids]
-## ([Assists]): reads and writes [param signals].
+## ([Assists]): reads [param signals]' measurements and writes its estimates and requests into
+## them; its own speed estimate it keeps.
 func step(signals: CarSignals, spec: PackedFloat64Array, aids: PackedFloat64Array,
 		dt: float) -> void:
 	var w := signals.wheel_speed
@@ -51,12 +53,12 @@ func step(signals: CarSignals, spec: PackedFloat64Array, aids: PackedFloat64Arra
 				target = w[i]
 		# Every wheel may be slipping: the speed the accelerometer's deceleration leaves is the
 		# better guess while it is faster than the fastest wheel.
-		var predicted := signals.vehicle_speed + signals.accel.x * dt
-		if absf(predicted) > absf(target) and signf(predicted) == signf(signals.vehicle_speed):
+		var predicted := _speed + signals.accel.x * dt
+		if absf(predicted) > absf(target) and signf(predicted) == signf(_speed):
 			target = predicted
 	else:
 		target = _free_rolling(w, spec)
-	var last := signals.vehicle_speed
+	var last := _speed
 	var speed := target
 	if not _started:
 		# Switched on: the wheels as they are.
@@ -65,6 +67,7 @@ func step(signals: CarSignals, spec: PackedFloat64Array, aids: PackedFloat64Arra
 		speed = move_toward(last, target, DECEL_LIMIT * dt)
 	elif not braking and CarSpec.driven_count(spec) == 4 and absf(target) > absf(last):
 		speed = move_toward(last, target, ACCEL_LIMIT * dt)
+	_speed = speed
 	signals.vehicle_speed = speed
 	var heading := signf(speed) if speed != 0.0 else 1.0
 	for i in 4:
@@ -88,7 +91,7 @@ func step(signals: CarSignals, spec: PackedFloat64Array, aids: PackedFloat64Arra
 	for i in 4:
 		var scale := 1.0
 		if signals.brake_switch:
-			scale = Assists.brake(aids, spec, 1.0, signals.wheel_slip[i] * heading)
+			scale = Assists.brake(aids, spec, signals.wheel_slip[i] * heading)
 			signals.abs_active = signals.abs_active or scale < 1.0
 		signals.brake_scale[i] = scale
 
@@ -97,7 +100,7 @@ func step(signals: CarSignals, spec: PackedFloat64Array, aids: PackedFloat64Arra
 	for i in 4:
 		if CarSpec.driven(spec, i):
 			drive_slip = maxf(drive_slip, signals.wheel_slip[i] * (signf(w[i]) if w[i] != 0.0 else 1.0))
-	signals.throttle_scale = Assists.throttle(aids, spec, 1.0, drive_slip)
+	signals.throttle_scale = Assists.throttle(aids, spec, drive_slip)
 	signals.tcs_active = signals.throttle_position > 0.01 and signals.throttle_scale < 0.999
 
 	# Stability control: brakes one wheel to turn the car back to what the steering asks, and eases
@@ -116,7 +119,7 @@ func step(signals: CarSignals, spec: PackedFloat64Array, aids: PackedFloat64Arra
 			else (CarDynamics.RR if right else CarDynamics.RL)
 		signals.brake_extra[wheel] = minf(absf(error) * ESC_TORQUE, ESC_MOST)
 		# The same valves ease its own braking on a wheel that locks, as the driver's.
-		var easing := Assists.brake(aids, spec, 1.0, signals.wheel_slip[wheel] * heading)
+		var easing := Assists.brake(aids, spec, signals.wheel_slip[wheel] * heading)
 		signals.brake_extra[wheel] *= easing
 		signals.abs_active = signals.abs_active or easing < 1.0
 

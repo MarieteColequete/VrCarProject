@@ -236,7 +236,7 @@ static func read(world: World) -> AgentTable:
 
 ## The columns of a new road user on [param lane], from [param config] (configuration column to
 ## value; missing ones take their defaults), standing at the lane's start.
-static func spawn_values(config: Dictionary, lane: LaneData, lanes: Dictionary) -> Dictionary:
+static func spawn_values(config: Dictionary, lane: LaneData) -> Dictionary:
 	var values := CONFIG.duplicate()
 	values.merge(config, true)
 	values.merge(DYNAMIC)
@@ -247,19 +247,15 @@ static func spawn_values(config: Dictionary, lane: LaneData, lanes: Dictionary) 
 	values.progress = clampf(values.start_at, 0.0, lane.length)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = values.route_seed
-	values.rng_state = rng.state
 	values.armed = values.trigger == 0
 	values.jumped = true
-	var one := AgentTable.new()
-	for column: StringName in values:
-		var array: Variant = one.get(column)
-		array.append(values[column] if not values[column] is bool else (1 if values[column] else 0))
-	values.upcoming = one._choose_next(0, lane)
-	one.upcoming[0] = values.upcoming
-	values.rng_state = one.rng_state[0]
-	one._place(0, lane)
-	values.position = one.position[0]
-	values.facing = one.facing[0]
+	values.upcoming = _next_lane(lane, values.goal_lane, values.route, rng)
+	values.rng_state = rng.state
+	if lane.curve:
+		var pose := _pose(lane, values.length, values.progress, values.lateral, values.heading,
+			values.facing)
+		values.position = pose[0]
+		values.facing = pose[1]
 	return values
 
 
@@ -598,9 +594,21 @@ func _advance(i: int, step: float, lanes: Dictionary, events: Array) -> void:
 func _place(i: int, l: LaneData) -> void:
 	if l == null or l.curve == null:
 		return
+	var pose := _pose(l, length[i], progress[i], lateral[i], heading[i], facing[i])
+	position[i] = pose[0]
+	facing[i] = pose[1]
+	grade[i] = pose[2]
+
+
+## Where a road user [param offset] metres along lane [param l] (of [param total] metres; the
+## lane's own length when 0) stands, [param lateral] metres off it at [param heading] radians to
+## it: its position, its facing ([param facing] kept where the lane gives no direction), and the
+## grade it climbs.
+static func _pose(l: LaneData, total: float, offset: float, lateral: float, heading: float,
+		facing: Vector3) -> Array:
 	var curve := l.curve
-	var total := length[i] if length[i] > 0.0 else l.length
-	var offset := progress[i]
+	if total <= 0.0:
+		total = l.length
 	var here := l.transform * curve.sample_baked(offset)
 	var ahead := l.transform * curve.sample_baked(minf(offset + 0.5, total))
 	var behind := l.transform * curve.sample_baked(maxf(offset - 0.5, 0.0))
@@ -611,12 +619,11 @@ func _place(i: int, l: LaneData) -> void:
 	if tangent.length() > 0.001:
 		tangent = tangent.normalized()
 		# Off the path by its lateral offset, at its heading's angle to it.
-		here += Vector3.UP.cross(tangent) * lateral[i]
-		facing[i] = tangent.rotated(Vector3.UP, heading[i])
+		here += Vector3.UP.cross(tangent) * lateral
+		facing = tangent.rotated(Vector3.UP, heading)
 		# The slope it climbs is the lane's along its facing, the heading's cosine of it.
-		slope *= cos(heading[i])
-	grade[i] = slope
-	position[i] = here
+		slope *= cos(heading)
+	return [here, facing, slope]
 
 
 func _enter(i: int, l: LaneData) -> void:
@@ -627,16 +634,22 @@ func _enter(i: int, l: LaneData) -> void:
 
 
 func _choose_next(i: int, l: LaneData) -> int:
-	if l == null or not l.is_lane or l.next.is_empty() or l.id == goal_lane[i]:
-		return 0
-	for wanted: int in route[i]:
-		if l.next.has(wanted):
-			return wanted
 	var rng := RandomNumberGenerator.new()
 	rng.state = rng_state[i]
-	var pick := l.next[rng.randi_range(0, l.next.size() - 1)]
+	var pick := _next_lane(l, goal_lane[i], route[i], rng)
 	rng_state[i] = rng.state
 	return pick
+
+
+## The lane a road user takes after [param l]: the next one on its [param route], else one
+## picked with [param rng]; 0 at its [param goal] lane or where the lanes end.
+static func _next_lane(l: LaneData, goal: int, route: Array, rng: RandomNumberGenerator) -> int:
+	if l == null or not l.is_lane or l.next.is_empty() or l.id == goal:
+		return 0
+	for wanted: int in route:
+		if l.next.has(wanted):
+			return wanted
+	return l.next[rng.randi_range(0, l.next.size() - 1)]
 
 
 func _move_to(i: int, target: LaneData, blocker: int, events: Array) -> void:

@@ -41,7 +41,3 @@ static func step(p: Dictionary, s: Dictionary, f: RuleFrame, live: bool) -> Rule
 	if Episode.fired(s.wrong, wrong):
 		r.report_here(p.wrong_way_fault, f)
 	return r
-
-
-static func finish(_p: Dictionary, s: Dictionary, _f: RuleFrame, _live: bool) -> RuleResult:
-	return RuleResult.new(s)
