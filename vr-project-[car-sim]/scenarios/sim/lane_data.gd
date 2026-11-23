@@ -49,6 +49,14 @@ func point_at(offset: float) -> Vector3:
 	return transform * curve.sample_baked(clampf(offset, 0.0, length))
 
 
+## Which way the lane runs on the ground at [param offset]: from half a metre behind to half a
+## metre ahead, level, not normalised (nought where the lane is shorter than that).
+func ground_tangent(offset: float) -> Vector3:
+	var along := point_at(offset + 0.5) - point_at(offset - 0.5)
+	along.y = 0.0
+	return along
+
+
 ## The distance along the lane of its point nearest [param point], and how far off it lies.
 func project(point: Vector3) -> Vector2:
 	var local := inverse * point

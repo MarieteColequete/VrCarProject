@@ -643,8 +643,7 @@ func _move_to(i: int, target: LaneData, blocker: int, events: Array) -> void:
 	progress[i] = at
 	var offset := from - target.point_at(at)
 	offset.y = 0.0
-	var along := target.point_at(at + 0.5) - target.point_at(at - 0.5)
-	along.y = 0.0
+	var along := target.ground_tangent(at)
 	# Where it is now, off the new lane: it steers across to it.
 	lateral[i] = offset.dot(Vector3.UP.cross(along.normalized())) if along.length() > 0.001 \
 		else 0.0
@@ -720,8 +719,8 @@ func _offset_on(slot: int, point: Vector3) -> float:
 func _ahead_points(i: int, slot: int, target: float) -> PackedVector3Array:
 	var points := PackedVector3Array()
 	var front := progress[i] + body_size[i].z * 0.5
-	var look := target * 3.0 + 5.0
-	var next: int = r_slots.get(upcoming[i], -1) if upcoming[i] else -1
+	var look := _look_ahead(target)
+	var next := _next_slot(i)
 	var total := r_length[slot]
 	for k in TrafficSensor.SEGMENTS + 1:
 		var offset := front + look * k / TrafficSensor.SEGMENTS
@@ -774,7 +773,7 @@ func _rule_kind(i: int, slot: int, rule_gap: PackedFloat64Array) -> Kind:
 func _neighbour_clear(i: int, slot: int, target: float) -> bool:
 	var at := _offset_on(slot, position[i])
 	var behind := 15.0
-	var reach := behind + target * 3.0 + 5.0 + body_size[i].z
+	var reach := behind + _look_ahead(target) + body_size[i].z
 	var points := PackedVector3Array()
 	for k in TrafficSensor.SEGMENTS + 1:
 		points.append(_point_at(slot, at - behind + reach * k / TrafficSensor.SEGMENTS))
@@ -790,7 +789,7 @@ func _bend_speed(i: int, slot: int) -> float:
 	var comfort := comfort_decel[i]
 	var look := v * v / (2.0 * comfort) + 10.0
 	var here: PackedFloat64Array = r_curvature[slot]
-	var next: int = r_slots.get(upcoming[i], -1) if upcoming[i] else -1
+	var next := _next_slot(i)
 	var then: PackedFloat64Array = r_curvature[next] if next >= 0 else PackedFloat64Array()
 	var count := here.size()
 	var start := int(progress[i] / RouteTable.CURVATURE_STEP)
@@ -821,7 +820,7 @@ func _curvature_ahead(i: int, slot: int, ahead: float) -> float:
 	var offset := progress[i] + ahead
 	var total := r_length[slot]
 	if offset > total:
-		var next: int = r_slots.get(upcoming[i], -1) if upcoming[i] else -1
+		var next := _next_slot(i)
 		if next < 0:
 			if not loop[i] or total <= 0.0:
 				return 0.0
@@ -829,10 +828,26 @@ func _curvature_ahead(i: int, slot: int, ahead: float) -> float:
 		else:
 			slot = next
 			offset -= total
+	return _curvature_at(slot, offset)
+
+
+## Lane [param slot]'s curvature at [param offset] metres along it, from its samples; nought for a
+## lane with none.
+func _curvature_at(slot: int, offset: float) -> float:
 	var samples: PackedFloat64Array = r_curvature[slot]
 	if samples.is_empty():
 		return 0.0
 	return samples[clampi(int(offset / RouteTable.CURVATURE_STEP), 0, samples.size() - 1)]
+
+
+## The lane row [param i] continues onto, as a route slot; -1 when it has none.
+func _next_slot(i: int) -> int:
+	return r_slots.get(upcoming[i], -1) if upcoming[i] else -1
+
+
+## How far ahead row [param i] looks at [param target] m/s, metres: three seconds and five metres.
+static func _look_ahead(target: float) -> float:
+	return target * 3.0 + 5.0
 
 
 ## Drives row [param i]'s car one step toward the speed it decided ([member d_speed]): steers to
@@ -864,12 +879,7 @@ func _drive(i: int, slot: int, kind: Kind, dt: float) -> void:
 ## it, and returns how far along the path that is. Main thread, in commit.
 func _along_path(i: int, dt: float) -> float:
 	var slot: int = r_slots.get(lane[i], -1)
-	var k := 0.0
-	if slot >= 0:
-		var samples: PackedFloat64Array = r_curvature[slot]
-		if not samples.is_empty():
-			k = samples[clampi(int(progress[i] / RouteTable.CURVATURE_STEP), 0,
-				samples.size() - 1)]
+	var k := _curvature_at(slot, progress[i]) if slot >= 0 else 0.0
 	var vx := current_speed[i]
 	var vy := side_speed[i]
 	var psi := heading[i]

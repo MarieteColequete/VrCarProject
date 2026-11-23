@@ -186,34 +186,35 @@ func follow(rpm: float, throttle: float, shifting: bool, blink_lit: bool, tyres:
 	abs_working = abs_activity > ABS_FROM
 	var skid_wanted: float = tyres.get("skid", 0.0)
 	if abs_working:
-		skid_wanted = maxf(skid_wanted, ABS_SKID * clampf((absf(speed) - SLIDE_SPEED_FROM)
-			/ (SLIDE_SPEED_FULL - SLIDE_SPEED_FROM), 0.0, 1.0))
+		skid_wanted = maxf(skid_wanted,
+			ABS_SKID * _share(absf(speed), SLIDE_SPEED_FROM, SLIDE_SPEED_FULL))
 	voices.scrub = envelope(voices.scrub, tyres.get("scrub", 0.0), delta, VOICE_ATTACK,
 		VOICE_RELEASE)
 	voices.squeal = envelope(voices.squeal, tyres.get("squeal", 0.0), delta, VOICE_ATTACK,
 		VOICE_RELEASE)
 	voices.skid = envelope(voices.skid, skid_wanted, delta, SKID_ATTACK, VOICE_RELEASE)
 	loose = envelope(loose, tyres.get("loose", 0.0), delta, SURFACE_SWAP, SURFACE_SWAP)
-	var on_road := linear_to_db(maxf(1.0 - loose, 0.0001))
-	var on_loose := linear_to_db(maxf(loose, 0.0001))
+	var on_road := _db(1.0 - loose)
+	var on_loose := _db(loose)
 	var pulse := 0.0
 	if abs_working:
 		# The brakes let go and bite again: the skid swells and fades with each cycle.
 		pulse = linear_to_db(0.35 + 0.65 * absf(sin(PI * ABS_PULSE_HZ * _clock)))
-	scrub.volume_db = voice_db(voices.scrub, SCRUB_QUIET_DB, SCRUB_LOUD_DB) + on_road
-	scrub_loose.volume_db = voice_db(voices.scrub, SCRUB_QUIET_DB, SCRUB_LOUD_DB) + on_loose
+	var scrubbing := voice_db(voices.scrub, SCRUB_QUIET_DB, SCRUB_LOUD_DB)
+	scrub.volume_db = scrubbing + on_road
+	scrub_loose.volume_db = scrubbing + on_loose
 	squeal.volume_db = voice_db(voices.squeal, SQUEAL_QUIET_DB, SQUEAL_LOUD_DB) + on_road
 	squeal.pitch_scale = lerpf(SQUEAL_LOW_PITCH, SQUEAL_HIGH_PITCH, voices.squeal)
 	skid.volume_db = voice_db(voices.skid, SKID_QUIET_DB, SKID_LOUD_DB) + pulse + on_road
 	# Loose ground does not sing: a slide either way sprays gravel.
 	slide_loose.volume_db = voice_db(maxf(voices.squeal, voices.skid), SLIDE_QUIET_DB,
 		SLIDE_LOUD_DB) + pulse + on_loose
-	for player: AudioStreamPlayer3D in [scrub, scrub_loose, slide_loose]:
-		player.pitch_scale = roll_pitch(speed)
-	roll.volume_db = roll_db(speed) + on_road
-	roll_loose.volume_db = roll_db(speed) + on_loose
-	roll.pitch_scale = roll_pitch(speed)
-	roll_loose.pitch_scale = roll_pitch(speed)
+	var rolling_pitch := roll_pitch(speed)
+	var rolling_db := roll_db(speed)
+	for player: AudioStreamPlayer3D in [scrub, scrub_loose, slide_loose, roll, roll_loose]:
+		player.pitch_scale = rolling_pitch
+	roll.volume_db = rolling_db + on_road
+	roll_loose.volume_db = rolling_db + on_loose
 	if blink_lit != _lit:
 		_lit = blink_lit
 		tick.stream = _tick_on if blink_lit else _tick_off
@@ -232,8 +233,7 @@ func knock_kerb() -> void:
 static func engine_mix(rpm: float, throttle: float) -> Dictionary:
 	var blend := clampf((rpm - LOW_RPM) / (HIGH_RPM - LOW_RPM), 0.0, 1.0)
 	var loud := lerpf(ENGINE_COAST_DB, ENGINE_FULL_DB, clampf(throttle, 0.0, 1.0))
-	return {low_db = loud + linear_to_db(maxf(1.0 - blend, 0.0001)),
-		high_db = loud + linear_to_db(maxf(blend, 0.0001)),
+	return {low_db = loud + _db(1.0 - blend), high_db = loud + _db(blend),
 		low_pitch = clampf(rpm / LOW_RPM, 0.5, 4.0), high_pitch = clampf(rpm / HIGH_RPM, 0.25, 2.0)}
 
 
@@ -259,8 +259,9 @@ static func tyre_voices(spec: PackedFloat64Array, ratio: PackedFloat64Array,
 		standing += 1
 		loose_count += on_loose[i]
 		var w := force[i].length() + 1.0
-		along[axle] += absf(ratio[i]) / spec[CarSpec.PEAK_RATIO] * w
-		across[axle] += absf(tan(clampf(angle[i], -1.5, 1.5))) / tan(spec[CarSpec.PEAK_ANGLE]) * w
+		var share := TyreModel.slip_share(spec, ratio[i], angle[i]).abs()
+		along[axle] += share.x * w
+		across[axle] += share.y * w
 		weight[axle] += w
 	var sx := 0.0
 	var sy := 0.0
@@ -268,13 +269,17 @@ static func tyre_voices(spec: PackedFloat64Array, ratio: PackedFloat64Array,
 		if weight[axle] > 0.0:
 			sx = maxf(sx, along[axle] / weight[axle])
 			sy = maxf(sy, across[axle] / weight[axle])
-	var sliding := clampf((absf(speed) - SLIDE_SPEED_FROM) / (SLIDE_SPEED_FULL - SLIDE_SPEED_FROM),
-		0.0, 1.0)
-	var rolling := clampf(absf(speed) / SLIDE_SPEED_FROM, 0.0, 1.0)
+	var sliding := _share(absf(speed), SLIDE_SPEED_FROM, SLIDE_SPEED_FULL)
+	var rolling := _share(absf(speed), 0.0, SLIDE_SPEED_FROM)
 	return {scrub = _share(sqrt(sx * sx + sy * sy), SCRUB_FROM, SCRUB_FULL) * rolling,
 		squeal = _share(sy, SQUEAL_FROM, SQUEAL_FULL) * sliding,
 		skid = _share(sx, SKID_FROM, SKID_FULL) * sliding,
 		loose = float(loose_count) / standing if standing > 0 else 0.0}
+
+
+## A share from 0 to 1 as decibels, silence floored at -80.
+static func _db(share: float) -> float:
+	return linear_to_db(maxf(share, 0.0001))
 
 
 ## [param value]'s share of the way from [param from] to [param full], 0 to 1.
@@ -287,7 +292,7 @@ static func _share(value: float, from: float, full: float) -> float:
 static func envelope(current: float, target: float, delta: float, attack: float,
 		release: float) -> float:
 	var tau := attack if target > current else release
-	return lerpf(current, target, 1.0 - exp(-delta / tau))
+	return Damped.follow(current, target, delta, tau)
 
 
 ## A voice at [param level] (0 to 1) in decibels: silent below [constant VOICE_FLOOR],

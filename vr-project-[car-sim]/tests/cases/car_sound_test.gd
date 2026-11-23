@@ -4,7 +4,6 @@ extends TestCase
 ## squeal, skid) each from its own slip and quiet in ordinary driving, the indicator ticking with
 ## its blink, and the car playing them as it drives.
 
-const CAR := preload("res://scenarios/scenes/debug_car.tscn")
 
 
 func run() -> void:
@@ -106,8 +105,7 @@ func _test_streams() -> void:
 
 func _test_on_car() -> void:
 	var floor := ground()
-	var car: Node3D = CAR.instantiate()
-	root.add_child(car)
+	var car: Node3D = spawn_car()
 	await physics_frame
 	var sound: CarSound = car.sound
 	expect(sound != null and sound.engine_low.playing and sound.engine_high.playing,
@@ -192,8 +190,7 @@ func _test_drives() -> void:
 ## loudest volume (dB), after the run-up, on a floor of [param surface].
 func _drive(speed: float, legs: Callable, seconds: float, surface := &"asphalt") -> Dictionary:
 	var floor := ground(3000.0, surface)
-	var car: Node3D = CAR.instantiate()
-	root.add_child(car)
+	var car: Node3D = spawn_car()
 	await physics_frame
 	car.held_controls = {throttle = 1.0, select = "D"}
 	var guard := 0

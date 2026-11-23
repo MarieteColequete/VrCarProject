@@ -30,7 +30,7 @@ func step(signals: CarSignals, spec: PackedFloat64Array, dt: float) -> void:
 	var undriven := 0.0
 	var count := 0
 	for i in 4:
-		if not AbsModule._driven(spec, i):
+		if not CarSpec.driven(spec, i):
 			undriven += absf(signals.wheel_speed[i])
 			count += 1
 	if count > 0:

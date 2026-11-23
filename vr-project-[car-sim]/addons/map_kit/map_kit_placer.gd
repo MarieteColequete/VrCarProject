@@ -147,13 +147,35 @@ func place(road_map: RoadMap, point: Vector3) -> void:
 		parent = road_map
 	if node is TerrainShape and Terrain.of(road_map):
 		parent = Terrain.of(road_map)
-	node.transform = MapKitTools.to_map(parent, road_map).affine_inverse() \
+	node.transform = RoadMap.to_map(parent, road_map).affine_inverse() \
 		* _placement(road_map, node, point)
 	plugin.apply(MapKitTools.Edit.new().add(parent, node), "Add %s" % piece.label.to_lower(), true)
 	if piece.joins_roads:
 		_ends = MapKitTools.road_ends(road_map)
 	last = piece
 	placed.emit(piece)
+
+
+## Places [param p_piece] where the centre of the first 3D view looks onto the ground, as a
+## double click on a piece does, and disarms.
+func drop_at_centre(road_map: RoadMap, p_piece: MapKitTools.Piece) -> void:
+	arm(p_piece)
+	place(road_map, view_centre(road_map))
+	disarm()
+
+
+## Where the centre of the first 3D view looks onto the ground, in [param road_map]'s space; its
+## origin when it does not.
+static func view_centre(road_map: RoadMap) -> Vector3:
+	var viewport := EditorInterface.get_editor_viewport_3d(0)
+	var camera := viewport.get_camera_3d() if viewport else null
+	if camera == null:
+		return Vector3.ZERO
+	var centre := viewport.get_visible_rect().size / 2.0
+	var hit: Variant = Plane.PLANE_XZ.intersects_ray(camera.project_ray_origin(centre),
+		camera.project_ray_normal(centre))
+	return road_map.global_transform.affine_inverse() * (hit as Vector3) if hit != null \
+		else Vector3.ZERO
 
 
 ## Places the armed piece where the ghost stands; nothing before the mouse has been over the map.

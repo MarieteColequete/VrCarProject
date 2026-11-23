@@ -5,7 +5,6 @@ extends TestCase
 ## then the whole car: what the driver reads follows the car's sensors, not the body's motion.
 
 const KIRI := preload("res://scenarios/vehicle/specs/kiri86.tres")
-const CAR := preload("res://scenarios/scenes/debug_car.tscn")
 const FL := CarDynamics.FL
 const FR := CarDynamics.FR
 const RL := CarDynamics.RL
@@ -158,8 +157,7 @@ func _test_lamps() -> void:
 
 func _test_falling_speedometer() -> void:
 	var floor := ground()
-	var car: Node3D = CAR.instantiate()
-	root.add_child(car)
+	var car: Node3D = spawn_car()
 	await physics_frame
 	car.held_controls = {throttle = 0.5, select = "D"}
 	for i in 120:
@@ -186,8 +184,7 @@ func _test_falling_speedometer() -> void:
 
 func _test_lamps_on_car() -> void:
 	var floor := ground()
-	var car: Node3D = CAR.instantiate()
-	root.add_child(car)
+	var car: Node3D = spawn_car()
 	await physics_frame
 	car.held_controls = {brake = 1.0, select = "N"}
 	for i in 30:

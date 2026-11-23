@@ -85,7 +85,7 @@ static func step(spec: PackedFloat64Array, state: Vector3, steer: float, wanted:
 static func _across(spec: PackedFloat64Array, alpha: float, top: float, pull: float) -> float:
 	if top <= 0.0:
 		return 0.0
-	var sy := tan(clampf(alpha, -1.5, 1.5)) / tan(spec[CarSpec.PEAK_ANGLE])
+	var sy := TyreModel.slip_share(spec, 0.0, alpha).y
 	var pure := -top * signf(sy) * TyreModel.magic(absf(sy), spec[CarSpec.TYRE_B],
 		spec[CarSpec.TYRE_SHAPE])
 	var used := clampf(pull / top, -1.0, 1.0)

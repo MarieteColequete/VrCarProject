@@ -5,7 +5,6 @@ extends TestCase
 ## redline); the park pawl ratcheting at speed; and a car spawned as its [CarStart] says.
 
 const KIRI := preload("res://scenarios/vehicle/specs/kiri86.tres")
-const CAR := preload("res://scenarios/scenes/debug_car.tscn")
 const Core := preload("res://tests/cases/vehicle_core_test.gd")
 
 
@@ -162,9 +161,7 @@ func _test_pawl() -> void:
 func _test_car_start() -> void:
 	var floor := ground()
 	var start := CarStart.new()
-	var car: Node3D = CAR.instantiate()
-	car.set(&"start", start)
-	root.add_child(car)
+	var car: Node3D = spawn_car({start = start})
 	for i in 20:
 		await physics_frame
 	car.held_controls = {throttle = 1.0}
@@ -186,9 +183,7 @@ func _test_car_start() -> void:
 	car.queue_free()
 	var moving := CarStart.new()
 	moving.speed = 15.0
-	var rolling: Node3D = CAR.instantiate()
-	rolling.set(&"start", moving)
-	root.add_child(rolling)
+	var rolling: Node3D = spawn_car({start = moving})
 	await physics_frame
 	await physics_frame
 	expect(rolling.current_speed > 13.0 and rolling.dynamics.engine == CarDynamics.EngineState.RUNNING

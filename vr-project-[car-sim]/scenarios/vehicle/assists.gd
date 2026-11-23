@@ -57,11 +57,17 @@ static func throttle(aids: PackedFloat64Array, spec: PackedFloat64Array, input: 
 ## The yaw rate a driver means with the front wheels at [param angle] radians at [param speed]
 ## m/s on a surface of friction [param mu]: the bicycle model's, kept within what the tyres hold.
 static func target_yaw(spec: PackedFloat64Array, speed: float, angle: float, mu: float) -> float:
-	var wanted := speed * tan(angle) / spec[CarSpec.WHEELBASE]
+	var wanted := asked_yaw(spec, speed, angle)
 	if absf(speed) < 1.0:
 		return wanted
 	var most := 0.85 * mu * spec[CarSpec.GRIP] * CarSpec.G / absf(speed)
 	return clampf(wanted, -most, most)
+
+
+## The yaw rate the bicycle model gives the front wheels at [param angle] radians at [param speed]
+## m/s, the tyres' grip aside.
+static func asked_yaw(spec: PackedFloat64Array, speed: float, angle: float) -> float:
+	return speed * tan(angle) / spec[CarSpec.WHEELBASE]
 
 
 ## Stability control's correction: how far, rad/s, the car yaws past what the driver means, left

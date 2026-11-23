@@ -65,14 +65,7 @@ func _notification(what: int) -> void:
 ## The ground the shape reaches, its falloff included, as a rectangle (x, z) in the space
 ## [param placed] takes the shape's local space into.
 func area(placed: Transform3D) -> Rect2:
-	var reach := _reach()
-	var first := placed * Vector3(-reach.x, 0, -reach.y)
-	var out := Rect2(Vector2(first.x, first.z), Vector2.ZERO)
-	for corner in [Vector3(reach.x, 0, -reach.y), Vector3(reach.x, 0, reach.y),
-			Vector3(-reach.x, 0, reach.y)]:
-		var at: Vector3 = placed * corner
-		out = out.expand(Vector2(at.x, at.z))
-	return out
+	return Geo.ground_area(placed, _reach())
 
 
 ## The handles that size the shape, each [code]{name, local}[/code]: what it drags (one of the
@@ -249,11 +242,7 @@ func change(x: float, z: float, h: float, base: float) -> float:
 ## The share of the shape's effect at [param distance] from its centre: whole within the radius,
 ## easing to none over the falloff.
 func radial_weight(distance: float) -> float:
-	if distance <= radius:
-		return 1.0
-	if falloff <= 0.0:
-		return 0.0
-	return 1.0 - smoothstep(radius, radius + falloff, distance)
+	return Geo.ease_out(radius, radius + falloff, distance)
 
 
 ## A ramp's share of its effect at [param x], [param z]: whole on its rectangle, easing to none over
@@ -261,12 +250,7 @@ func radial_weight(distance: float) -> float:
 func box_weight(x: float, z: float) -> float:
 	var dx := maxf(absf(x) - size.x / 2.0, 0.0)
 	var dz := maxf(absf(z) - size.y / 2.0, 0.0)
-	var d := Vector2(dx, dz).length()
-	if d <= 0.0:
-		return 1.0
-	if falloff <= 0.0:
-		return 0.0
-	return 1.0 - smoothstep(0.0, falloff, d)
+	return Geo.ease_out(0.0, falloff, Vector2(dx, dz).length())
 
 
 ## Half the shape's reach on x and z, its falloff included.

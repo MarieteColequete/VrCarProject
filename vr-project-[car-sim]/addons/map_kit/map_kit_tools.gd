@@ -285,17 +285,6 @@ static func own(node: Node, scene_owner: Node) -> void:
 		own(child, scene_owner)
 
 
-## The transform from [param node]'s space to [param map]'s, without needing the tree.
-static func to_map(node: Node, map: Node) -> Transform3D:
-	var out := Transform3D.IDENTITY
-	var at := node
-	while at != null and at != map:
-		if at is Node3D:
-			out = (at as Node3D).transform * out
-		at = at.get_parent()
-	return out
-
-
 ## The lanes each of [param lanes] continues onto and does not list yet: every other lane whose
 ## start lies within [param gap] metres of its end, heading on the same way. [param placed] gives
 ## a lane's transform into a common space when it is not the lane's global one, as for lanes not
@@ -392,7 +381,7 @@ static func extend_road(map: Node, road: Node3D, near := Vector3.INF) -> Edit:
 	else:
 		segment.lane_width = (road as RoadJunction).road_width / 2.0
 	var parent := road.get_parent()
-	segment.transform = to_map(parent, map).affine_inverse() * end.transform
+	segment.transform = RoadMap.to_map(parent, map).affine_inverse() * end.transform
 	return Edit.new().add(parent, segment)
 
 
@@ -406,7 +395,7 @@ static func junction_at_end(map: Node, road: Node3D, shape: RoadJunction.Shape,
 	var junction := _junction(shape) as RoadJunction
 	var at: Variant = joining_transform(map, junction, end.transform.origin)
 	var parent := road.get_parent()
-	junction.transform = to_map(parent, map).affine_inverse() * (at as Transform3D)
+	junction.transform = RoadMap.to_map(parent, map).affine_inverse() * (at as Transform3D)
 	return Edit.new().add(parent, junction)
 
 
@@ -452,14 +441,14 @@ static func link_lanes(map: Node, pending: Edit = null) -> Edit:
 	for node in _nodes(map):
 		if node is TrafficLane and not removed.has(node) and not _inside(node, removed):
 			lanes.append(node)
-			placed[node] = to_map(node, map)
+			placed[node] = RoadMap.to_map(node, map)
 	var fresh: Array[TrafficLane] = []
 	if pending:
 		for pair: Array in pending.adds:
 			for node in _with_descendants(pair[1]):
 				if node is TrafficLane:
 					fresh.append(node)
-					placed[node] = to_map(pair[0], map) * to_map(node, pair[1])
+					placed[node] = RoadMap.to_map(pair[0], map) * RoadMap.to_map(node, pair[1])
 	var all: Array = lanes + fresh
 	var links := lane_links(all, 1.0, placed)
 	for lane in all:
@@ -544,7 +533,7 @@ static func nearest_lane(map: Node, place: Transform3D, reach := 6.0) -> Traffic
 		var lane := node as TrafficLane
 		if lane == null or lane.length() <= 0.0:
 			continue
-		var into := to_map(lane, map)
+		var into := RoadMap.to_map(lane, map)
 		var local := into.affine_inverse() * place.origin
 		var at := lane.curve.get_closest_offset(local)
 		var point := into * lane.curve.sample_baked(at)
@@ -576,13 +565,13 @@ static func drive_to(map: Node, cars: Array, checkpoint: Node3D) -> Edit:
 			continue
 		if not (car is MapAsset or car is Prop):
 			continue
-		var place := to_map(car, map)
+		var place := RoadMap.to_map(car, map)
 		var lane := nearest_lane(map, place)
 		if lane == null:
 			continue
 		var agent := ScriptedAgent.new()
 		agent.name = String(car.name) + "Driver"
-		agent.transform = to_map(parent, map).affine_inverse() * place
+		agent.transform = RoadMap.to_map(parent, map).affine_inverse() * place
 		agent.path = lane
 		agent.destination = checkpoint
 		agent.speed = lane.speed_limit if lane.speed_limit > 0.0 else 50.0 / 3.6
@@ -609,8 +598,8 @@ static func way_of(map: Node, agent: ScriptedAgent, lanes := {}) -> Dictionary:
 	var from: LaneData = lanes.get(agent.path.get_instance_id())
 	if from == null:
 		return {}
-	var start := from.project(to_map(agent, map).origin).x
-	return LaneRouter.route(lanes, from.id, start, to_map(agent.destination, map).origin)
+	var start := from.project(RoadMap.to_map(agent, map).origin).x
+	return LaneRouter.route(lanes, from.id, start, RoadMap.to_map(agent.destination, map).origin)
 
 
 ## The lanes of [param map] as [LaneData] by instance id, in the map's space, with their links.
@@ -620,7 +609,7 @@ static func lanes_of(map: Node) -> Dictionary:
 		var lane := node as TrafficLane
 		if lane and lane.length() > 0.0:
 			lanes[lane.get_instance_id()] = LaneData.of(lane.get_instance_id(), lane.curve,
-				to_map(lane, map), {is_lane = true,
+				RoadMap.to_map(lane, map), {is_lane = true,
 					next = PackedInt64Array(lane.next.filter(func(n: TrafficLane) -> bool:
 						return n != null).map(func(n: TrafficLane) -> int:
 							return n.get_instance_id()))})
@@ -659,7 +648,7 @@ static func on_road(map: Node, point: Vector3) -> bool:
 	for node in _nodes(map):
 		if node is RoadSegment:
 			var segment := node as RoadSegment
-			var into := to_map(segment, map)
+			var into := RoadMap.to_map(segment, map)
 			var reach := sqrt(pow(segment.width() / 2.0, 2) + pow(RoadSegment.STEP / 2.0, 2)) + 0.25
 			for frame: Array in segment.frames():
 				var at: Vector3 = into * frame[0]
@@ -667,11 +656,8 @@ static func on_road(map: Node, point: Vector3) -> bool:
 					return true
 		elif node is RoadJunction:
 			var junction := node as RoadJunction
-			var local := to_map(junction, map).affine_inverse() * point
-			var half := junction.road_width / 2.0
-			var reach := half + junction.arm_length
-			if (absf(local.x) <= half and absf(local.z) <= reach) \
-					or (absf(local.z) <= half and absf(local.x) <= reach):
+			var local := RoadMap.to_map(junction, map).affine_inverse() * point
+			if junction.distance_outside(local) <= 0.0:
 				return true
 	return false
 
@@ -710,9 +696,9 @@ static func snap_shape_base(map: Node, shape: TerrainShape) -> Edit:
 	var terrain := Terrain.of(map)
 	if terrain == null or shape == null:
 		return edit
-	var at := to_map(shape, map).origin
+	var at := RoadMap.to_map(shape, map).origin
 	var ground := terrain.land_height_at(at, terrain.land(shape))
-	var parent := to_map(shape.get_parent(), map)
+	var parent := RoadMap.to_map(shape.get_parent(), map)
 	var local := parent.affine_inverse() * Vector3(at.x, ground, at.z)
 	edit.set_value(shape, &"position", Vector3(shape.position.x, local.y, shape.position.z))
 	return edit
@@ -730,7 +716,7 @@ static func add_terrain(map: Node) -> Edit:
 		if node is RoadEnvironment:
 			var environment := node as RoadEnvironment
 			terrain.size = environment.ground_size
-			terrain.position = to_map(environment, map) * environment.ground_offset
+			terrain.position = RoadMap.to_map(environment, map) * environment.ground_offset
 			if environment.ground:
 				edit.set_value(environment, &"ground", false)
 	edit.add(map, terrain)
@@ -760,10 +746,10 @@ static func drape(map: Node, nodes: Array = [], max_grade := 0.12) -> Edit:
 	for node in _nodes(map):
 		if node is RoadJunction:
 			var junction := node as RoadJunction
-			var placed := to_map(junction, map)
+			var placed := RoadMap.to_map(junction, map)
 			if picked.has(junction):
 				placed.origin.y = terrain.land_height_at(placed.origin, land)
-				edit.set_value(junction, &"position", (to_map(junction.get_parent(), map)
+				edit.set_value(junction, &"position", (RoadMap.to_map(junction.get_parent(), map)
 					.affine_inverse() * placed).origin)
 			junction_y[junction] = placed
 	# Every road's centre line in the map's space, as it will be.
@@ -772,7 +758,7 @@ static func drape(map: Node, nodes: Array = [], max_grade := 0.12) -> Edit:
 		if not node is RoadSegment:
 			continue
 		var road := node as RoadSegment
-		var into := to_map(road, map)
+		var into := RoadMap.to_map(road, map)
 		var reach := road.width() / 2.0 + (road.pavement if road.kerbs else 0.0)
 		if not picked.has(road):
 			var points := PackedVector3Array()
@@ -806,7 +792,7 @@ static func drape(map: Node, nodes: Array = [], max_grade := 0.12) -> Edit:
 			var path := node as Path3D
 			if path.curve == null or path.curve.point_count < 2:
 				continue
-			var into := to_map(path, map)
+			var into := RoadMap.to_map(path, map)
 			var points := _resampled(path.curve, RoadSegment.STEP, into)
 			var curve := Curve3D.new()
 			var back := into.affine_inverse()
@@ -816,9 +802,9 @@ static func drape(map: Node, nodes: Array = [], max_grade := 0.12) -> Edit:
 			edit.set_value(path, &"curve", curve)
 		elif node is MapSpawn or node is Prop or node is MapAsset or node is RoadSign \
 				or node is Scenery or node is TrafficLight or node is Checkpoint:
-			var placed := to_map(node, map)
+			var placed := RoadMap.to_map(node, map)
 			placed.origin.y = surface.call(placed.origin)
-			edit.set_value(node, &"position", (to_map(node.get_parent(), map).affine_inverse()
+			edit.set_value(node, &"position", (RoadMap.to_map(node.get_parent(), map).affine_inverse()
 				* placed).origin)
 	return edit
 
@@ -887,11 +873,7 @@ static func _surface_height(point: Vector3, junction_y: Dictionary, lines: Array
 		terrain: Terrain, land: HeightField) -> float:
 	for junction: RoadJunction in junction_y:
 		var placed: Transform3D = junction_y[junction]
-		var local := placed.affine_inverse() * point
-		var half := junction.road_width / 2.0 + RoadKit.PAVEMENT
-		var reach := junction.road_width / 2.0 + junction.arm_length
-		if (absf(local.x) <= half and absf(local.z) <= reach) \
-				or (absf(local.z) <= half and absf(local.x) <= reach):
+		if junction.distance_outside(placed.affine_inverse() * point) <= RoadKit.PAVEMENT:
 			return placed.origin.y
 	var best := INF
 	var best_y := 0.0
@@ -901,8 +883,7 @@ static func _surface_height(point: Vector3, junction_y: Dictionary, lines: Array
 		for i in points.size() - 1:
 			var a := Vector2(points[i].x, points[i].z)
 			var d := Vector2(points[i + 1].x, points[i + 1].z) - a
-			var t := clampf((at - a).dot(d) / d.length_squared(), 0.0, 1.0) \
-				if d.length_squared() > 0.0 else 0.0
+			var t := Geo.along_segment(at, a, d)
 			var off := at.distance_to(a + d * t)
 			if off <= float(line[1]) and off < best:
 				best = off
@@ -918,7 +899,7 @@ static func _lane_problems(map: RoadMap, out: Array[Dictionary]) -> void:
 	for node in map.nodes():
 		if node is TrafficLane and (node as TrafficLane).length() > 0.0:
 			lanes.append(node)
-			placed[node] = to_map(node, map)
+			placed[node] = RoadMap.to_map(node, map)
 	var links := lane_links(lanes, 1.0, placed)
 	for lane: TrafficLane in lanes:
 		if links.has(lane):
@@ -937,11 +918,11 @@ static func _spawn_problems(map: RoadMap, out: Array[Dictionary]) -> void:
 	var spawns := map.spawns()
 	var has_roads := _has_roads(map)
 	for i in spawns.size():
-		var at := to_map(spawns[i], map).origin
+		var at := RoadMap.to_map(spawns[i], map).origin
 		if has_roads and not on_road(map, at):
 			out.append(_problem(spawns[i], "The spawn is not on a road.", NOTICE))
 		for j in range(i + 1, spawns.size()):
-			if at.distance_to(to_map(spawns[j], map).origin) < 2.0:
+			if at.distance_to(RoadMap.to_map(spawns[j], map).origin) < 2.0:
 				out.append(_problem(spawns[j], "The spawn overlaps %s." % spawns[i].name, NOTICE))
 
 
@@ -966,7 +947,7 @@ static func _spawn_on_road(map: RoadMap) -> MapSpawn:
 	for node in map.nodes():
 		if node is TrafficLane and (node as TrafficLane).length() > 4.0:
 			var lane := node as TrafficLane
-			var into := to_map(lane, map)
+			var into := RoadMap.to_map(lane, map)
 			var at := into * lane.curve.sample_baked(2.0)
 			var ahead := into * lane.curve.sample_baked(3.0) - at
 			ahead.y = 0.0
@@ -980,12 +961,12 @@ static func _all_road_ends(map: Node) -> Array[Dictionary]:
 	for node in _nodes(map):
 		if node is RoadSegment:
 			var segment := node as RoadSegment
-			var into := to_map(segment, map)
+			var into := RoadMap.to_map(segment, map)
 			for end in segment.ends():
 				all.append({transform = into * end, width = segment.width(), node = segment})
 		elif node is RoadJunction:
 			var junction := node as RoadJunction
-			var into := to_map(junction, map)
+			var into := RoadMap.to_map(junction, map)
 			for arm in junction.arms():
 				all.append({transform = into * junction.arm_end(arm), width = junction.road_width,
 					node = junction})

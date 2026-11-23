@@ -141,10 +141,9 @@ var _mirror_held := false
 var _abs_was := false
 var _shifting_was := false
 var _shift := 0
-## The park button pressed since the last step, and the gamepad's shift_down held, for how long.
+## The park button pressed since the last step, and the gamepad's shift_down ([HoldTap]).
 var _park := false
-var _pad_down_holding := false
-var _pad_down_for := 0.0
+var _pad_down := HoldTap.new()
 ## The speed, m/s, a [member start] gives the body when it is first let go.
 var _launch := 0.0
 ## Whether the key is read: off during a briefing, whose Enter (or Start) begins the attempt and
@@ -203,12 +202,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if DriverInput.is_pad_shift_down(event):
 		# The gamepad's shift_down: held, it parks; let go sooner, it moves the lever down.
 		if event.is_pressed():
-			_pad_down_for = 0.0
-			_pad_down_holding = true
-		elif _pad_down_holding:
-			_pad_down_holding = false
-			if _pad_down_for < DriverInput.PARK_HOLD:
-				_shift -= 1
+			_pad_down.press()
+		elif _pad_down.release():
+			_shift -= 1
 		return
 	var shift := DriverInput.shift_pressed(event)
 	if shift != 0:
@@ -331,11 +327,8 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if _pad_down_holding:
-		var before := _pad_down_for
-		_pad_down_for += delta
-		if before < DriverInput.PARK_HOLD and _pad_down_for >= DriverInput.PARK_HOLD:
-			_park = true
+	if _pad_down.advance(delta):
+		_park = true
 	if model and input_enabled:
 		driver_view.grab_wheel(delta, global_transform * model.steering_frame(),
 			model.steering_radius, _steer)

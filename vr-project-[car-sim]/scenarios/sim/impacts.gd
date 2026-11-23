@@ -49,8 +49,8 @@ static func run(world: World, _dt: float) -> Delta:
 			continue
 		f = f.normalized()
 		var centre := Vector2(positions[row].x, positions[row].z)
-		var normal := _meeting(at, along, car.body_length * 0.5, car.body_width * 0.5, centre, f,
-			sizes[row].z * 0.5, sizes[row].x * 0.5)
+		var normal := Geo.box_contact_normal(at, along, car.body_length * 0.5,
+			car.body_width * 0.5, centre, f, sizes[row].z * 0.5, sizes[row].x * 0.5)
 		if normal == Vector2.ZERO:
 			continue
 		var left := Vector2(f.y, -f.x)
@@ -82,23 +82,3 @@ static func run(world: World, _dt: float) -> Delta:
 		d.write(Schema.VEHICLE, car.entity, &"impulse", push)
 	return d
 
-
-## The side two ground boxes meet across, as the unit normal from the first toward the second,
-## by the separating axis test's least overlap; zero when they do not overlap.
-static func _meeting(c1: Vector2, along1: Vector2, half_len1: float, half_wid1: float,
-		c2: Vector2, along2: Vector2, half_len2: float, half_wid2: float) -> Vector2:
-	var across1 := Vector2(-along1.y, along1.x)
-	var across2 := Vector2(-along2.y, along2.x)
-	var gap := c2 - c1
-	var least := INF
-	var normal := Vector2.ZERO
-	for axis: Vector2 in [along1, across1, along2, across2]:
-		var r1 := absf(axis.dot(along1)) * half_len1 + absf(axis.dot(across1)) * half_wid1
-		var r2 := absf(axis.dot(along2)) * half_len2 + absf(axis.dot(across2)) * half_wid2
-		var overlap := r1 + r2 - absf(axis.dot(gap))
-		if overlap <= 0.0:
-			return Vector2.ZERO
-		if overlap < least:
-			least = overlap
-			normal = axis if axis.dot(gap) >= 0.0 else -axis
-	return normal

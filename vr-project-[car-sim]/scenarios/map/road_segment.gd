@@ -226,12 +226,7 @@ func _set_pavement(body: StaticBody3D) -> void:
 
 ## Replaces the internal body [param old] with [param body], returning it.
 func _swap_body(old: StaticBody3D, body: StaticBody3D) -> StaticBody3D:
-	if old and is_instance_valid(old):
-		remove_child(old)
-		old.queue_free()
-	if body:
-		add_child(body, false, INTERNAL_MODE_BACK)
-	return body
+	return RoadPieces.swap_body(self, old, body)
 
 
 ## Whether the road is drawn in the kit's look, kerbs and pavement included.
@@ -299,11 +294,7 @@ func _marking(marking_name: String, kind: RoadMarking.Kind, offset: float) -> Ro
 
 ## The children generated as [param what], [constant LANES] or [constant MARKINGS].
 func generated(what: StringName) -> Array[Node]:
-	var out: Array[Node] = []
-	for child in get_children():
-		if child.get_meta(GENERATED, &"") == what:
-			out.append(child)
-	return out
+	return RoadPieces.generated(self, GENERATED, what)
 
 
 ## Where the road starts and ends, local space, each facing out of the road along -Z: where
@@ -327,11 +318,8 @@ static func _ahead(right: Vector3) -> Vector3:
 
 ## Adds a generated child the scene saves.
 func _keep(node: Node) -> void:
-	add_child(node, true)
-	node.owner = owner if owner else self
+	RoadPieces.keep(self, node)
 
 
 func _clear(what: StringName) -> void:
-	for child in generated(what):
-		remove_child(child)
-		child.free()
+	RoadPieces.clear(self, GENERATED, what)

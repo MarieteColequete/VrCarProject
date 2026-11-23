@@ -74,6 +74,24 @@ func _exit_tree() -> void:
 	Terrain.notify_leaving(self)
 
 
+## How far [param local] (in the junction's own space) lies outside its asphalt: nought on it. The
+## east and west arms make one bar across; the south arm, and a crossroads' north arm, the other.
+func distance_outside(local: Vector3) -> float:
+	var half := road_width / 2.0
+	var reach := half + arm_length
+	var north := reach if shape == Shape.CROSSROADS else half
+	return minf(_box_distance(local.x, local.z, reach, -half, half),
+		_box_distance(local.x, local.z, half, -north, reach))
+
+
+## How far [param x], [param z] lies outside the box [param half_x] either side of x = 0 and from
+## [param z0] to [param z1].
+static func _box_distance(x: float, z: float, half_x: float, z0: float, z1: float) -> float:
+	var dx := maxf(absf(x) - half_x, 0.0)
+	var dz := maxf(maxf(z0 - z, z - z1), 0.0)
+	return Vector2(dx, dz).length()
+
+
 ## The junction's arms.
 func arms() -> Array[Arm]:
 	var out: Array[Arm] = [Arm.EAST, Arm.SOUTH, Arm.WEST]
@@ -156,11 +174,7 @@ func make_lanes() -> Array[TrafficLane]:
 
 ## The children generated as [param what], [constant LINES] or [constant LANES].
 func generated(what: StringName) -> Array[Node]:
-	var out: Array[Node] = []
-	for child in get_children():
-		if child.get_meta(GENERATED, &"") == what:
-			out.append(child)
-	return out
+	return RoadPieces.generated(self, GENERATED, what)
 
 
 ## A curve from [param entry] heading [param into] to [param exit] heading [param onward]: a
@@ -189,14 +203,11 @@ func _turn(entry: Vector3, into: Vector3, exit: Vector3, onward: Vector3) -> Cur
 
 ## Adds a generated child the scene saves.
 func _keep(node: Node) -> void:
-	add_child(node, true)
-	node.owner = owner if owner else self
+	RoadPieces.keep(self, node)
 
 
 func _clear(what: StringName) -> void:
-	for child in generated(what):
-		remove_child(child)
-		child.free()
+	RoadPieces.clear(self, GENERATED, what)
 
 
 func rebuild() -> void:
@@ -248,12 +259,7 @@ func _set_pavement(body: StaticBody3D) -> void:
 
 ## Replaces the internal body [param old] with [param body], returning it.
 func _swap_body(old: StaticBody3D, body: StaticBody3D) -> StaticBody3D:
-	if old and is_instance_valid(old):
-		remove_child(old)
-		old.queue_free()
-	if body:
-		add_child(body, false, INTERNAL_MODE_BACK)
-	return body
+	return RoadPieces.swap_body(self, old, body)
 
 
 func _queue_rebuild() -> void:

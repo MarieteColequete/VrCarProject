@@ -96,7 +96,7 @@ static func curvature_of(lane: LaneData) -> PackedFloat64Array:
 	var headings := PackedFloat64Array()
 	for k in count + 2:
 		var at := (k - 1) * CURVATURE_STEP
-		var ahead := lane.point_at(at + 0.5) - lane.point_at(at - 0.5)
+		var ahead := lane.ground_tangent(at)
 		headings.append(atan2(-ahead.x, -ahead.z) if Vector2(ahead.x, ahead.z).length() > 0.001
 			else (headings[k - 1] if k > 0 else 0.0))
 	for k in count:

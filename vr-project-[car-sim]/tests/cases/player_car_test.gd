@@ -3,7 +3,6 @@ extends TestCase
 ## steering wheel, its live parts (wheels, steering wheel, lights), and the instruments, all
 ## following the car's state; and its cabin, cut into parts each in a textured material of its own.
 
-const CAR := preload("res://scenarios/scenes/debug_car.tscn")
 const CAR_SCRIPT := preload("res://scenarios/scenes/debug_car.gd")
 
 
@@ -128,8 +127,7 @@ func _triangles(mesh: Mesh) -> int:
 
 func _test_live() -> void:
 	var floor := ground()
-	var car: Node3D = CAR.instantiate()
-	root.add_child(car)
+	var car: Node3D = spawn_car()
 	var model: PlayerCarModel = car.model
 	var view: Node3D = car.driver_view
 	expect(model != null and view.position.distance_to(model.steering_centre

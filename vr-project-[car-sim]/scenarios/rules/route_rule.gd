@@ -18,18 +18,12 @@ static func step(p: Dictionary, s: Dictionary, f: RuleFrame, live: bool) -> Rule
 	var car := f.car
 	var n := s.duplicate()
 	r.state = n
-	var curve := path.curve
-	var length := path.length
-	var local := path.inverse * car.position
-	n.progress = curve.get_closest_offset(local)
-	if n.progress <= 0.01 or n.progress >= length - 0.01:
+	var on := path.project(car.position)
+	n.progress = on.x
+	if n.progress <= 0.01 or n.progress >= path.length - 0.01:
 		return r
-	var flat := local - curve.sample_baked(n.progress)
-	flat.y = 0.0
-	n.lateral = flat.length()
-	var tangent := path.transform.basis * (curve.sample_baked(minf(n.progress + 0.5, length))
-		- curve.sample_baked(maxf(n.progress - 0.5, 0.0)))
-	tangent.y = 0.0
+	n.lateral = on.y
+	var tangent := path.ground_tangent(n.progress)
 	var against: bool = car.forward.dot(tangent.normalized()) < -0.5 \
 		and absf(car.speed) > p.wrong_way_speed
 	var road := Episode.next(s.road, n.lateral > p.road_offset, f.dt, p.lane_grace)

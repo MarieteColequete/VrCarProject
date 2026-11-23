@@ -13,17 +13,10 @@ func run() -> void:
 	await _test_sandbox()
 
 
-func _has_event(action: StringName, type: String) -> bool:
-	for event in InputMap.action_get_events(action):
-		if event.is_class(type):
-			return true
-	return false
-
-
 func _test_bindings() -> void:
 	for action in EXAM_ACTIONS:
-		expect(InputMap.has_action(action) and _has_event(action, "InputEventKey")
-			and _has_event(action, "InputEventJoypadButton"),
+		expect(InputMap.has_action(action) and has_event(action, "InputEventKey")
+			and has_event(action, "InputEventJoypadButton"),
 			"%s is bound on the keyboard and the gamepad" % action)
 
 

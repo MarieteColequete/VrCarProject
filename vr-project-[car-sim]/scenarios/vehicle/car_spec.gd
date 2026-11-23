@@ -65,6 +65,8 @@ const CURVE_STEP := 1000.0
 ## Air density, kg/m³, and gravity, m/s².
 const AIR := 1.225
 const G := 9.81
+## Radians a second in one revolution a minute: an engine's spin is its rpm times this.
+const RPM := TAU / 60.0
 
 @export var title := "Car"
 @export_group("Body")
@@ -215,6 +217,17 @@ func packed() -> PackedFloat64Array:
 	for i in CURVE_SAMPLES:
 		p[curve + i] = torque_curve[i] if i < torque_curve.size() else 0.0
 	return p
+
+
+## Whether wheel [param i] (front left, front right, rear left, rear right) is driven.
+static func driven(spec: PackedFloat64Array, i: int) -> bool:
+	var layout := int(spec[DRIVE])
+	return layout == Drive.ALL or (layout == Drive.REAR) == (i >= 2)
+
+
+## How many wheels are driven: 2, or 4 on a car driven at every wheel.
+static func driven_count(spec: PackedFloat64Array) -> int:
+	return 4 if int(spec[DRIVE]) == Drive.ALL else 2
 
 
 ## The distance from the centre of mass to the front axle, and to the rear, metres.

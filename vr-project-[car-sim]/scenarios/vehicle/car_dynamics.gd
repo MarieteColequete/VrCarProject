@@ -105,7 +105,7 @@ func _init(p_spec: PackedFloat64Array, p_aids := Assists.preset("exam"), p_manua
 	spec = p_spec
 	aids = p_aids
 	gearbox = Gearbox.new(spec, p_manual)
-	engine_spin = spec[CarSpec.IDLE_RPM] * TAU / 60.0
+	engine_spin = spec[CarSpec.IDLE_RPM] * CarSpec.RPM
 	rpm = spec[CarSpec.IDLE_RPM]
 
 
@@ -119,8 +119,7 @@ func wheel_offset(i: int, below := 0.0) -> Vector3:
 
 ## Whether wheel [param i] is driven.
 func driven(i: int) -> bool:
-	var layout := int(spec[CarSpec.DRIVE])
-	return layout == CarSpec.Drive.ALL or (layout == CarSpec.Drive.REAR) == (i >= 2)
+	return CarSpec.driven(spec, i)
 
 
 ## The driven wheels' tread speed, m/s, forward positive: what the gearbox goes by.
@@ -216,7 +215,7 @@ func step(dt: float, controls: Dictionary, loads: PackedFloat64Array, along: Pac
 				_stall()
 		else:
 			engine_spin = maxf(side, _idle_spin() * 0.95)
-	rpm = engine_spin * 60.0 / TAU
+	rpm = engine_spin / CarSpec.RPM
 
 
 ## Puts the car as it starts: the engine [param running] or off, the lever at [param selector],
@@ -235,7 +234,7 @@ func place(running: bool, selector: Gearbox.Selector, speed := 0.0) -> void:
 		if side >= _idle_spin():
 			engine_spin = side
 			coupling = Coupling.LOCKED
-	rpm = engine_spin * 60.0 / TAU
+	rpm = engine_spin / CarSpec.RPM
 
 
 ## The key for a step, held or not: held with the engine off and the drive open (P or N, the
@@ -313,10 +312,7 @@ func _lugging() -> bool:
 
 
 func _driven_count() -> int:
-	var count := 0
-	for i in 4:
-		count += 1 if driven(i) else 0
-	return count
+	return CarSpec.driven_count(spec)
 
 
 ## The engine's coupling for this step: its spin, and what it sends to the driven wheels, as
@@ -325,7 +321,7 @@ func _couple(dt: float) -> Vector2:
 	var gearing := Powertrain.ratio(spec, gearbox.gear)
 	var wheel_side := wheel_speed() / spec[CarSpec.WHEEL_RADIUS] * gearing
 	var idle := _idle_spin()
-	var stall := lerpf(spec[CarSpec.IDLE_RPM], spec[CarSpec.LAUNCH_RPM], throttle) * TAU / 60.0
+	var stall := lerpf(spec[CarSpec.IDLE_RPM], spec[CarSpec.LAUNCH_RPM], throttle) * CarSpec.RPM
 	if engine != EngineState.RUNNING:
 		coupling = Coupling.OPEN
 		_wind_down(dt)
@@ -363,17 +359,14 @@ func _couple(dt: float) -> Vector2:
 	if coupling == Coupling.LOCKED:
 		if not _lugging():
 			engine_spin = maxf(engine_spin, idle * 0.95)
-		var torque := _engine_torque(throttle)
-		var through := torque * gearing
-		through = through * spec[CarSpec.EFFICIENCY] if torque > 0.0 \
-			else through / spec[CarSpec.EFFICIENCY]
+		var through := Powertrain.through(spec, _engine_torque(throttle), gearing)
 		var reflected := spec[CarSpec.ENGINE_INERTIA] * gearing * gearing / maxi(count, 1)
 		return Vector2(through, reflected)
 	# Slipping: the engine runs up toward the slipping revolutions, and the converter (or the
 	# clutch, biting with the throttle) passes its torque on; an automatic's converter adds to it
 	# while the wheel side lags, and creeps with the throttle shut.
 	engine_spin = lerpf(engine_spin, stall, clampf(dt / SLIP_SETTLE, 0.0, 1.0))
-	var available := Powertrain.curve(spec, engine_spin * 60.0 / TAU) * throttle
+	var available := Powertrain.curve(spec, engine_spin / CarSpec.RPM) * throttle
 	var lag := clampf(1.0 - wheel_side / maxf(engine_spin, 1.0), 0.0, 1.0)
 	var passed := available
 	if not gearbox.manual:
@@ -406,34 +399,34 @@ func _rev_freely(dt: float, open: float) -> void:
 	# Just caught, it runs up to idle under the governor rather than jumping there.
 	var floor := minf(engine_spin, _idle_spin() * 0.85)
 	engine_spin += _engine_torque(open) / spec[CarSpec.ENGINE_INERTIA] * dt
-	engine_spin = clampf(engine_spin, floor, spec[CarSpec.REDLINE_RPM] * TAU / 60.0)
+	engine_spin = clampf(engine_spin, floor, spec[CarSpec.REDLINE_RPM] * CarSpec.RPM)
 
 
 ## The engine not running for a step: the starter turns it at its revolutions, or else its
 ## friction stops it.
 func _wind_down(dt: float) -> void:
 	if engine == EngineState.CRANKING:
-		var starter := spec[CarSpec.STARTER_RPM] * TAU / 60.0
+		var starter := spec[CarSpec.STARTER_RPM] * CarSpec.RPM
 		engine_spin = lerpf(engine_spin, starter, clampf(dt / SLIP_SETTLE, 0.0, 1.0))
 		return
-	var drag := Powertrain.FRICTION + spec[CarSpec.ENGINE_BRAKING] * engine_spin * 60.0 / TAU \
+	var drag := Powertrain.FRICTION + spec[CarSpec.ENGINE_BRAKING] * engine_spin / CarSpec.RPM \
 		/ spec[CarSpec.REDLINE_RPM]
 	engine_spin = maxf(engine_spin - drag / spec[CarSpec.ENGINE_INERTIA] * dt, 0.0)
 
 
 ## The engine's torque at its spin with [param open] throttle, the idle governor's included.
 func _engine_torque(open: float) -> float:
-	var at := engine_spin * 60.0 / TAU
+	var at := engine_spin / CarSpec.RPM
 	var governor := clampf((spec[CarSpec.IDLE_RPM] - at) / 150.0, 0.0, 1.0) * GOVERNOR_TORQUE
 	return Powertrain.engine_torque(spec, at, open) + governor
 
 
 func _idle_spin() -> float:
-	return spec[CarSpec.IDLE_RPM] * TAU / 60.0
+	return spec[CarSpec.IDLE_RPM] * CarSpec.RPM
 
 
 func _stall_spin() -> float:
-	return spec[CarSpec.STALL_RPM] * TAU / 60.0
+	return spec[CarSpec.STALL_RPM] * CarSpec.RPM
 
 
 ## The engine's [param torque] at the wheels shared between them: half to each driven axle of an
@@ -505,9 +498,9 @@ func _solve_wheel(i: int, dt: float, drive: float, brake: float, load: float, gr
 func _turn_tread(i: int, by: float) -> void:
 	if by == 0.0 or deflect[i] == Vector2.ZERO:
 		return
-	var sigma := spec[CarSpec.RELAXATION]
-	var px := sigma * spec[CarSpec.PEAK_RATIO]
-	var py := sigma * tan(spec[CarSpec.PEAK_ANGLE])
+	var scale := TyreModel.tread_scale(spec)
+	var px := scale.x
+	var py := scale.y
 	# Where the tread's surface lies on the road from the wheel, metres: a tread driven ahead of
 	# the road (a positive deflection along) has its surface pushed back.
 	var lying := Vector2(-deflect[i].x * px, deflect[i].y * py).rotated(-by)

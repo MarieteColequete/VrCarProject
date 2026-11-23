@@ -52,7 +52,7 @@ func set_manual(value: bool) -> void:
 ## [param wheel_speed] m/s, the clutch closed; not clamped.
 func rpm_in(in_gear: int, wheel_speed: float) -> float:
 	return absf(wheel_speed / spec[CarSpec.WHEEL_RADIUS] * Powertrain.ratio(spec, in_gear)) \
-		* 60.0 / TAU
+		/ CarSpec.RPM
 
 
 ## Moves the lever one notch ([param step] +1 up toward D, or up a gear; -1 down toward R, or

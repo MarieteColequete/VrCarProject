@@ -6,7 +6,6 @@ extends TestCase
 ## and forth, in neutral, in park or on the handbrake, it stays put; coasting through a slalom, it
 ## never gains energy.
 
-const CAR := preload("res://scenarios/scenes/debug_car.tscn")
 const KIRI := preload("res://scenarios/vehicle/specs/kiri86.tres")
 
 
@@ -132,8 +131,7 @@ func _test_suspension() -> void:
 ## Steers full left and right for 10 s with [param held] set: the car stays where it stood.
 func _test_steered_standing(held: Dictionary) -> void:
 	var floor := ground()
-	var car: Node3D = CAR.instantiate()
-	root.add_child(car)
+	var car: Node3D = spawn_car()
 	car.held_controls = held.duplicate()
 	for i in 90:
 		await physics_frame
@@ -157,8 +155,7 @@ func _test_steered_standing(held: Dictionary) -> void:
 ## Coasting in N at 10 m/s through a slalom, the car's energy never rises.
 func _test_coasting_slalom() -> void:
 	var floor := ground()
-	var car: RigidBody3D = CAR.instantiate()
-	root.add_child(car)
+	var car: RigidBody3D = spawn_car() as RigidBody3D
 	car.held_controls = {select = "N"}
 	for i in 60:
 		await physics_frame

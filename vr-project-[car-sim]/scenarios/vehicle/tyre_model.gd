@@ -41,13 +41,26 @@ static func force(spec: PackedFloat64Array, ratio: float, angle: float, load: fl
 	var top := peak(spec, load, mu)
 	if top <= 0.0:
 		return Vector2.ZERO
-	var sx := ratio / spec[CarSpec.PEAK_RATIO]
-	var sy := tan(clampf(angle, -1.5, 1.5)) / tan(spec[CarSpec.PEAK_ANGLE])
-	var s := sqrt(sx * sx + sy * sy)
+	var share := slip_share(spec, ratio, angle)
+	var s := share.length()
 	if s < 0.000001:
 		return Vector2.ZERO
 	var f := top * magic(s, spec[CarSpec.TYRE_B], spec[CarSpec.TYRE_SHAPE]) / s
-	return Vector2(f * sx, -f * sy)
+	return Vector2(f * share.x, -f * share.y)
+
+
+## The slip as a share of the peak's in each direction: [code](slip ratio over the peak's,
+## tan(slip angle) over tan(the peak's))[/code], signed; 1 at the peak.
+static func slip_share(spec: PackedFloat64Array, ratio: float, angle: float) -> Vector2:
+	return Vector2(ratio / spec[CarSpec.PEAK_RATIO],
+		tan(clampf(angle, -1.5, 1.5)) / tan(spec[CarSpec.PEAK_ANGLE]))
+
+
+## How far the tread deflects at the peak, metres, along and across: the relaxation length times
+## the peak slip in each direction. [method contact] keeps its deflection as shares of these.
+static func tread_scale(spec: PackedFloat64Array) -> Vector2:
+	var sigma := spec[CarSpec.RELAXATION]
+	return Vector2(sigma * spec[CarSpec.PEAK_RATIO], sigma * tan(spec[CarSpec.PEAK_ANGLE]))
 
 
 ## The tread's contact with the road for one step of [param dt] seconds, as a brush with
@@ -79,8 +92,9 @@ static func prepare(spec: PackedFloat64Array, deflect: Vector2, along: float, ac
 		return p
 	var sigma := spec[CarSpec.RELAXATION]
 	var tan_peak := tan(spec[CarSpec.PEAK_ANGLE])
-	var px := sigma * spec[CarSpec.PEAK_RATIO]
-	var py := sigma * tan_peak
+	var scale := tread_scale(spec)
+	var px := scale.x
+	var py := scale.y
 	var speed := sqrt(along * along + across * across)
 	var relax := 1.0 + speed * dt / sigma
 	var b := spec[CarSpec.TYRE_B]
@@ -161,9 +175,7 @@ const _SIZE := 15
 ## How hard the tyre works, 0 at rest to 1 at its peak and more past it: the combined slip as a
 ## share of the peak slip. The tyre voices read it.
 static func usage(spec: PackedFloat64Array, ratio: float, angle: float) -> float:
-	var sx := ratio / spec[CarSpec.PEAK_RATIO]
-	var sy := tan(clampf(angle, -1.5, 1.5)) / tan(spec[CarSpec.PEAK_ANGLE])
-	return sqrt(sx * sx + sy * sy)
+	return slip_share(spec, ratio, angle).length()
 
 
 ## Slip ratio of a wheel whose tread moves at [param tread] m/s over ground passing at

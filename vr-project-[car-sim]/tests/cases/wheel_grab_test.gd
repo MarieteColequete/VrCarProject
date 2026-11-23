@@ -2,7 +2,6 @@ extends TestCase
 ## Steering with the hands on the wheel ([WheelGrab]): taking hold near the rim only, turning with
 ## one hand and with two, letting go and the wheel centring, and the car's wheel frame.
 
-const CAR := preload("res://scenarios/scenes/debug_car.tscn")
 const RADIUS := 0.18
 const STEP := 1.0 / 60.0
 
@@ -62,8 +61,7 @@ func _test_grab() -> void:
 
 
 func _test_car() -> void:
-	var car: Node3D = CAR.instantiate()
-	root.add_child(car)
+	var car: Node3D = spawn_car()
 	await physics_frame
 	var model: PlayerCarModel = car.model
 	var frame := car.global_transform * model.steering_frame()

@@ -53,7 +53,8 @@ var active := true:
 	set = set_active
 
 var _flicked := 0
-var _lever_down_for := 0.0
+## The right stick pulled down: held, the park button; flicked, the lever down.
+var _lever_down := HoldTap.new()
 var _buttons := {}
 var _both_grips := 0.0
 var _mouse_tilt := Vector2.ZERO
@@ -318,14 +319,12 @@ func _xr_controls(delta: float) -> void:
 	var lever := right.get_vector2(&"primary").y if not look_locked else 0.0
 	_edge(&"shift_up", lever > FLICK, DriverInput.SHIFT_UP)
 	if lever < -FLICK:
-		var before := _lever_down_for
-		_lever_down_for += delta
-		if before < DriverInput.PARK_HOLD and _lever_down_for >= DriverInput.PARK_HOLD:
+		if not _lever_down.down:
+			_lever_down.press()
+		if _lever_down.advance(delta):
 			_tap(DriverInput.PARK)
-	elif _lever_down_for > 0.0:
-		if _lever_down_for < DriverInput.PARK_HOLD:
-			_tap(DriverInput.SHIFT_DOWN)
-		_lever_down_for = 0.0
+	elif _lever_down.release():
+		_tap(DriverInput.SHIFT_DOWN)
 	var both := not wheel.held() and not mirror_grab.held() \
 		and left.get_float(&"grip") > GRIP_HOLD \
 		and right.get_float(&"grip") > GRIP_HOLD

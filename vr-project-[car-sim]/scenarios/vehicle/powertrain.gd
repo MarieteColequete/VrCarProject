@@ -25,7 +25,7 @@ static func gear_count(spec: PackedFloat64Array) -> int:
 ## The engine's revolutions with the driven wheels turning at [param wheel_spin] rad/s in
 ## [param gear], before the clutch: idle at least, the redline at most.
 static func rpm(spec: PackedFloat64Array, wheel_spin: float, gear: int) -> float:
-	var through := absf(wheel_spin * ratio(spec, gear)) * 60.0 / TAU
+	var through := absf(wheel_spin * ratio(spec, gear)) / CarSpec.RPM
 	return clampf(through, spec[CarSpec.IDLE_RPM], spec[CarSpec.REDLINE_RPM])
 
 
@@ -61,11 +61,14 @@ static func engine_torque(spec: PackedFloat64Array, at_rpm: float, throttle: flo
 ## spin.
 static func wheel_torque(spec: PackedFloat64Array, at_rpm: float, throttle: float,
 		gear: int) -> float:
-	var engine := engine_torque(spec, at_rpm, throttle)
-	var through := engine * ratio(spec, gear)
-	# The losses take from the drive, and add to the engine's braking.
-	return through * spec[CarSpec.EFFICIENCY] if engine > 0.0 \
-		else through / spec[CarSpec.EFFICIENCY]
+	return through(spec, engine_torque(spec, at_rpm, throttle), ratio(spec, gear))
+
+
+## The engine's [param torque] at the wheels through [param gearing], Nm: the losses take from
+## the drive, and add to the engine's braking.
+static func through(spec: PackedFloat64Array, torque: float, gearing: float) -> float:
+	var out := torque * gearing
+	return out * spec[CarSpec.EFFICIENCY] if torque > 0.0 else out / spec[CarSpec.EFFICIENCY]
 
 
 ## The most forward force the engine can put on the road at [param speed] m/s in its best gear,
@@ -74,7 +77,7 @@ static func drive_force_max(spec: PackedFloat64Array, speed: float) -> float:
 	var spin := maxf(speed, 0.0) / spec[CarSpec.WHEEL_RADIUS]
 	var best := 0.0
 	for gear in range(1, gear_count(spec) + 1):
-		var through := absf(spin * ratio(spec, gear)) * 60.0 / TAU
+		var through := absf(spin * ratio(spec, gear)) / CarSpec.RPM
 		if through > spec[CarSpec.REDLINE_RPM]:
 			continue
 		var at := maxf(through, spec[CarSpec.LAUNCH_RPM])

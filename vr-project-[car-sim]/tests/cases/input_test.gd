@@ -9,24 +9,17 @@ func run() -> void:
 	await _test_debug_car_controls()
 
 
-func _has_event(action: StringName, type: String) -> bool:
-	for event in InputMap.action_get_events(action):
-		if event.is_class(type):
-			return true
-	return false
-
-
 func _test_bindings() -> void:
 	for action in DriverInput.CAR_ACTIONS + [&"look_reset", &"toggle_view", MirrorAdjust.ACTION]:
 		# Park on a gamepad is shift_down held, so it needs a key only.
-		var pad: bool = action == DriverInput.PARK or _has_event(action, "InputEventJoypadMotion") \
-			or _has_event(action, "InputEventJoypadButton")
-		expect(InputMap.has_action(action) and _has_event(action, "InputEventKey") and pad,
+		var pad: bool = action == DriverInput.PARK or has_event(action, "InputEventJoypadMotion") \
+			or has_event(action, "InputEventJoypadButton")
+		expect(InputMap.has_action(action) and has_event(action, "InputEventKey") and pad,
 			"%s is bound on the keyboard and the gamepad" % action)
 	for action in [&"look_left", &"look_right", &"look_up", &"look_down"]:
-		expect(InputMap.has_action(action) and _has_event(action, "InputEventJoypadMotion"),
+		expect(InputMap.has_action(action) and has_event(action, "InputEventJoypadMotion"),
 			"%s is bound to a gamepad stick" % action)
-	expect(InputMap.has_action(&"release_mouse") and _has_event(&"release_mouse", "InputEventKey"),
+	expect(InputMap.has_action(&"release_mouse") and has_event(&"release_mouse", "InputEventKey"),
 		"release_mouse is bound on the keyboard")
 
 

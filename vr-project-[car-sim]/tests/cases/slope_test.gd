@@ -3,7 +3,6 @@ extends TestCase
 ## its body pitched with the slope; a crest onto a flat top it settles over; and a hard knock that
 ## rolls it over, since the body is free.
 
-const CAR := preload("res://scenarios/scenes/debug_car.tscn")
 ## The ramp's slope: a 10% grade.
 const GRADE := 0.1
 ## How far up the ramp, along it, its top edge is.
@@ -83,8 +82,7 @@ func _test_crest() -> void:
 
 func _test_roll_over() -> void:
 	var floor := ground()
-	var car: RigidBody3D = CAR.instantiate()
-	root.add_child(car)
+	var car: RigidBody3D = spawn_car() as RigidBody3D
 	car.held_controls = {select = "P"}
 	await frames(30)
 	car.apply_impulse(Vector3.UP * 4000.0, Vector3.ZERO)
@@ -126,9 +124,8 @@ func _ramp(top: bool) -> StaticBody3D:
 
 ## The player's car placed on [param ramp] at its middle, facing up it.
 func _car_on(ramp: StaticBody3D) -> RigidBody3D:
-	var car: RigidBody3D = CAR.instantiate()
-	car.transform = Transform3D(ramp.global_basis, Vector3.ZERO)
-	root.add_child(car)
+	var car: RigidBody3D = spawn_car({transform = Transform3D(ramp.global_basis, Vector3.ZERO)}) \
+		as RigidBody3D
 	car.reset_physics_interpolation()
 	return car
 

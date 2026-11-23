@@ -16,7 +16,7 @@ func _test_problems_build_nothing() -> void:
 	var map: RoadMap = load(MapKitTools.BASE).instantiate()
 	var road := RoadSegment.new()
 	road.name = "Bare"
-	road.curve = _straight(30.0)
+	road.curve = straight(30.0)
 	map.add_child(road)
 	var shape := TerrainShape.new()
 	map.add_child(shape)
@@ -44,7 +44,7 @@ func _test_moved_road() -> void:
 	hill.falloff = 20.0
 	map.add_child(hill)
 	var road := RoadSegment.new()
-	road.curve = _straight(40.0)
+	road.curve = straight(40.0)
 	road.position = Vector3(-20, 0, 0)
 	map.add_child(road)
 	root.add_child(map)
@@ -94,9 +94,3 @@ func _test_contacts_written_on_change() -> void:
 	var d := Detection.contacts(world, 0.1)
 	expect(d.write_count() == 0, "nothing touching, as before: the car's contacts are not written")
 
-
-static func _straight(length: float) -> Curve3D:
-	var curve := Curve3D.new()
-	curve.add_point(Vector3(0, 0, length / 2.0))
-	curve.add_point(Vector3(0, 0, -length / 2.0))
-	return curve

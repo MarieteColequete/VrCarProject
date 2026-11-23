@@ -72,9 +72,9 @@ func step(delta: float, engine: int, rpm: float, throttle: float, stalled: bool,
 	if running:
 		var work := FUEL_IDLE + (1.0 - FUEL_IDLE) * clampf(throttle, 0.0, 1.0)
 		fuel = maxf(fuel - FUEL_RATE * work * rpm / FUEL_RPM * delta, 0.0)
-		coolant = lerpf(coolant, RUNNING, 1.0 - exp(-delta / WARM_UP))
+		coolant = Damped.follow(coolant, RUNNING, delta, WARM_UP)
 	else:
-		coolant = lerpf(coolant, AMBIENT, 1.0 - exp(-delta / COOL_DOWN))
+		coolant = Damped.follow(coolant, AMBIENT, delta, COOL_DOWN)
 	fuel_light = _key_on and fuel < FUEL_LOW
 
 

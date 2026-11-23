@@ -127,7 +127,7 @@ static func land_sampler(shape: TerrainShape) -> Callable:
 	var terrain := Terrain.of(map)
 	if terrain == null:
 		return func(_point: Vector3) -> float: return 0.0
-	var into := Terrain.to_space(shape, map)
+	var into := RoadMap.to_map(shape, map)
 	var back := into.affine_inverse()
 	return func(point: Vector3) -> float:
 		var at := into * point

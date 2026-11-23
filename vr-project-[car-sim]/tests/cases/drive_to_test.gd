@@ -52,7 +52,7 @@ func _road_map() -> RoadMap:
 	road_map.get_node("Roads").add_child(road)
 	MapKitTools.own(road, road_map)
 	MapKitTools.regenerate(road).apply(road_map)
-	var taxi := AssetCatalogue.make(_entry("taxi"))
+	var taxi := AssetCatalogue.make(catalogue_entry("taxi"))
 	taxi.position = Vector3(1.75, 0, -5)
 	road_map.get_node("Props").add_child(taxi)
 	var checkpoint := Checkpoint.new()
@@ -62,13 +62,6 @@ func _road_map() -> RoadMap:
 	for node: Node in [taxi, checkpoint]:
 		MapKitTools.own(node, road_map)
 	return road_map
-
-
-func _entry(model_name: String) -> AssetCatalogue.Entry:
-	for entry in AssetCatalogue.scan():
-		if entry.model_name == model_name:
-			return entry
-	return null
 
 
 func _test_make_road_user() -> void:

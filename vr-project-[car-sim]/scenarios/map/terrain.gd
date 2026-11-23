@@ -112,17 +112,6 @@ static func map_of(node: Node) -> Node:
 	return top
 
 
-## The transform from [param node]'s space to [param ancestor]'s, without needing the tree.
-static func to_space(node: Node, ancestor: Node) -> Transform3D:
-	var out := Transform3D.IDENTITY
-	var at := node
-	while at != null and at != ancestor:
-		if at is Node3D:
-			out = (at as Node3D).transform * out
-		at = at.get_parent()
-	return out
-
-
 ## Tells the terrain of the map [param node] (a road, a junction, or a shape) is in that it
 ## changed; only in the editor, since a loading map builds its terrain once, and only for nodes the
 ## scene saves, so a ghost the Map Kit moves under the mouse rebuilds nothing. Checked a frame
@@ -179,7 +168,7 @@ func shape_area(shape: TerrainShape) -> Rect2:
 ## included, in the terrain's space.
 func piece_area(node: Node3D) -> Rect2:
 	var map := map_of(self)
-	var placed := to_space(self, map).affine_inverse() * to_space(node, map)
+	var placed := RoadMap.to_map(self, map).affine_inverse() * RoadMap.to_map(node, map)
 	if node is TerrainShape:
 		return (node as TerrainShape).area(placed)
 	if node is RoadSegment:
@@ -231,14 +220,14 @@ func _shape_land(out: HeightField, whole: Rect2, skip: TerrainShape = null) -> v
 	if heightmap:
 		out.add_image(heightmap.get_image(), heightmap_height, whole)
 	var map := map_of(self)
-	var to_terrain := to_space(self, map).affine_inverse()
+	var to_terrain := RoadMap.to_map(self, map).affine_inverse()
 	var reach := out.rect()
 	var found: Array[Node] = []
 	Scenario.collect(map, found)
 	for node in found:
 		if node is TerrainShape and node != skip:
 			var shape := node as TerrainShape
-			var placed := to_terrain * to_space(shape, map)
+			var placed := to_terrain * RoadMap.to_map(shape, map)
 			if shape.area(placed).intersects(reach, true):
 				shape.apply(out, placed)
 
@@ -259,7 +248,7 @@ func height_at(point: Vector3) -> float:
 ## The height of [param land] (in the terrain's space) at [param point] in the map's space.
 func _sample(land_field: HeightField, point: Vector3) -> float:
 	var map := map_of(self)
-	var into := to_space(self, map)
+	var into := RoadMap.to_map(self, map)
 	var local := into.affine_inverse() * point
 	var h := land_field.height_at(local.x, local.z)
 	return (into * Vector3(local.x, h, local.z)).y
@@ -273,7 +262,7 @@ func land_height_at(point: Vector3, land_field: HeightField = null) -> float:
 ## Where the ray from [param from] along [param direction], both in the map's space, meets the land;
 ## null when it does not.
 func intersect_ray(from: Vector3, direction: Vector3, reach := 2000.0) -> Variant:
-	var into := to_space(self, map_of(self))
+	var into := RoadMap.to_map(self, map_of(self))
 	var inverse := into.affine_inverse()
 	var hit: Variant = field().intersect_ray(inverse * from, inverse.basis * direction, reach)
 	return into * (hit as Vector3) if hit != null else null
@@ -282,7 +271,7 @@ func intersect_ray(from: Vector3, direction: Vector3, reach := 2000.0) -> Varian
 ## Cuts and fills [param out] (in the terrain's space) to the map's roads and junctions.
 func stamp_roads(out: HeightField) -> void:
 	var map := map_of(self)
-	var to_terrain := to_space(self, map).affine_inverse()
+	var to_terrain := RoadMap.to_map(self, map).affine_inverse()
 	var weight := PackedFloat32Array()
 	weight.resize(out.heights.size())
 	var target := PackedFloat32Array()
@@ -297,7 +286,7 @@ func stamp_roads(out: HeightField) -> void:
 			continue
 		if node is RoadSegment:
 			var road := node as RoadSegment
-			var placed := to_terrain * to_space(road, map)
+			var placed := to_terrain * RoadMap.to_map(road, map)
 			var inner := road.width() / 2.0 + (road.pavement if road.kerbs else 0.0) + SHOULDER
 			var along := road.frames()
 			for i in along.size() - 1:
@@ -305,7 +294,7 @@ func stamp_roads(out: HeightField) -> void:
 					placed * (along[i + 1][0] as Vector3), inner, weight, target)
 		elif node is RoadJunction:
 			var junction := node as RoadJunction
-			_stamp_pad(out, to_terrain * to_space(junction, map), junction, weight, target)
+			_stamp_pad(out, to_terrain * RoadMap.to_map(junction, map), junction, weight, target)
 	for k in out.heights.size():
 		if weight[k] > 0.0:
 			out.heights[k] = lerpf(out.heights[k], target[k], weight[k])
@@ -317,7 +306,6 @@ func _stamp_stretch(out: HeightField, a: Vector3, b: Vector3, inner: float,
 	var a2 := Vector2(a.x, a.z)
 	var b2 := Vector2(b.x, b.z)
 	var d := b2 - a2
-	var length2 := d.length_squared()
 	var area := Rect2(a2, Vector2.ZERO).expand(b2).grow(outer)
 	var span := out.span(area)
 	if span.is_empty():
@@ -326,11 +314,11 @@ func _stamp_stretch(out: HeightField, a: Vector3, b: Vector3, inner: float,
 		var z := out.origin.y + j * out.cell
 		for i in range(span[0], span[2] + 1):
 			var p := Vector2(out.origin.x + i * out.cell, z)
-			var t := clampf((p - a2).dot(d) / length2, 0.0, 1.0) if length2 > 0.0 else 0.0
+			var t := Geo.along_segment(p, a2, d)
 			var lateral := p.distance_to(a2 + d * t)
 			if lateral >= outer:
 				continue
-			var w := 1.0 if lateral <= inner else 1.0 - smoothstep(inner, outer, lateral)
+			var w := Geo.ease_out(inner, outer, lateral)
 			var k := j * out.count_x + i
 			if w > weight[k]:
 				weight[k] = w
@@ -339,49 +327,28 @@ func _stamp_stretch(out: HeightField, a: Vector3, b: Vector3, inner: float,
 
 func _stamp_pad(out: HeightField, placed: Transform3D, junction: RoadJunction,
 		weight: PackedFloat32Array, target: PackedFloat32Array) -> void:
-	var half := junction.road_width / 2.0
-	var reach := half + junction.arm_length
+	var reach := junction.road_width / 2.0 + junction.arm_length
 	var edge := RoadKit.PAVEMENT + SHOULDER
 	var outer := edge + road_blend
 	var inverse := placed.affine_inverse()
 	var y := placed.origin.y - ROAD_SINK
 	var far := reach + outer
-	var area := Rect2()
-	var first := true
-	for corner in [Vector3(-far, 0, -far), Vector3(far, 0, -far), Vector3(far, 0, far),
-			Vector3(-far, 0, far)]:
-		var at: Vector3 = placed * corner
-		if first:
-			area = Rect2(Vector2(at.x, at.z), Vector2.ZERO)
-			first = false
-		else:
-			area = area.expand(Vector2(at.x, at.z))
-	var span := out.span(area)
+	var span := out.span(Geo.ground_area(placed, Vector2(far, far)))
 	if span.is_empty():
 		return
-	var north := reach if junction.shape == RoadJunction.Shape.CROSSROADS else half
 	for j in range(span[1], span[3] + 1):
 		for i in range(span[0], span[2] + 1):
 			var local := inverse * Vector3(out.origin.x + i * out.cell, placed.origin.y,
 				out.origin.y + j * out.cell)
-			var across := _box_distance(local.x, local.z, reach, -half, half)
-			var down := _box_distance(local.x, local.z, half, -north, reach)
-			var distance := minf(across, down)
+			var distance := junction.distance_outside(local)
 			if distance >= outer:
 				continue
-			var w := 1.0 if distance <= edge else 1.0 - smoothstep(edge, outer, distance)
+			var w := Geo.ease_out(edge, outer, distance)
 			var k := j * out.count_x + i
 			if w > weight[k]:
 				weight[k] = w
 				target[k] = y
 
-
-## How far [param x], [param z] lies outside the box [param half_x] either side of x = 0 and from
-## [param z0] to [param z1].
-static func _box_distance(x: float, z: float, half_x: float, z0: float, z1: float) -> float:
-	var dx := maxf(absf(x) - half_x, 0.0)
-	var dz := maxf(maxf(z0 - z, z - z1), 0.0)
-	return Vector2(dx, dz).length()
 
 
 ## Builds the whole land again, once, after this frame.

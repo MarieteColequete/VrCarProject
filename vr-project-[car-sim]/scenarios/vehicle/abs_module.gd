@@ -63,7 +63,7 @@ func step(signals: CarSignals, spec: PackedFloat64Array, aids: PackedFloat64Arra
 		_started = true
 	elif braking and absf(target) < absf(last):
 		speed = move_toward(last, target, DECEL_LIMIT * dt)
-	elif not braking and _all_driven(spec) and absf(target) > absf(last):
+	elif not braking and CarSpec.driven_count(spec) == 4 and absf(target) > absf(last):
 		speed = move_toward(last, target, ACCEL_LIMIT * dt)
 	signals.vehicle_speed = speed
 	var heading := signf(speed) if speed != 0.0 else 1.0
@@ -80,7 +80,7 @@ func step(signals: CarSignals, spec: PackedFloat64Array, aids: PackedFloat64Arra
 		_drift - signals.yaw_rate * CarSpec.to_rear(spec))
 
 	var felt := signals.accel.length() / (CarSpec.G * spec[CarSpec.GRIP]) * 1.15
-	grip = maxf(lerpf(grip, GRIP_FLOOR, 1.0 - exp(-dt / GRIP_FADE)), felt)
+	grip = maxf(Damped.follow(grip, GRIP_FLOOR, dt, GRIP_FADE), felt)
 	grip = clampf(grip, GRIP_FLOOR, 1.0)
 
 	# ABS: eases each wheel's footbrake while it locks.
@@ -95,7 +95,7 @@ func step(signals: CarSignals, spec: PackedFloat64Array, aids: PackedFloat64Arra
 	# Traction control: cuts the engine while a driven wheel runs ahead of the road.
 	var drive_slip := 0.0
 	for i in 4:
-		if _driven(spec, i):
+		if CarSpec.driven(spec, i):
 			drive_slip = maxf(drive_slip, signals.wheel_slip[i] * (signf(w[i]) if w[i] != 0.0 else 1.0))
 	signals.throttle_scale = Assists.throttle(aids, spec, 1.0, drive_slip)
 	signals.tcs_active = signals.throttle_position > 0.01 and signals.throttle_scale < 0.999
@@ -109,7 +109,7 @@ func step(signals: CarSignals, spec: PackedFloat64Array, aids: PackedFloat64Arra
 		signals.brake_extra[i] = 0.0
 	if error != 0.0:
 		signals.throttle_scale *= clampf(1.0 - absf(error) * 2.0, 0.2, 1.0)
-		var asked := speed * tan(signals.steer_angle) / spec[CarSpec.WHEELBASE]
+		var asked := Assists.asked_yaw(spec, speed, signals.steer_angle)
 		var oversteer := absf(signals.yaw_rate) > absf(asked)
 		var right := error > 0.0
 		var wheel := (CarDynamics.FR if right else CarDynamics.FL) if oversteer \
@@ -128,18 +128,10 @@ static func _free_rolling(w: PackedFloat64Array, spec: PackedFloat64Array) -> fl
 	var count := 0
 	var slowest := INF
 	for i in 4:
-		if not _driven(spec, i):
+		if not CarSpec.driven(spec, i):
 			total += w[i]
 			count += 1
 		if absf(w[i]) < absf(slowest):
 			slowest = w[i]
 	return total / count if count > 0 else slowest
 
-
-static func _all_driven(spec: PackedFloat64Array) -> bool:
-	return int(spec[CarSpec.DRIVE]) == CarSpec.Drive.ALL
-
-
-static func _driven(spec: PackedFloat64Array, i: int) -> bool:
-	var layout := int(spec[CarSpec.DRIVE])
-	return layout == CarSpec.Drive.ALL or (layout == CarSpec.Drive.REAR) == (i >= 2)

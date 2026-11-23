@@ -191,7 +191,7 @@ func show_problems(problems: Array[Dictionary]) -> void:
 func _problem_row(problem: Dictionary) -> Control:
 	var row := HBoxContainer.new()
 	var icon := TextureRect.new()
-	icon.texture = _editor_icon(&"StatusWarning" if problem.severity == MapKitTools.WARNING
+	icon.texture = editor_icon(&"StatusWarning" if problem.severity == MapKitTools.WARNING
 		else &"NodeInfo")
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
 	icon.tooltip_text = "Warning" if problem.severity == MapKitTools.WARNING else "Notice"
@@ -284,7 +284,7 @@ func _build_maps(column: VBoxContainer) -> void:
 	for item: Array in [["Open", &"Load"], ["Play", &"Play"], ["Rename", &"Rename"],
 			["Duplicate", &"Duplicate"], ["Delete", &"Remove"],
 			["Show in FileSystem", &"Filesystem"]]:
-		_map_menu.add_icon_item(_editor_icon(item[1]), item[0])
+		_map_menu.add_icon_item(editor_icon(item[1]), item[0])
 	_map_menu.id_pressed.connect(_on_map_menu)
 	add_child(_map_menu)
 
@@ -432,7 +432,7 @@ func _build_palette(column: VBoxContainer) -> void:
 	_search = LineEdit.new()
 	_search.placeholder_text = "Search pieces"
 	_search.clear_button_enabled = true
-	_search.right_icon = _editor_icon(&"Search")
+	_search.right_icon = editor_icon(&"Search")
 	_search.text_changed.connect(_filter_palette)
 	box.add_child(_search)
 	_place_hint = _note("Pick a piece, then click in the 3D view to place it. Shift+click keeps "
@@ -830,9 +830,7 @@ func _on_piece_input(event: InputEvent, piece: MapKitTools.Piece) -> void:
 		var road_map := _need_map()
 		if road_map == null:
 			return
-		plugin.placer.arm(piece)
-		plugin.placer.place(road_map, view_centre(road_map))
-		plugin.placer.disarm()
+		plugin.placer.drop_at_centre(road_map, piece)
 
 
 func _on_armed(piece: MapKitTools.Piece) -> void:
@@ -858,20 +856,6 @@ func _need_map() -> RoadMap:
 
 func _selected() -> Array[Node]:
 	return EditorInterface.get_selection().get_top_selected_nodes()
-
-
-## Where the centre of the first 3D view looks onto the ground, in [param road_map]'s space; its
-## origin when it does not.
-func view_centre(road_map: RoadMap) -> Vector3:
-	var viewport := EditorInterface.get_editor_viewport_3d(0)
-	var camera := viewport.get_camera_3d() if viewport else null
-	if camera == null:
-		return Vector3.ZERO
-	var centre := viewport.get_visible_rect().size / 2.0
-	var hit: Variant = Plane.PLANE_XZ.intersects_ray(camera.project_ray_origin(centre),
-		camera.project_ray_normal(centre))
-	return road_map.global_transform.affine_inverse() * (hit as Vector3) if hit != null \
-		else Vector3.ZERO
 
 
 func _say(text: String) -> void:
@@ -904,13 +888,14 @@ static func _button(text: String, pressed: Callable, tip := "", icon_name := &""
 	button.text = text
 	button.tooltip_text = tip
 	if not icon_name.is_empty():
-		button.icon = _editor_icon(icon_name)
+		button.icon = editor_icon(icon_name)
 	if pressed.is_valid():
 		button.pressed.connect(pressed)
 	return button
 
 
-static func _editor_icon(icon_name: StringName) -> Texture2D:
+## The editor's own icon [param icon_name]; null when the editor's theme does not have it.
+static func editor_icon(icon_name: StringName) -> Texture2D:
 	var theme := EditorInterface.get_editor_theme()
 	return theme.get_icon(icon_name, &"EditorIcons") if theme \
 		and theme.has_icon(icon_name, &"EditorIcons") else null
@@ -919,5 +904,5 @@ static func _editor_icon(icon_name: StringName) -> Texture2D:
 static func _piece_icon(piece: MapKitTools.Piece) -> Texture2D:
 	if piece.icon.begins_with("res://"):
 		return load(piece.icon) as Texture2D if ResourceLoader.exists(piece.icon) \
-			else _editor_icon(&"Node3D")
-	return _editor_icon(StringName(piece.icon))
+			else editor_icon(&"Node3D")
+	return editor_icon(StringName(piece.icon))

@@ -272,7 +272,7 @@ func _test_generate_all() -> void:
 
 ## Whether [param lane] ends at one of the [param open] road ends, leaving the map.
 static func _leaves(road_map: RoadMap, lane: TrafficLane, open: Array[Dictionary]) -> bool:
-	var end := MapKitTools.to_map(lane, road_map) * lane.curve.sample_baked(lane.length())
+	var end := RoadMap.to_map(lane, road_map) * lane.curve.sample_baked(lane.length())
 	for road_end in open:
 		if road_end.transform.origin.distance_to(end) < road_end.width:
 			return true

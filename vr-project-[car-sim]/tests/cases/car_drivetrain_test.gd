@@ -6,7 +6,6 @@ extends TestCase
 ## the accelerator easing as a foot does, cruises in top gear and kicks down only when holding the
 ## key.
 
-const CAR := preload("res://scenarios/scenes/debug_car.tscn")
 
 
 func run() -> void:
@@ -33,8 +32,7 @@ func _test_spring() -> void:
 
 func _test_drive() -> void:
 	var floor := ground()
-	var car: Node3D = CAR.instantiate()
-	root.add_child(car)
+	var car: Node3D = spawn_car()
 	await physics_frame
 	var model: PlayerCarModel = car.model
 	var interior: Node3D = model.body.get_node("kiri86_Interior") if model else null
@@ -82,9 +80,7 @@ func _test_drive() -> void:
 
 func _test_reverse_and_handbrake() -> void:
 	var floor := ground()
-	var car: Node3D = CAR.instantiate()
-	car.assist_preset = "sim"
-	root.add_child(car)
+	var car: Node3D = spawn_car({assist_preset = "sim"})
 	await physics_frame
 	expect(car.dynamics.gearbox.letter() == "P", "the car starts in park")
 	car.held_controls = {throttle = 1.0}
@@ -121,8 +117,7 @@ func _test_reverse_and_handbrake() -> void:
 
 func _test_manual() -> void:
 	var floor := ground()
-	var car: Node3D = CAR.instantiate()
-	root.add_child(car)
+	var car: Node3D = spawn_car()
 	await physics_frame
 	car.dynamics.manual = true
 	var up := InputEventAction.new()
@@ -148,9 +143,7 @@ func _test_surfaces() -> void:
 	var speeds := {}
 	for type: StringName in [&"asphalt", &"ground"]:
 		var floor := ground(400.0, type)
-		var car: Node3D = CAR.instantiate()
-		car.assist_preset = "sim"
-		root.add_child(car)
+		var car: Node3D = spawn_car({assist_preset = "sim"})
 		await physics_frame
 		car.held_controls = {throttle = 1.0, select = "D"}
 		await frames(120)
@@ -165,8 +158,7 @@ func _test_surfaces() -> void:
 
 func _test_falling() -> void:
 	var floor := ground()
-	var car: Node3D = CAR.instantiate()
-	root.add_child(car)
+	var car: Node3D = spawn_car()
 	await physics_frame
 	car.held_controls = {throttle = 1.0, select = "D"}
 	await frames(120)
@@ -196,8 +188,7 @@ func _test_falling() -> void:
 ## holding the key down then kicks it down to overtake.
 func _test_keys_cruise() -> void:
 	var floor := ground(6000.0)
-	var car: Node3D = CAR.instantiate()
-	root.add_child(car)
+	var car: Node3D = spawn_car()
 	await physics_frame
 	var dyn: CarDynamics = car.dynamics
 	var top := Powertrain.gear_count(dyn.spec)
