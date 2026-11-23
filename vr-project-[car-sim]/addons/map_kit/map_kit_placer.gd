@@ -63,7 +63,10 @@ func arm(p_piece: MapKitTools.Piece) -> void:
 	if _ghost is MapAsset:
 		(_ghost as MapAsset).preview = true
 	_base_y = _ghost.position.y
-	_ends = RoadNetwork.road_ends(road_map) if piece.joins_roads else []
+	# A ternary's empty [code][][/code] is an untyped Array, which a typed variable refuses.
+	_ends.clear()
+	if piece.joins_roads:
+		_ends = RoadNetwork.road_ends(road_map)
 	_ghost.visible = false
 	road_map.add_child(_ghost, false, Node.INTERNAL_MODE_BACK)
 	armed_changed.emit(piece)
@@ -71,7 +74,10 @@ func arm(p_piece: MapKitTools.Piece) -> void:
 
 func disarm() -> void:
 	if _ghost and is_instance_valid(_ghost):
-		_ghost.get_parent().remove_child(_ghost)
+		# A ghost whose arming failed part way was never added to the map.
+		var parent := _ghost.get_parent()
+		if parent:
+			parent.remove_child(_ghost)
 		_ghost.queue_free()
 	_ghost = null
 	var was := piece

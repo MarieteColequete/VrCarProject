@@ -125,15 +125,18 @@ static func notify_changed(node: Node) -> void:
 	if _notified.has(id):
 		return
 	_notified[id] = true
+	# The lambda holds the node's id, not the node: a node freed before the frame (the placer's
+	# ghost, a road deleted) would be an error to pass to it.
 	node.get_tree().process_frame.connect(func() -> void:
 		_notified.erase(id)
-		if not is_instance_valid(node) or not node.is_inside_tree() or node.owner == null:
+		var changed := instance_from_id(id) as Node3D
+		if changed == null or not changed.is_inside_tree() or changed.owner == null:
 			return
-		var terrain := of(map_of(node))
+		var terrain := of(map_of(changed))
 		if terrain == null:
 			return
-		if _shapes_land(node):
-			terrain._piece_changed(node)
+		if _shapes_land(changed):
+			terrain._piece_changed(changed)
 		else:
 			terrain.queue_rebuild(), CONNECT_ONE_SHOT)
 
