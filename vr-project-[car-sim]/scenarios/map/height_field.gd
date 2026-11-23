@@ -73,20 +73,22 @@ func normal_at(x: float, z: float) -> Vector3:
 
 ## The normal at grid point [param i], [param j].
 func point_normal(i: int, j: int) -> Vector3:
-	var p := point(i, j)
-	return normal_at(p.x, p.z)
+	# The grid's own neighbours, the edge's height beyond it: what [method normal_at] samples
+	# there, without the four bilinear lookups.
+	var dx := (get_point(mini(i + 1, count_x - 1), j) - get_point(maxi(i - 1, 0), j)) / (2.0 * cell)
+	var dz := (get_point(i, mini(j + 1, count_z - 1)) - get_point(i, maxi(j - 1, 0))) / (2.0 * cell)
+	return Vector3(-dx, 1.0, -dz).normalized()
 
 
 ## Calls [param change] ([code](x, z, height) -> height[/code]) for every grid point within
 ## [param area] (x, z), keeping what it returns.
 func stamp(area: Rect2, change: Callable) -> void:
-	var i0 := maxi(ceili((area.position.x - origin.x) / cell), 0)
-	var j0 := maxi(ceili((area.position.y - origin.y) / cell), 0)
-	var i1 := mini(floori((area.end.x - origin.x) / cell), count_x - 1)
-	var j1 := mini(floori((area.end.y - origin.y) / cell), count_z - 1)
-	for j in range(j0, j1 + 1):
+	var within := span(area)
+	if within.is_empty():
+		return
+	for j in range(within[1], within[3] + 1):
 		var z := origin.y + j * cell
-		for i in range(i0, i1 + 1):
+		for i in range(within[0], within[2] + 1):
 			var at := j * count_x + i
 			heights[at] = change.call(origin.x + i * cell, z, heights[at])
 

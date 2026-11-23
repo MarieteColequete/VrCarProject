@@ -30,8 +30,9 @@ const FL := 0
 const FR := 1
 const RL := 2
 const RR := 3
-## Iterations of the solve for each wheel's spin.
+## Iterations of the solve for each wheel's spin at most, and the bracket, rad/s, it stops at.
 const SOLVE_STEPS := 18
+const SOLVE_CLOSE := 0.001
 ## The park pawl's hold on each driven wheel, Nm.
 const PAWL_TORQUE := 30000.0
 ## The speed, m/s, above which the park pawl ratchets past its notches instead of holding.
@@ -76,8 +77,6 @@ var ratio := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
 var angle := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
 ## Each tyre's force in the last step, newtons, (along, across) in the wheel's frame.
 var force := PackedVector2Array([Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO])
-## Each tyre's work in the last step: 1 at its peak grip; see [method TyreModel.usage].
-var usage := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
 ## The engine's spin, rad/s, and its revolutions per minute.
 var engine_spin := 0.0
 var rpm := 850.0
@@ -473,31 +472,31 @@ func _solve_wheel(i: int, dt: float, drive: float, brake: float, load: float, gr
 		deflect[i] = Vector2.ZERO
 		ratio[i] = 0.0
 		force[i] = Vector2.ZERO
-		usage[i] = 0.0
 		return
 	brake += spec[CarSpec.ROLLING] * load * r
 	var rolling := ground / r
 	var reach := (absf(drive) + brake) * dt / inertia + absf(w - rolling) + 5.0
 	var lo := minf(w, rolling) - reach
 	var hi := maxf(w, rolling) + reach
+	var road := TyreModel.prepare(spec, deflect[i], ground, side, load, mu, dt)
 	for k in SOLVE_STEPS:
 		var mid := (lo + hi) * 0.5
-		var turning := _torque(i, dt, w, mid, drive, load, ground, side, mu, inertia)
+		var turning := _torque(road, dt, w, mid, drive, inertia)
 		if turning + brake * signf(mid) > 0.0:
 			hi = mid
 		else:
 			lo = mid
+		if hi - lo < SOLVE_CLOSE:
+			break
 	var solved := (lo + hi) * 0.5
 	# Friction holds a wheel this close to still while it can.
-	if absf(solved) < 0.05 and absf(_torque(i, dt, w, 0.0, drive, load, ground, side, mu,
-			inertia)) <= brake:
+	if absf(solved) < 0.05 and absf(_torque(road, dt, w, 0.0, drive, inertia)) <= brake:
 		solved = 0.0
-	var touch := TyreModel.contact(spec, deflect[i], solved * r, ground, side, load, mu, dt)
+	var touch := TyreModel.touch(road, solved * r)
 	spin[i] = solved
 	deflect[i] = Vector2(touch.z, touch.w)
 	force[i] = Vector2(touch.x, touch.y)
 	ratio[i] = TyreModel.slip_ratio(solved * r, ground)
-	usage[i] = TyreModel.usage(spec, ratio[i], angle[i])
 
 
 ## Turns wheel [param i] by [param by] radians, left positive, over its tread: the tread's
@@ -515,10 +514,10 @@ func _turn_tread(i: int, by: float) -> void:
 	deflect[i] = Vector2(-lying.x / px, lying.y / py)
 
 
-## The torque left over on wheel [param i] spinning [param from] at the start of the step and
-## [param to] at its end, brakes aside: positive when [param to] is too fast.
-func _torque(i: int, dt: float, from: float, to: float, drive: float, load: float, ground: float,
-		side: float, mu: float, inertia: float) -> float:
+## The torque left over on a wheel spinning [param from] at the start of the step and [param to]
+## at its end, brakes aside, its tyre on [param road] ([method TyreModel.prepare]): positive when
+## [param to] is too fast.
+func _torque(road: PackedFloat64Array, dt: float, from: float, to: float, drive: float,
+		inertia: float) -> float:
 	var r := spec[CarSpec.WHEEL_RADIUS]
-	var pull := TyreModel.contact(spec, deflect[i], to * r, ground, side, load, mu, dt).x
-	return inertia * (to - from) / dt - drive + pull * r
+	return inertia * (to - from) / dt - drive + TyreModel.touch(road, to * r).x * r

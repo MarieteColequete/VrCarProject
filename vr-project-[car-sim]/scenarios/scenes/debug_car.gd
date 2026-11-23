@@ -172,6 +172,7 @@ func _ready() -> void:
 		add_child(model)
 		driver_view.position = model.steering_centre + EYE_FROM_WHEEL
 		instruments = InstrumentCluster.new()
+		instruments.redline = spec.redline_rpm
 		model.cabin.add_child(instruments)
 		if model.cluster_face:
 			# Drawn on the model's own gauge face behind the wheel.
@@ -448,7 +449,6 @@ func _show(delta: float) -> void:
 			tyres, tread, signals.engine_state, signals.abs_active, delta)
 	if instruments:
 		var parked := probe.handbrake == VehicleProbe.Toggle.ON
-		instruments.redline = spec.redline_rpm
 		instruments.dash.step(delta, signals.engine_state, signals.rpm, signals.throttle_position,
 			signals.stalled, signals.esc_active or signals.tcs_active)
 		# The speedometer reads the ABS module's speed, from the wheels: it shows what the wheels
@@ -561,9 +561,10 @@ func _drive(delta: float) -> void:
 	var along := wheel_contacts.along
 	var across := wheel_contacts.across
 	var patches := 0.0
+	var standing := grounded.count(1)
 	for i in 4:
 		if grounded[i]:
-			patches += Vector2(along[i], across[i]).length() / grounded.count(1)
+			patches += Vector2(along[i], across[i]).length() / standing
 	_patch_speed = patches
 
 	# The car's electronics: its sensors measure the plant, its control units decide, and the plant

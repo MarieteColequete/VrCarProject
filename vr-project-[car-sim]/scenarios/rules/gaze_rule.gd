@@ -71,7 +71,10 @@ static func signed(side: int, angle: float) -> float:
 ## The name a look is kept under: [param kind] ([code]mirror[/code] or [code]shoulder[/code]) to
 ## [param side].
 static func key(kind: StringName, side: int) -> StringName:
-	return StringName("%s_%s" % [kind, "left" if side == VehicleProbe.Indicator.LEFT else "right"])
+	var left := side == VehicleProbe.Indicator.LEFT
+	if kind == &"mirror":
+		return &"mirror_left" if left else &"mirror_right"
+	return &"shoulder_left" if left else &"shoulder_right"
 
 
 static func looked(p: Dictionary, s: Dictionary, f: RuleFrame, look: StringName) -> bool:

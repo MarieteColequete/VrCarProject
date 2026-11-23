@@ -64,42 +64,102 @@ static func force(spec: PackedFloat64Array, ratio: float, angle: float, load: fl
 ## newtons and shares; the across force is to the left.
 static func contact(spec: PackedFloat64Array, deflect: Vector2, tread: float, along: float,
 		across: float, load: float, mu: float, dt: float) -> Vector4:
+	return touch(prepare(spec, deflect, along, across, load, mu, dt), tread)
+
+
+## The parts of [method contact] that do not hang on the tread's speed, worked out once for a
+## step: a wheel's spin is solved by trying many tread speeds against the same road.
+static func prepare(spec: PackedFloat64Array, deflect: Vector2, along: float, across: float,
+		load: float, mu: float, dt: float) -> PackedFloat64Array:
+	var p := PackedFloat64Array()
+	p.resize(_SIZE)
 	var top := peak(spec, load, mu)
+	p[_TOP] = top
 	if top <= 0.0:
-		return Vector4.ZERO
+		return p
 	var sigma := spec[CarSpec.RELAXATION]
 	var tan_peak := tan(spec[CarSpec.PEAK_ANGLE])
 	var px := sigma * spec[CarSpec.PEAK_RATIO]
 	var py := sigma * tan_peak
-	var slide := tread - along
 	var speed := sqrt(along * along + across * across)
 	var relax := 1.0 + speed * dt / sigma
-	var u := Vector2((deflect.x + slide * dt / px) / relax, (deflect.y + across * dt / py) / relax)
 	var b := spec[CarSpec.TYRE_B]
 	var shape := spec[CarSpec.TYRE_SHAPE]
-	var size := u.length()
-	var f := Vector2.ZERO
+	p[_ALONG] = along
+	p[_DT] = dt
+	p[_PX] = px
+	p[_RELAX] = relax
+	p[_SPEED] = maxf(speed, SLIDE_FLOOR)
+	p[_DEFLECT_X] = deflect.x
+	p[_DEFLECT_Y] = deflect.y
+	p[_UY] = (deflect.y + across * dt / py) / relax
+	p[_ACROSS_SHARE] = across / tan_peak
+	p[_PEAK_RATIO] = spec[CarSpec.PEAK_RATIO]
+	p[_B] = b
+	p[_SHAPE] = shape
+	# The tread's own damping, which stills it where rolling cannot relax it: slowly.
+	var still := clampf(1.0 - speed / DAMPED_BELOW, 0.0, 1.0)
+	if still > 0.0:
+		var quarter := spec[CarSpec.MASS] * 0.25
+		var stiff := top * b * shape
+		p[_DAMP_X] = 2.0 * DAMPING * sqrt(stiff / px * quarter) * px * still / dt
+		p[_DAMP_Y] = 2.0 * DAMPING * sqrt(stiff / py * quarter) * py * still / dt
+	return p
+
+
+## [method contact] at the tread speed [param tread] over the road [param p] that
+## [method prepare] gave: [code]Vector4(along force, across force, deflection along, deflection
+## across)[/code].
+static func touch(p: PackedFloat64Array, tread: float) -> Vector4:
+	var top := p[_TOP]
+	if top <= 0.0:
+		return Vector4.ZERO
+	var slide := tread - p[_ALONG]
+	var ux := (p[_DEFLECT_X] + slide * p[_DT] / p[_PX]) / p[_RELAX]
+	var uy := p[_UY]
+	var size := sqrt(ux * ux + uy * uy)
+	var fx := 0.0
+	var fy := 0.0
 	if size > 1.0:
-		u /= size
-		var sliding := Vector2(slide / spec[CarSpec.PEAK_RATIO], across / tan_peak).length() \
-			/ maxf(speed, SLIDE_FLOOR)
-		f = u * top * magic(maxf(sliding, 1.0), b, shape)
+		ux /= size
+		uy /= size
+		var sx := slide / p[_PEAK_RATIO]
+		var sliding := sqrt(sx * sx + p[_ACROSS_SHARE] * p[_ACROSS_SHARE]) / p[_SPEED]
+		var held := top * magic(maxf(sliding, 1.0), p[_B], p[_SHAPE])
+		fx = ux * held
+		fy = uy * held
 	elif size > 0.0:
-		f = u * (top * magic(size, b, shape) / size)
-		# The tread's own damping, which stills it where rolling cannot relax it: slowly.
-		var still := clampf(1.0 - speed / DAMPED_BELOW, 0.0, 1.0)
-		if still > 0.0:
-			var quarter := spec[CarSpec.MASS] * 0.25
-			var stiff := top * b * shape
-			var damp := Vector2(2.0 * DAMPING * sqrt(stiff / px * quarter) * px,
-				2.0 * DAMPING * sqrt(stiff / py * quarter) * py) * still
-			f += (u - deflect) / dt * damp
-			f = f.limit_length(top)
-	return Vector4(f.x, -f.y, u.x, u.y)
+		var held := top * magic(size, p[_B], p[_SHAPE]) / size
+		fx = ux * held + (ux - p[_DEFLECT_X]) * p[_DAMP_X]
+		fy = uy * held + (uy - p[_DEFLECT_Y]) * p[_DAMP_Y]
+		var total := sqrt(fx * fx + fy * fy)
+		if total > top:
+			fx *= top / total
+			fy *= top / total
+	return Vector4(fx, -fy, ux, uy)
+
+
+## The slots of [method prepare]'s numbers.
+const _TOP := 0
+const _ALONG := 1
+const _DT := 2
+const _PX := 3
+const _RELAX := 4
+const _SPEED := 5
+const _DEFLECT_X := 6
+const _DEFLECT_Y := 7
+const _UY := 8
+const _ACROSS_SHARE := 9
+const _PEAK_RATIO := 10
+const _B := 11
+const _SHAPE := 12
+const _DAMP_X := 13
+const _DAMP_Y := 14
+const _SIZE := 15
 
 
 ## How hard the tyre works, 0 at rest to 1 at its peak and more past it: the combined slip as a
-## share of the peak slip. Sound and assists read it.
+## share of the peak slip. The tyre voices read it.
 static func usage(spec: PackedFloat64Array, ratio: float, angle: float) -> float:
 	var sx := ratio / spec[CarSpec.PEAK_RATIO]
 	var sy := tan(clampf(angle, -1.5, 1.5)) / tan(spec[CarSpec.PEAK_ANGLE])

@@ -31,6 +31,9 @@ var last: MapKitTools.Piece
 var _ghost: Node3D
 ## The ghost's own height above where it stands, as the piece makes it.
 var _base_y := 0.0
+## The map's open road ends while a road or junction is armed, found once when armed and again
+## after each one placed.
+var _ends: Array[Dictionary] = []
 ## Where the ghost stands, in the map's space; null before the mouse has been over the map.
 var _at: Variant = null
 ## The mouse position the ghost last followed, in the 3D view.
@@ -60,6 +63,7 @@ func arm(p_piece: MapKitTools.Piece) -> void:
 	if _ghost is MapAsset:
 		(_ghost as MapAsset).preview = true
 	_base_y = _ghost.position.y
+	_ends = MapKitTools.road_ends(road_map) if piece.joins_roads else []
 	_ghost.visible = false
 	road_map.add_child(_ghost, false, Node.INTERNAL_MODE_BACK)
 	armed_changed.emit(piece)
@@ -146,6 +150,8 @@ func place(road_map: RoadMap, point: Vector3) -> void:
 	node.transform = MapKitTools.to_map(parent, road_map).affine_inverse() \
 		* _placement(road_map, node, point)
 	plugin.apply(MapKitTools.Edit.new().add(parent, node), "Add %s" % piece.label.to_lower(), true)
+	if piece.joins_roads:
+		_ends = MapKitTools.road_ends(road_map)
 	last = piece
 	placed.emit(piece)
 
@@ -216,7 +222,7 @@ static func placement(point: Vector3, step: float, turn: float, height: float) -
 ## [method placement] puts it.
 func _placement(road_map: RoadMap, node: Node3D, point: Vector3) -> Transform3D:
 	if piece.joins_roads:
-		var joined: Variant = MapKitTools.joining_transform(road_map, node, point)
+		var joined: Variant = MapKitTools.joining_transform(road_map, node, point, _ends)
 		if joined != null:
 			return joined
 	return placement(point, plugin.setting("grid_step", 0.5), piece.turn, _base_y)

@@ -68,6 +68,9 @@ var _dirty := Rect2()
 ## The ground each piece that shapes the land (a shape, a road, a junction) reached at the last
 ## build, by its instance id, in the terrain's space.
 var _areas := {}
+## The nodes whose change is already to be looked at this frame, by instance id
+## ([method notify_changed]).
+static var _notified := {}
 var _collider_wait := 0
 ## How many chunks the last build drew, for tests.
 var chunks_drawn := 0
@@ -84,6 +87,11 @@ static func of(map: Node) -> Terrain:
 		return null
 	if map is Terrain:
 		return map
+	if map.is_inside_tree():
+		for node in map.get_tree().get_nodes_in_group(GROUP):
+			if map.is_ancestor_of(node):
+				return node
+		return null
 	var found: Array[Node] = []
 	Scenario.collect(map, found)
 	for node in found:
@@ -122,7 +130,13 @@ static func to_space(node: Node, ancestor: Node) -> Transform3D:
 static func notify_changed(node: Node) -> void:
 	if not Engine.is_editor_hint() or not node.is_inside_tree():
 		return
+	# Once a frame per node, however often it moves in it.
+	var id := node.get_instance_id()
+	if _notified.has(id):
+		return
+	_notified[id] = true
 	node.get_tree().process_frame.connect(func() -> void:
+		_notified.erase(id)
 		if not is_instance_valid(node) or not node.is_inside_tree() or node.owner == null:
 			return
 		var terrain := of(map_of(node))
@@ -273,9 +287,14 @@ func stamp_roads(out: HeightField) -> void:
 	weight.resize(out.heights.size())
 	var target := PackedFloat32Array()
 	target.resize(out.heights.size())
+	var reach := out.rect()
 	var found: Array[Node] = []
 	Scenario.collect(map, found)
 	for node in found:
+		# A road known from the last build to lie away from this part of the land is not drawn.
+		var known: Variant = _areas.get(node.get_instance_id())
+		if known != null and not (known as Rect2).intersects(reach, true):
+			continue
 		if node is RoadSegment:
 			var road := node as RoadSegment
 			var placed := to_terrain * to_space(road, map)

@@ -46,6 +46,8 @@ var _pending := {}
 var _problems_section: FoldableContainer
 var _problem_rows: VBoxContainer
 var _fix_all: Button
+## The problems the rows show, as node and message, and whether a map was open.
+var _listed: Array = []
 
 var _search: LineEdit
 var _palette: VBoxContainer
@@ -157,6 +159,13 @@ func show_open_map() -> void:
 
 ## Lists [param problems], warnings first, each with its fix where it has one.
 func show_problems(problems: Array[Dictionary]) -> void:
+	# The same problems as listed already: the rows stand, since a check runs after every edit.
+	var listed := problems.map(func(p: Dictionary) -> Array:
+		return [p.node.get_instance_id() if is_instance_valid(p.node) else 0, p.message])
+	listed.append(plugin != null and plugin.edited_map() != null)
+	if listed == _listed:
+		return
+	_listed = listed
 	for row in _problem_rows.get_children():
 		row.queue_free()
 	var warnings := problems.filter(func(p: Dictionary) -> bool:

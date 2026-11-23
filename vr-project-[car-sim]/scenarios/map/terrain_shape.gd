@@ -210,11 +210,21 @@ func target(ground: float) -> float:
 ## Applies the shape to [param field], whose space [param placed] takes the shape's local space
 ## into.
 func apply(field: HeightField, placed: Transform3D) -> void:
+	var span := field.span(area(placed))
+	if span.is_empty():
+		return
 	var inverse := placed.affine_inverse()
 	var base := placed.origin.y
-	field.stamp(area(placed), func(x: float, z: float, h: float) -> float:
-		var local := inverse * Vector3(x, base, z)
-		return change(local.x, local.z, h, base))
+	# Worked on a copy of the heights and put back once: written through the field, each point
+	# would copy them all.
+	var heights := field.heights
+	for j in range(span[1], span[3] + 1):
+		var z := field.origin.y + j * field.cell
+		for i in range(span[0], span[2] + 1):
+			var k := j * field.count_x + i
+			var local := inverse * Vector3(field.origin.x + i * field.cell, base, z)
+			heights[k] = change(local.x, local.z, heights[k], base)
+	field.heights = heights
 
 
 ## The height of land at [param h] once the shape acts on it at [param x], [param z] in the shape's

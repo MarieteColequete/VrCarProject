@@ -119,13 +119,17 @@ var _clock := 0.0
 var abs_activity := 0.0
 
 
+## The sounds made by code, by name ([method _made]).
+static var _cache := {}
+
+
 func _init() -> void:
 	name = "Sound"
 	_ensure_bus()
 	engine_low = _player("EngineLow", _recording(ENGINE_IDLE, engine_loop.bind(LOW_RPM, 11)))
-	engine_high = _player("EngineHigh", engine_loop(HIGH_RPM, 23))
-	squeal = _player("Squeal", squeal_loop())
-	skid = _player("Skid", skid_loop())
+	engine_high = _player("EngineHigh", _made(&"engine_high", engine_loop.bind(HIGH_RPM, 23)))
+	squeal = _player("Squeal", _made(&"squeal", squeal_loop))
+	skid = _player("Skid", _made(&"skid", skid_loop))
 	scrub = _player("Scrub", _recording(SCRUB_ROAD, scrub_loop))
 	roll = _player("Roll", _recording(ROAD, roll_loop))
 	roll_loose = _player("RollLoose", _recording(ROAD_LOOSE, roll_loop))
@@ -535,6 +539,14 @@ static func _wav(data: PackedFloat32Array, loop: bool) -> AudioStreamWAV:
 		wav.loop_begin = 0
 		wav.loop_end = data.size()
 	return wav
+
+
+## The sound [param key], made by [param make] the first time any car asks for it: what the code
+## makes never changes, so every car and every restart shares it.
+static func _made(key: StringName, make: Callable) -> AudioStream:
+	if not _cache.has(key):
+		_cache[key] = make.call()
+	return _cache[key]
 
 
 ## The recording at [param path], or what [param make] makes when it is missing.

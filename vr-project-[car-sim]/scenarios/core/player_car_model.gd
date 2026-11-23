@@ -102,6 +102,8 @@ var _lean_velocity := Vector2.ZERO
 var _leaning: Array[Dictionary] = []
 var _lean_pivot := Vector3.ZERO
 var _lights := {}
+## Each lamp group's state as last shown.
+var _lit := {}
 ## The headlamps' beams, lit with the headlights.
 var beams: Array[SpotLight3D] = []
 ## The cabin's parts, cut out of the model's interior: [code]seats[/code], [code]bolsters[/code],
@@ -753,6 +755,10 @@ func _glow(mesh: MeshInstance3D, group: StringName, colour: Color) -> void:
 
 
 func _light(group: StringName, on: bool) -> void:
+	# Written only when it changes, so a lamp left as it is costs nothing each frame.
+	if _lit.get(group, null) == on:
+		return
+	_lit[group] = on
 	var material := _lights.get(group) as StandardMaterial3D
 	if material:
 		material.emission_energy_multiplier = GLOW if on else 0.0

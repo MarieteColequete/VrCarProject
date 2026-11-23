@@ -187,9 +187,14 @@ var _rows := {}
 
 ## Every column of the agent component, with its default: the schema's declaration.
 static func columns() -> Dictionary:
-	var all := DYNAMIC.duplicate()
-	all.merge(CONFIG)
-	return all
+	if _columns.is_empty():
+		_columns = DYNAMIC.duplicate()
+		_columns.merge(CONFIG)
+	return _columns
+
+
+## Every column, built once ([method columns]).
+static var _columns := {}
 
 
 ## A table to build the next tick from: its own copies of the store's dynamic columns, and the
@@ -369,11 +374,21 @@ func prepare_decisions() -> void:
 	d_events.resize(n)
 
 
-## Decides row [param i]'s speed and reactions from [param snapshot]. Any thread: it reads the
-## table's own arrays and the snapshot, writes only row [param i] of the decision columns, and
-## creates no object of a script class. In four parts: what is ahead, the speed it calls for,
+## What the road users see this tick: a [TrafficSnapshot]'s [method TrafficSnapshot.arrays], set
+## on the main thread before they think ([method see]).
+var seen: Array = []
+
+
+## Gives the table what road users see this tick. Main thread, before they think.
+func see(snapshot: TrafficSnapshot) -> void:
+	seen = snapshot.arrays()
+
+
+## Decides row [param i]'s speed and reactions from what it sees ([member seen]). Any thread: it
+## reads the table's own arrays, writes only row [param i] of the decision columns, and creates no
+## object of a script class. In four parts: what is ahead, the speed it calls for,
 ## whether that is hard braking, and, when stuck, the neighbour lanes it could move into.
-func think(i: int, snapshot: TrafficSnapshot, dt: float) -> void:
+func think(i: int, dt: float) -> void:
 	if state[i] == State.MOVING and crashed[i] and not pedestrian[i]:
 		_drift(i, dt)
 		return
@@ -390,7 +405,7 @@ func think(i: int, snapshot: TrafficSnapshot, dt: float) -> void:
 	if drives:
 		target = minf(target, _bend_speed(i, slot))
 	var ahead := PackedFloat64Array([0.0, 0.0, INF, 0.0, 0.0])
-	var rule := _ahead(i, slot, snapshot, target, ahead)
+	var rule := _ahead(i, slot, target, ahead)
 	var kind := _decide_speed(i, ahead, rule, target, dt)
 	if drives:
 		_drive(i, slot, kind, dt)
@@ -403,7 +418,7 @@ func think(i: int, snapshot: TrafficSnapshot, dt: float) -> void:
 	d_leader[i] = body
 	var blocked := kind == Kind.STOPPED and body != 0 and ahead[AHEAD_ROAD_USER] < 0.5
 	d_blocked_for[i] = blocked_for[i] + dt if blocked else 0.0
-	d_sides[i] = _clear_sides(i, slot, snapshot, target, dt)
+	d_sides[i] = _clear_sides(i, slot, target, dt)
 	d_events[i] = events
 
 
@@ -411,9 +426,8 @@ func think(i: int, snapshot: TrafficSnapshot, dt: float) -> void:
 ## rule's stop line when nearer. Writes it into [param ahead] as found, entity (0 for a stop
 ## line), gap, speed along the way, and road user, at the [code]AHEAD_*[/code] indices; returns the
 ## rule when a stop line is what holds it, else [constant Kind.NONE].
-func _ahead(i: int, slot: int, snapshot: TrafficSnapshot, target: float,
-		ahead: PackedFloat64Array) -> Kind:
-	TrafficSensor.sense(snapshot, _ahead_points(i, slot, target), body_size[i].x * 0.45, ids[i],
+func _ahead(i: int, slot: int, target: float, ahead: PackedFloat64Array) -> Kind:
+	TrafficSensor.sense(seen, _ahead_points(i, slot, target), body_size[i].x * 0.45, ids[i],
 		ahead)
 	var rule_gap := PackedFloat64Array([INF])
 	var rule := _rule_kind(i, slot, rule_gap)
@@ -478,15 +492,14 @@ func _decide_braking(i: int, ahead: PackedFloat64Array, events: Array) -> void:
 
 ## The neighbour lanes of [param slot] row [param i] could move into: clear ones, once it has been
 ## blocked by something that is not traffic for its patience and is not mid lane change.
-func _clear_sides(i: int, slot: int, snapshot: TrafficSnapshot, target: float,
-		dt: float) -> PackedInt64Array:
+func _clear_sides(i: int, slot: int, target: float, dt: float) -> PackedInt64Array:
 	var sides := PackedInt64Array()
 	if d_blocked_for[i] < patience[i] or maxf(shift_left[i] - dt, 0.0) > 0.0 \
 			or not r_is_lane[slot]:
 		return sides
 	for side in [r_left[slot], r_right[slot]]:
 		var other: int = r_slots.get(side, -1) if side else -1
-		if other >= 0 and _neighbour_clear(i, snapshot, other, target):
+		if other >= 0 and _neighbour_clear(i, other, target):
 			sides.append(side)
 	return sides
 
@@ -758,7 +771,7 @@ func _rule_kind(i: int, slot: int, rule_gap: PackedFloat64Array) -> Kind:
 
 ## Whether lane [param slot], a neighbour, is clear from a little behind row [param i] to its
 ## look-ahead.
-func _neighbour_clear(i: int, snapshot: TrafficSnapshot, slot: int, target: float) -> bool:
+func _neighbour_clear(i: int, slot: int, target: float) -> bool:
 	var at := _offset_on(slot, position[i])
 	var behind := 15.0
 	var reach := behind + target * 3.0 + 5.0 + body_size[i].z
@@ -766,7 +779,7 @@ func _neighbour_clear(i: int, snapshot: TrafficSnapshot, slot: int, target: floa
 	for k in TrafficSensor.SEGMENTS + 1:
 		points.append(_point_at(slot, at - behind + reach * k / TrafficSensor.SEGMENTS))
 	var hit := PackedFloat64Array([0.0, 0.0, INF, 0.0, 0.0])
-	return not TrafficSensor.sense(snapshot, points, body_size[i].x * 0.45, ids[i], hit)
+	return not TrafficSensor.sense(seen, points, body_size[i].x * 0.45, ids[i], hit)
 
 
 ## The speed row [param i] takes the bends ahead on lane [param slot] at: through each, no faster

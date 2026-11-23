@@ -337,11 +337,13 @@ static func road_ends(map: Node) -> Array[Dictionary]:
 
 
 ## The open road end of [param map] nearest [param point], within [param reach] metres; empty
-## when there is none.
-static func nearest_end(map: Node, point: Vector3, reach := SNAP_REACH) -> Dictionary:
+## when there is none. [param ends] are the map's [method road_ends] when the caller keeps them,
+## so a mouse moving over the map does not look for them again each time.
+static func nearest_end(map: Node, point: Vector3, reach := SNAP_REACH,
+		ends: Array[Dictionary] = []) -> Dictionary:
 	var best := {}
 	var best_distance := reach
-	for end in road_ends(map):
+	for end in ends if not ends.is_empty() else road_ends(map):
 		var distance: float = end.transform.origin.distance_to(point)
 		if distance <= best_distance:
 			best = end
@@ -350,9 +352,12 @@ static func nearest_end(map: Node, point: Vector3, reach := SNAP_REACH) -> Dicti
 
 
 ## Where a road or junction [param node] placed at [param point] goes to join the open road end
-## nearest it: its transform in the map's space; null when no end is near.
-static func joining_transform(map: Node, node: Node3D, point: Vector3) -> Variant:
-	var end := nearest_end(map, point)
+## nearest it: its transform in the map's space; null when no end is near. It also shapes
+## [param node] to fit the end: a junction's road width, a road's curve and lane width. [param ends]
+## as for [method nearest_end].
+static func joining_transform(map: Node, node: Node3D, point: Vector3,
+		ends: Array[Dictionary] = []) -> Variant:
+	var end := nearest_end(map, point, SNAP_REACH, ends)
 	if end.is_empty():
 		return null
 	if node is RoadJunction:
@@ -515,9 +520,12 @@ static func problems(map: Node) -> Array[Dictionary]:
 				out.append(_fix(_problem(node, "The map has no terrain for the shape to shape."),
 					"Add terrain", add_terrain.bind(road_map)))
 				break
+	var lanes := {}
 	for node in road_map.nodes():
 		if node is ScriptedAgent and (node as ScriptedAgent).destination:
-			var way := way_of(road_map, node)
+			if lanes.is_empty():
+				lanes = lanes_of(road_map)
+			var way := way_of(road_map, node, lanes)
 			if not way.is_empty() and (not way.reachable or not way.on_lane):
 				out.append(_problem(node, "It cannot reach %s along the lanes; link the lanes "
 					% (node as ScriptedAgent).destination.name + "on its way, or move the "
@@ -591,10 +599,22 @@ static func drive_to(map: Node, cars: Array, checkpoint: Node3D) -> Edit:
 
 
 ## The way [param agent] takes to its destination along the lanes of [param map], as
-## [method LaneRouter.route] gives it; empty when it has no destination or no lane.
-static func way_of(map: Node, agent: ScriptedAgent) -> Dictionary:
+## [method LaneRouter.route] gives it; empty when it has no destination or no lane. [param lanes]
+## are the map's [method lanes_of] when the caller keeps them for several road users.
+static func way_of(map: Node, agent: ScriptedAgent, lanes := {}) -> Dictionary:
 	if agent.destination == null or not agent.path is TrafficLane:
 		return {}
+	if lanes.is_empty():
+		lanes = lanes_of(map)
+	var from: LaneData = lanes.get(agent.path.get_instance_id())
+	if from == null:
+		return {}
+	var start := from.project(to_map(agent, map).origin).x
+	return LaneRouter.route(lanes, from.id, start, to_map(agent.destination, map).origin)
+
+
+## The lanes of [param map] as [LaneData] by instance id, in the map's space, with their links.
+static func lanes_of(map: Node) -> Dictionary:
 	var lanes := {}
 	for node in _nodes(map):
 		var lane := node as TrafficLane
@@ -604,11 +624,7 @@ static func way_of(map: Node, agent: ScriptedAgent) -> Dictionary:
 					next = PackedInt64Array(lane.next.filter(func(n: TrafficLane) -> bool:
 						return n != null).map(func(n: TrafficLane) -> int:
 							return n.get_instance_id()))})
-	var from: LaneData = lanes.get(agent.path.get_instance_id())
-	if from == null:
-		return {}
-	var start := from.project(to_map(agent, map).origin).x
-	return LaneRouter.route(lanes, from.id, start, to_map(agent.destination, map).origin)
+	return lanes
 
 
 ## A static body of the obstacle [BodyType] with a box around [param node]'s meshes, local to it; null
@@ -919,9 +935,10 @@ static func _lane_problems(map: RoadMap, out: Array[Dictionary]) -> void:
 
 static func _spawn_problems(map: RoadMap, out: Array[Dictionary]) -> void:
 	var spawns := map.spawns()
+	var has_roads := _has_roads(map)
 	for i in spawns.size():
 		var at := to_map(spawns[i], map).origin
-		if not on_road(map, at) and _has_roads(map):
+		if has_roads and not on_road(map, at):
 			out.append(_problem(spawns[i], "The spawn is not on a road.", NOTICE))
 		for j in range(i + 1, spawns.size()):
 			if at.distance_to(to_map(spawns[j], map).origin) < 2.0:
