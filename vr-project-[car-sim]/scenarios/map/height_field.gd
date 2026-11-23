@@ -28,8 +28,8 @@ static func covering(size: Vector2, p_cell := 1.0, centre := Vector2.ZERO) -> He
 	var c := maxf(p_cell, 0.01)
 	var nx := maxi(ceili(size.x / c - 0.0001), 1) + 1
 	var nz := maxi(ceili(size.y / c - 0.0001), 1) + 1
-	var span := Vector2(nx - 1, nz - 1) * c
-	return HeightField.new(centre - span / 2.0, c, nx, nz)
+	var extent := Vector2(nx - 1, nz - 1) * c
+	return HeightField.new(centre - extent / 2.0, c, nx, nz)
 
 
 ## The field's extent on the ground: x and z.

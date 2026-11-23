@@ -112,9 +112,9 @@ func _test_drive() -> void:
 	expect(store.size() == 1 and String(models[0]).ends_with("taxi.glb")
 		and runner._traffic_view.counts().has(models[0]), "it is drawn as the car placed")
 	await frames(60 * 12)
-	var at: Vector3 = store.column(&"position")[0]
+	var where: Vector3 = store.column(&"position")[0]
 	var state: int = store.column(&"state")[0]
-	expect(state == AgentTable.State.DONE and at.distance_to(Vector3(1.75, 0, -45)) < 0.5,
-		"it drives to the checkpoint and stops there %s" % [at])
+	expect(state == AgentTable.State.DONE and where.distance_to(Vector3(1.75, 0, -45)) < 0.5,
+		"it drives to the checkpoint and stops there %s" % [where])
 	runner.queue_free()
 	await process_frame

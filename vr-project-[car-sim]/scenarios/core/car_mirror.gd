@@ -135,8 +135,8 @@ static func view(from: Vector3, glass_transform: Transform3D, glass_size: Vector
 	var at := reflect(from, centre, normal)
 	var up := glass_transform.basis.y.normalized()
 	var back := -normal
-	var basis := Basis(up.cross(back).normalized(), up, back)
-	var local := basis.inverse() * (centre - at)
+	var frame := Basis(up.cross(back).normalized(), up, back)
+	var local := frame.inverse() * (centre - at)
 	var near := distance
 	if housing_size != Vector2.ZERO:
 		for corner in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
@@ -145,16 +145,16 @@ static func view(from: Vector3, glass_transform: Transform3D, glass_size: Vector
 			near = maxf(near, (point - at).dot(normal) + 0.002)
 	# The frustum's size and offset are on its near plane: moved back, they grow with it.
 	var grow := near / distance
-	return {transform = Transform3D(basis, at), near = near,
+	return {transform = Transform3D(frame, at), near = near,
 		offset = Vector2(local.x, local.y) * grow, height = glass_size.y * grow}
 
 
 ## The size of the reflecting plane [param plane] that looks from [param from] as large as glass
-## of [param glass_size] at [param glass]: each is seen foreshortened by its turn from the eye.
-static func aim_size(from: Vector3, glass: Transform3D, plane: Transform3D,
+## of [param glass_size] at [param p_glass]: each is seen foreshortened by its turn from the eye.
+static func aim_size(from: Vector3, p_glass: Transform3D, plane: Transform3D,
 		glass_size: Vector2) -> Vector2:
-	var to_eye := (from - glass.origin).normalized()
-	var seen_glass := maxf(glass.basis.z.normalized().dot(to_eye), 0.05)
+	var to_eye := (from - p_glass.origin).normalized()
+	var seen_glass := maxf(p_glass.basis.z.normalized().dot(to_eye), 0.05)
 	var seen_plane := maxf(plane.basis.z.normalized().dot(to_eye), 0.05)
 	return glass_size * (seen_glass / seen_plane)
 

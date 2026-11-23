@@ -27,6 +27,8 @@ func _run() -> void:
 		var case: TestCase = load(CASES + file).new()
 		case.setup(self)
 		var started := Time.get_ticks_msec()
+		# Each case's run awaits its tests, though the base's does not.
+		@warning_ignore("redundant_await")
 		await case.run()
 		passed += case.passed
 		failed += case.failed

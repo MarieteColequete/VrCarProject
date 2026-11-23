@@ -37,13 +37,13 @@ func _test_starter() -> void:
 	revs = _air(dyn, {starter = true}, 60)
 	expect(dyn.engine == CarDynamics.EngineState.RUNNING and absf(revs[-1] - KIRI.idle_rpm) < 60.0,
 		"and runs up to idle, the key still held doing nothing more: %.0f" % revs[-1])
-	var drive := _parked()
-	drive.place(false, Gearbox.Selector.DRIVE)
-	_air(drive, {starter = true}, 1)
-	expect(drive.start_refused and drive.engine == CarDynamics.EngineState.OFF,
+	var parked := _parked()
+	parked.place(false, Gearbox.Selector.DRIVE)
+	_air(parked, {starter = true}, 1)
+	expect(parked.start_refused and parked.engine == CarDynamics.EngineState.OFF,
 		"in D the starter is refused")
-	_air(drive, {starter = true}, 90)
-	expect(drive.engine == CarDynamics.EngineState.OFF, "however long the key is held")
+	_air(parked, {starter = true}, 90)
+	expect(parked.engine == CarDynamics.EngineState.OFF, "however long the key is held")
 	var manual := CarDynamics.new(KIRI.packed(), Assists.preset("sim"), true)
 	manual.place(false, Gearbox.Selector.DRIVE)
 	_air(manual, {starter = true}, 90)
@@ -159,7 +159,7 @@ func _test_pawl() -> void:
 
 
 func _test_car_start() -> void:
-	var floor := ground()
+	var ground_body := ground()
 	var start := CarStart.new()
 	var car: Node3D = spawn_car({start = start})
 	for i in 20:
@@ -191,7 +191,7 @@ func _test_car_start() -> void:
 		"started at 54 km/h, it is rolling in D in gear %d from the first steps: %.1f m/s"
 		% [rolling.dynamics.gear, rolling.current_speed])
 	rolling.queue_free()
-	floor.queue_free()
+	ground_body.queue_free()
 	await physics_frame
 
 

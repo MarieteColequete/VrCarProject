@@ -10,10 +10,10 @@ const MIX_RATE := 22050
 
 
 ## A seamless loop of a four-cylinder engine at [param rpm]: a firing pulse twice a turn, each with
-## its own small variation from [param seed], the pulses' harmonics, and some rumble.
-static func engine_loop(rpm: float, seed: int) -> AudioStreamWAV:
+## its own small variation from [param noise_seed], the pulses' harmonics, and some rumble.
+static func engine_loop(rpm: float, noise_seed: int) -> AudioStreamWAV:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = seed
+	rng.seed = noise_seed
 	var fire := rpm / 60.0 * 2.0
 	# An even count of firings, so the half-order harmonics join up too.
 	var cycles := maxi(roundi(fire * 0.6) * 2, 8)

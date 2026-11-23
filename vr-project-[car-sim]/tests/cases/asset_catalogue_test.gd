@@ -87,18 +87,18 @@ func _test_map_asset() -> void:
 	expect(car.bodies().size() == 1 and car.size().is_equal_approx(Vector3(1.8, 1.5, 4.3)),
 		"a car from the pane is solid and fitted to a car's size")
 	car.free()
-	var tree := AssetCatalogue.make(catalogue_entry("tree-large"))
-	root.add_child(tree)
-	var box: Vector3 = (tree.bodies()[0].get_child(0) as CollisionShape3D).shape.size
-	expect(is_equal_approx(box.y, tree.size().y) and box.x < tree.size().x,
+	var tree_asset := AssetCatalogue.make(catalogue_entry("tree-large"))
+	root.add_child(tree_asset)
+	var box: Vector3 = (tree_asset.bodies()[0].get_child(0) as CollisionShape3D).shape.size
+	expect(is_equal_approx(box.y, tree_asset.size().y) and box.x < tree_asset.size().x,
 		"a tree is solid at its trunk only")
-	tree.free()
-	var path := AssetCatalogue.make(catalogue_entry("path-long"))
-	root.add_child(path)
-	expect(path.bodies().is_empty() and path.get_child_count(true) == 1,
+	tree_asset.free()
+	var path_asset := AssetCatalogue.make(catalogue_entry("path-long"))
+	root.add_child(path_asset)
+	expect(path_asset.bodies().is_empty() and path_asset.get_child_count(true) == 1,
 		"a path is looks only")
-	expect(path.get_child_count() == 0, "a map asset saves no children")
-	path.free()
+	expect(path_asset.get_child_count() == 0, "a map asset saves no children")
+	path_asset.free()
 	var missing := MapAsset.new()
 	root.add_child(missing)
 	expect(not missing._get_configuration_warnings().is_empty(),
@@ -126,8 +126,8 @@ func _test_bake() -> void:
 	var spawn := MapSpawn.new()
 	var van := AssetCatalogue.make(catalogue_entry("van"))
 	van.position = Vector3(5, 0, -10)
-	var path := AssetCatalogue.make(catalogue_entry("path-short"))
-	for node: Node in [spawn, van, path]:
+	var path_asset := AssetCatalogue.make(catalogue_entry("path-short"))
+	for node: Node in [spawn, van, path_asset]:
 		road_map.add_child(node)
 		node.owner = road_map
 	var packed := PackedScene.new()

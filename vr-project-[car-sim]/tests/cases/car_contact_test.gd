@@ -98,14 +98,12 @@ func _test_contact_energy() -> void:
 	var spec := KIRI.packed()
 	var u := Vector2.ZERO
 	var v := 0.5
-	var x := 0.0
 	var start := 0.5 * 312.0 * v * v
 	var most := 0.0
 	for i in 600:
 		var touch := TyreModel.contact(spec, u, 0.0, 0.0, v, 3000.0, 1.0, DT)
 		u = Vector2(touch.z, touch.w)
 		v += touch.y / 312.0 * DT
-		x += v * DT
 		var py := KIRI.relaxation * tan(KIRI.peak_angle)
 		var stiff := TyreModel.peak(spec, 3000.0, 1.0) * spec[CarSpec.TYRE_B] \
 			* spec[CarSpec.TYRE_SHAPE] / py
@@ -130,7 +128,7 @@ func _test_suspension() -> void:
 
 ## Steers full left and right for 10 s with [param held] set: the car stays where it stood.
 func _test_steered_standing(held: Dictionary) -> void:
-	var floor := ground()
+	var ground_body := ground()
 	var car: Node3D = spawn_car()
 	car.held_controls = held.duplicate()
 	for i in 90:
@@ -139,6 +137,7 @@ func _test_steered_standing(held: Dictionary) -> void:
 	var facing: Vector3 = -car.global_basis.z
 	for i in 600:
 		var controls: Dictionary = held.duplicate()
+		@warning_ignore("integer_division")
 		controls.steer = 1.0 if (i / 60) % 2 == 0 else -1.0
 		car.held_controls = controls
 		await physics_frame
@@ -148,13 +147,13 @@ func _test_steered_standing(held: Dictionary) -> void:
 		"%s, steered full left and right for 10 s it stays put: %.3f m, %.2f°"
 		% [held, moved, turned])
 	car.queue_free()
-	floor.queue_free()
+	ground_body.queue_free()
 	await process_frame
 
 
 ## Coasting in N at 10 m/s through a slalom, the car's energy never rises.
 func _test_coasting_slalom() -> void:
-	var floor := ground()
+	var ground_body := ground()
 	var car: RigidBody3D = spawn_car() as RigidBody3D
 	car.held_controls = {select = "N"}
 	for i in 60:
@@ -174,7 +173,7 @@ func _test_coasting_slalom() -> void:
 	expect(worst < 0.001, "coasting through a slalom it never gains energy: at most %+.4f%% a step"
 		% (worst * 100.0))
 	car.queue_free()
-	floor.queue_free()
+	ground_body.queue_free()
 	await process_frame
 
 

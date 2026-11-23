@@ -233,25 +233,25 @@ static func read(world: World) -> AgentTable:
 	return view
 
 
-## The columns of a new road user on [param lane], from [param config] (configuration column to
+## The columns of a new road user on [param p_lane], from [param config] (configuration column to
 ## value; missing ones take their defaults), standing at the lane's start.
-static func spawn_values(config: Dictionary, lane: LaneData) -> Dictionary:
+static func spawn_values(config: Dictionary, p_lane: LaneData) -> Dictionary:
 	var values := CONFIG.duplicate()
 	values.merge(config, true)
 	values.merge(DYNAMIC)
 	if values.spec < 0:
 		values.spec = TrafficSpecs.pick(values.body_size)
-	values.lane = lane.id
-	values.length = lane.length
-	values.progress = clampf(values.start_at, 0.0, lane.length)
+	values.lane = p_lane.id
+	values.length = p_lane.length
+	values.progress = clampf(values.start_at, 0.0, p_lane.length)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = values.route_seed
 	values.armed = values.trigger == 0
 	values.jumped = true
-	values.upcoming = _next_lane(lane, values.goal_lane, values.route, rng)
+	values.upcoming = _next_lane(p_lane, values.goal_lane, values.route, rng)
 	values.rng_state = rng.state
-	if lane.curve:
-		var pose := _pose(lane, values.length, values.progress, values.lateral, values.heading,
+	if p_lane.curve:
+		var pose := _pose(p_lane, values.length, values.progress, values.lateral, values.heading,
 			values.facing)
 		values.position = pose[0]
 		values.facing = pose[1]
@@ -452,10 +452,10 @@ func _decide_speed(i: int, ahead: PackedFloat64Array, rule: Kind, target: float,
 	# Once reacting, the model keeps control until the road user is back at its scripted speed
 	# with nothing holding it back, so it neither creeps up on a leader nor lets go too early.
 	if found and (reacting or DriverModel.forced(min_gap[i], gap, ahead_speed, v)):
-		var model := DriverModel.idm(v, gap, ahead_speed, target, min_gap[i], time_headway[i],
+		var idm := DriverModel.idm(v, gap, ahead_speed, target, min_gap[i], time_headway[i],
 			max_accel[i], comfort_decel[i], max_decel[i])
-		if not (reacting and v >= target - 0.01 and model >= 0.0):
-			accel = model
+		if not (reacting and v >= target - 0.01 and idm >= 0.0):
+			accel = idm
 			kind = Kind.STOPPED if v + accel * dt < 0.3 else Kind.FOLLOWING
 			if rule != Kind.NONE:
 				kind = rule
@@ -600,11 +600,11 @@ func _place(i: int, l: LaneData) -> void:
 
 
 ## Where a road user [param offset] metres along lane [param l] (of [param total] metres; the
-## lane's own length when 0) stands, [param lateral] metres off it at [param heading] radians to
-## it: its position, its facing ([param facing] kept where the lane gives no direction), and the
+## lane's own length when 0) stands, [param p_lateral] metres off it at [param p_heading] radians to
+## it: its position, its facing ([param p_facing] kept where the lane gives no direction), and the
 ## grade it climbs.
-static func _pose(l: LaneData, total: float, offset: float, lateral: float, heading: float,
-		facing: Vector3) -> Array:
+static func _pose(l: LaneData, total: float, offset: float, p_lateral: float, p_heading: float,
+		p_facing: Vector3) -> Array:
 	var curve := l.curve
 	if total <= 0.0:
 		total = l.length
@@ -618,11 +618,11 @@ static func _pose(l: LaneData, total: float, offset: float, lateral: float, head
 	if tangent.length() > 0.001:
 		tangent = tangent.normalized()
 		# Off the path by its lateral offset, at its heading's angle to it.
-		here += Vector3.UP.cross(tangent) * lateral
-		facing = tangent.rotated(Vector3.UP, heading)
+		here += Vector3.UP.cross(tangent) * p_lateral
+		p_facing = tangent.rotated(Vector3.UP, p_heading)
 		# The slope it climbs is the lane's along its facing, the heading's cosine of it.
-		slope *= cos(heading)
-	return [here, facing, slope]
+		slope *= cos(p_heading)
+	return [here, p_facing, slope]
 
 
 func _enter(i: int, l: LaneData) -> void:
@@ -640,12 +640,12 @@ func _choose_next(i: int, l: LaneData) -> int:
 	return pick
 
 
-## The lane a road user takes after [param l]: the next one on its [param route], else one
+## The lane a road user takes after [param l]: the next one on its [param p_route], else one
 ## picked with [param rng]; 0 at its [param goal] lane or where the lanes end.
-static func _next_lane(l: LaneData, goal: int, route: Array, rng: RandomNumberGenerator) -> int:
+static func _next_lane(l: LaneData, goal: int, p_route: Array, rng: RandomNumberGenerator) -> int:
 	if l == null or not l.is_lane or l.next.is_empty() or l.id == goal:
 		return 0
-	for wanted: int in route:
+	for wanted: int in p_route:
 		if l.next.has(wanted):
 			return wanted
 	return l.next[rng.randi_range(0, l.next.size() - 1)]

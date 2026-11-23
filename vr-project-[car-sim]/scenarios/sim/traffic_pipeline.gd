@@ -120,6 +120,7 @@ func _think_run(task: int) -> void:
 	var table := _table
 	var dt := _dt
 	var n := table.size()
+	@warning_ignore("integer_division")
 	for i in range(n * task / _tasks, n * (task + 1) / _tasks):
 		table.think(i, dt)
 

@@ -31,7 +31,7 @@ func _test_spring() -> void:
 
 
 func _test_drive() -> void:
-	var floor := ground()
+	var ground_body := ground()
 	var car: Node3D = spawn_car()
 	await physics_frame
 	var model: PlayerCarModel = car.model
@@ -74,12 +74,12 @@ func _test_drive() -> void:
 	expect(car.wheel_angle > 0.0 and car.wheel_angle <= car.spec.steer_lock,
 		"the front wheels turn within the lock: %.2f" % car.wheel_angle)
 	car.queue_free()
-	floor.queue_free()
+	ground_body.queue_free()
 	await process_frame
 
 
 func _test_reverse_and_handbrake() -> void:
-	var floor := ground()
+	var ground_body := ground()
 	var car: Node3D = spawn_car({assist_preset = "sim"})
 	await physics_frame
 	expect(car.dynamics.gearbox.letter() == "P", "the car starts in park")
@@ -111,12 +111,12 @@ func _test_reverse_and_handbrake() -> void:
 		"the handbrake locks the rear wheels")
 	expect(turned > deg_to_rad(45.0), "and swings the car round: %.0f°" % rad_to_deg(turned))
 	car.queue_free()
-	floor.queue_free()
+	ground_body.queue_free()
 	await process_frame
 
 
 func _test_manual() -> void:
-	var floor := ground()
+	var ground_body := ground()
 	var car: Node3D = spawn_car()
 	await physics_frame
 	car.dynamics.manual = true
@@ -135,21 +135,21 @@ func _test_manual() -> void:
 		% [first, car.gear])
 	expect(car.rpm <= car.spec.redline_rpm, "the limiter holds the revolutions")
 	car.queue_free()
-	floor.queue_free()
+	ground_body.queue_free()
 	await process_frame
 
 
 func _test_surfaces() -> void:
 	var speeds := {}
 	for type: StringName in [&"asphalt", &"ground"]:
-		var floor := ground(400.0, type)
+		var ground_body := ground(400.0, type)
 		var car: Node3D = spawn_car({assist_preset = "sim"})
 		await physics_frame
 		car.held_controls = {throttle = 1.0, select = "D"}
 		await frames(120)
 		speeds[type] = car.current_speed
 		car.queue_free()
-		floor.queue_free()
+		ground_body.queue_free()
 		await process_frame
 	expect(speeds[&"asphalt"] > speeds[&"ground"] + 1.0,
 		"the car pulls away harder on asphalt than on grass: %.1f against %.1f m/s"
@@ -157,7 +157,7 @@ func _test_surfaces() -> void:
 
 
 func _test_falling() -> void:
-	var floor := ground()
+	var ground_body := ground()
 	var car: Node3D = spawn_car()
 	await physics_frame
 	car.held_controls = {throttle = 1.0, select = "D"}
@@ -179,7 +179,7 @@ func _test_falling() -> void:
 		"falling with the throttle shut, the revs fall steadily and never flare: %.0f to %.0f rpm"
 		% [revs[0] if revs else 0.0, revs[-1] if revs else 0.0])
 	car.queue_free()
-	floor.queue_free()
+	ground_body.queue_free()
 	await process_frame
 
 
@@ -187,7 +187,7 @@ func _test_falling() -> void:
 ## accelerator eases toward the key, so the automatic settles in top gear and never kicks down;
 ## holding the key down then kicks it down to overtake.
 func _test_keys_cruise() -> void:
-	var floor := ground(6000.0)
+	var ground_body := ground(6000.0)
 	var car: Node3D = spawn_car()
 	await physics_frame
 	var dyn: CarDynamics = car.dynamics
@@ -211,5 +211,5 @@ func _test_keys_cruise() -> void:
 		await physics_frame
 	expect(dyn.gear < top, "holding the key kicks down to overtake: gear %d" % dyn.gear)
 	car.queue_free()
-	floor.queue_free()
+	ground_body.queue_free()
 	await process_frame

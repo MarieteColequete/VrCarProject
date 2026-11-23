@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.5.1-alpha - 2026-11-23
+
+### Fixed
+
+- Place terrain shapes, signs, zones, and models with the Map Kit, whose arming failed with an error in the editor for every piece but roads and junctions
+- Move, delete, or undo roads and terrain shapes in the editor without an error about a freed lambda capture in the Output
+- Open the project with no GDScript warnings in the editor's Output
+
 ## v0.5.0-alpha - 2026-11-23
 
 ### Changed

@@ -125,15 +125,18 @@ static func notify_changed(node: Node) -> void:
 	if _notified.has(id):
 		return
 	_notified[id] = true
+	# The lambda holds the node's id, not the node: a node freed before the frame (the placer's
+	# ghost, a road deleted) would be an error to pass to it.
 	node.get_tree().process_frame.connect(func() -> void:
 		_notified.erase(id)
-		if not is_instance_valid(node) or not node.is_inside_tree() or node.owner == null:
+		var changed := instance_from_id(id) as Node3D
+		if changed == null or not changed.is_inside_tree() or changed.owner == null:
 			return
-		var terrain := of(map_of(node))
+		var terrain := of(map_of(changed))
 		if terrain == null:
 			return
-		if _shapes_land(node):
-			terrain._piece_changed(node)
+		if _shapes_land(changed):
+			terrain._piece_changed(changed)
 		else:
 			terrain.queue_rebuild(), CONNECT_ONE_SHOT)
 
@@ -266,7 +269,9 @@ func intersect_ray(from: Vector3, direction: Vector3, reach := 2000.0) -> Varian
 	var into := RoadMap.to_map(self, map_of(self))
 	var inverse := into.affine_inverse()
 	var hit: Variant = field().intersect_ray(inverse * from, inverse.basis * direction, reach)
-	return into * (hit as Vector3) if hit != null else null
+	if hit == null:
+		return null
+	return into * (hit as Vector3)
 
 
 ## Cuts and fills [param out] (in the terrain's space) to the map's roads and junctions.
@@ -423,7 +428,9 @@ func rebuild_area(area: Rect2) -> void:
 	var across := ceili(float(_field.count_x - 1) / CHUNK)
 	var down := ceili(float(_field.count_z - 1) / CHUNK)
 	chunks_drawn = 0
+	@warning_ignore("integer_division")
 	for cj in range(maxi((j0 - 2) / CHUNK, 0), mini((j1 + 1) / CHUNK, down - 1) + 1):
+		@warning_ignore("integer_division")
 		for ci in range(maxi((i0 - 2) / CHUNK, 0), mini((i1 + 1) / CHUNK, across - 1) + 1):
 			var k := cj * across + ci
 			if k < _chunks.size() and is_instance_valid(_chunks[k]):

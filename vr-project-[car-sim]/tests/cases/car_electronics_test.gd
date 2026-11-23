@@ -156,7 +156,7 @@ func _test_lamps() -> void:
 
 
 func _test_falling_speedometer() -> void:
-	var floor := ground()
+	var ground_body := ground()
 	var car: Node3D = spawn_car()
 	await physics_frame
 	car.held_controls = {throttle = 0.5, select = "D"}
@@ -178,12 +178,12 @@ func _test_falling_speedometer() -> void:
 		"falling at up to %.0f km/h, the speedometer shows the wheels, at most %.0f (before %.0f)"
 		% [fastest * 3.6, shown, before])
 	car.queue_free()
-	floor.queue_free()
+	ground_body.queue_free()
 	await process_frame
 
 
 func _test_lamps_on_car() -> void:
-	var floor := ground()
+	var ground_body := ground()
 	var car: Node3D = spawn_car()
 	await physics_frame
 	car.held_controls = {brake = 1.0, select = "N"}
@@ -204,5 +204,5 @@ func _test_lamps_on_car() -> void:
 		await physics_frame
 	expect(car.model.is_lit(&"reverse"), "in R, standing still, the reversing lamps are lit")
 	car.queue_free()
-	floor.queue_free()
+	ground_body.queue_free()
 	await process_frame

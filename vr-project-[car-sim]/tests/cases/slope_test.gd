@@ -81,7 +81,7 @@ func _test_crest() -> void:
 
 
 func _test_roll_over() -> void:
-	var floor := ground()
+	var ground_body := ground()
 	var car: RigidBody3D = spawn_car() as RigidBody3D
 	car.held_controls = {select = "P"}
 	await frames(30)
@@ -92,7 +92,7 @@ func _test_roll_over() -> void:
 		await physics_frame
 		lowest = minf(lowest, car.global_basis.y.dot(Vector3.UP))
 	expect(lowest < 0.0, "knocked hard sideways, the free body rolls over: up·up %.2f" % lowest)
-	await _free(car, floor)
+	await _free(car, ground_body)
 
 
 ## A 10% ramp climbing toward -Z with its surface through the origin, [constant RAMP_HALF] metres
@@ -134,7 +134,7 @@ func _downhill_speed(car: RigidBody3D, ramp: StaticBody3D) -> float:
 	return car.linear_velocity.dot(ramp.global_basis.z)
 
 
-func _free(car: Node, floor: Node) -> void:
+func _free(car: Node, ground_body: Node) -> void:
 	car.queue_free()
-	floor.queue_free()
+	ground_body.queue_free()
 	await physics_frame

@@ -134,11 +134,12 @@ func _wire(probe: VehicleProbe, bake: Bake) -> void:
 		_traffic_view.ignore = (car as CollisionObject3D).get_rid()
 	world_runner.add_view(_traffic_view.draw)
 	# The knocks road users give the car ([Impacts]).
-	world_runner.add_view(func(world: World) -> void:
+	world_runner.add_view(func(view_world: World) -> void:
 		if is_instance_valid(car) and car.has_method(&"knock"):
-			car.call(&"knock", world.store(Schema.VEHICLE).get_value(vehicle, &"impulse")))
+			car.call(&"knock", view_world.store(Schema.VEHICLE).get_value(vehicle, &"impulse")))
 	var authored := bake.nodes
-	world_runner.add_view(func(world: World) -> void: SceneViews.draw_lights(world, authored))
+	world_runner.add_view(func(view_world: World) -> void:
+		SceneViews.draw_lights(view_world, authored))
 	SceneViews.place_parked_cars(w, authored)
 	SceneViews.draw_lights(w, authored)
 	_traffic_view.draw(w)

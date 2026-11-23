@@ -164,9 +164,9 @@ func _draw_face() -> void:
 	_face.draw_arc(RPM_CENTRE, RADIUS, rpm_angle(redline), START + SWEEP, 16,
 		Color(0.85, 0.1, 0.08), 6.0, true)
 	for thousand in range(0, int(TOP_RPM / 1000.0) + 1):
-		var red := thousand * 1000.0 >= redline
+		var past_redline := thousand * 1000.0 >= redline
 		_mark(RPM_CENTRE, rpm_angle(thousand * 1000.0), true,
-			Color(1.0, 0.3, 0.25) if red else ink, str(thousand))
+			Color(1.0, 0.3, 0.25) if past_redline else ink, str(thousand))
 	_needle(RPM_CENTRE, rpm_angle(rpm_needle))
 	_face.draw_string(font, RPM_CENTRE + Vector2(-30, 66), gear, HORIZONTAL_ALIGNMENT_CENTER, 60,
 		44, Color.WHITE)
@@ -202,13 +202,13 @@ func _small_gauge(centre: Vector2, share: float, low: String, high: String, titl
 	_face.draw_arc(centre, SMALL_RADIUS, from, from + SMALL_SWEEP, 32, Color(0.35, 0.37, 0.4),
 		3.0, true)
 	for k in 5:
-		var a := small_angle(k / 4.0)
-		var dir := Vector2(cos(a), sin(a))
+		var mark := small_angle(k / 4.0)
+		var dir := Vector2(cos(mark), sin(mark))
 		_face.draw_line(centre + dir * (SMALL_RADIUS - 8.0), centre + dir * SMALL_RADIUS, ink,
 			2.0, true)
 	for end in [[low, 0.0], [high, 1.0]]:
-		var a := small_angle(end[1])
-		var at := centre + Vector2(cos(a), sin(a)) * (SMALL_RADIUS + 12.0)
+		var at_end := small_angle(end[1])
+		var at := centre + Vector2(cos(at_end), sin(at_end)) * (SMALL_RADIUS + 12.0)
 		_face.draw_string(font, at + Vector2(-10, 6), end[0], HORIZONTAL_ALIGNMENT_CENTER, 20,
 			16, ink)
 	var a := small_angle(share)

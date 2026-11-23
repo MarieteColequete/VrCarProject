@@ -219,9 +219,9 @@ func end_sim(runner: WorldRunner) -> void:
 
 
 ## Moves the car of a hand-stepped simulation, as the shell would read it from a car node.
-func place_car(runner: WorldRunner, at: Vector3, facing := Vector3.FORWARD) -> void:
+func place_car(runner: WorldRunner, where: Vector3, facing := Vector3.FORWARD) -> void:
 	var world := runner.world
-	var t := Transform3D(Basis.looking_at(facing, Vector3.UP), at)
+	var t := Transform3D(Basis.looking_at(facing, Vector3.UP), where)
 	world.store(Schema.VEHICLE).set_value(Schema.single(world, Schema.VEHICLE), &"transform", t)
 
 

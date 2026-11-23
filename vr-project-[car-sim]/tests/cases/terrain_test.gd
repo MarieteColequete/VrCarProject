@@ -27,9 +27,11 @@ func _test_sampling() -> void:
 	var field := HeightField.new(Vector2(-2, -2), 2.0, 3, 3)
 	var values := [1.0, 2.0, 4.0, 0.0, -1.0, 3.0, 5.0, 2.0, 0.5]
 	for k in values.size():
+		@warning_ignore("integer_division")
 		field.set_point(k % 3, k / 3, values[k])
 	var exact := true
 	for k in values.size():
+		@warning_ignore("integer_division")
 		var p := field.point(k % 3, k / 3)
 		if not is_equal_approx(field.height_at(p.x, p.z), values[k]):
 			exact = false
@@ -53,11 +55,11 @@ func _shape(kind: TerrainShape.Kind, height: float) -> TerrainShape:
 	return shape
 
 
-## The land after [param shape], standing at [param at], acts on flat land at [param base].
-func _shaped(shape: TerrainShape, at := Vector3.ZERO, base := 0.0) -> HeightField:
+## The land after [param shape], standing at [param where], acts on flat land at [param base].
+func _shaped(shape: TerrainShape, where := Vector3.ZERO, base := 0.0) -> HeightField:
 	var field := HeightField.covering(Vector2(100, 100), 1.0)
 	field.heights.fill(base)
-	shape.apply(field, Transform3D(Basis.IDENTITY, at))
+	shape.apply(field, Transform3D(Basis.IDENTITY, where))
 	shape.free()
 	return field
 
@@ -276,17 +278,17 @@ func _test_add_terrain() -> void:
 func _test_handles() -> void:
 	for kind: int in TerrainShape.Kind.values():
 		var shape := _shape(kind, 4.0)
-		var ground := 1.5
+		var ground_height := 1.5
 		var worst := 0.0
-		for handle: Dictionary in shape.handles(ground):
-			var back := shape.value_from(handle.name, handle.local, ground)
+		for handle: Dictionary in shape.handles(ground_height):
+			var back := shape.value_from(handle.name, handle.local, ground_height)
 			worst = maxf(worst, absf(back - shape.handle_value(handle.name)))
 		expect(worst < 0.0001, "%s: each handle gives back the value it shows: %.5f off"
 			% [TerrainShape.Kind.keys()[kind], worst])
 		shape.free()
 	var hill := _shape(TerrainShape.Kind.HILL, 4.0)
-	var at: Vector3 = hill.handles()[0].local
-	expect(is_equal_approx(hill.value_from(TerrainShape.RADIUS, at + Vector3(3, 0, 0)), 8.0)
+	var where: Vector3 = hill.handles()[0].local
+	expect(is_equal_approx(hill.value_from(TerrainShape.RADIUS, where + Vector3(3, 0, 0)), 8.0)
 		and hill.value_from(TerrainShape.HEIGHT, Vector3(0, -2, 0), 1.0) == 0.0,
 		"a radius dragged 3 m out grows 3 m; a hill's height never goes below its land")
 	hill.free()
@@ -307,7 +309,7 @@ func _test_outline() -> void:
 
 
 ## A terrain over a map, with a hill on it, in the tree; and the hill.
-func _live_terrain(extent: float, at := Vector3.ZERO) -> Array:
+func _live_terrain(extent: float, where := Vector3.ZERO) -> Array:
 	var map := RoadMap.new()
 	var terrain := Terrain.new()
 	terrain.size = Vector2(extent, extent)
@@ -316,12 +318,12 @@ func _live_terrain(extent: float, at := Vector3.ZERO) -> Array:
 	hill.height = 6.0
 	hill.radius = 8.0
 	hill.falloff = 12.0
-	hill.position = at
+	hill.position = where
 	map.add_child(hill)
 	var plateau := TerrainShape.new()
 	plateau.kind = TerrainShape.Kind.PLATEAU
 	plateau.height = 2.0
-	plateau.position = at + Vector3(15, 0, 4)
+	plateau.position = where + Vector3(15, 0, 4)
 	map.add_child(plateau)
 	root.add_child(map)
 	return [map, terrain, hill]

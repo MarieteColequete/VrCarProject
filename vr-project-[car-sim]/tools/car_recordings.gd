@@ -8,6 +8,7 @@ extends SceneTree
 
 const SET := "res://assets/freesound/"
 const RATE := 44100
+@warning_ignore("integer_division")
 const FADE := RATE / 2
 
 

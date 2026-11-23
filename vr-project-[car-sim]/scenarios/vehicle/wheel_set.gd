@@ -44,12 +44,12 @@ func turn(angles: PackedFloat64Array) -> void:
 ## (both against its turning, as friction) and the tread's pull ([method TyreModel.contact]) balance
 ## the change of spin of [param inertia], the wheel's own and any engine's locked to it. Then sets
 ## the tread's deflection, the tyre's force and, for whoever listens, its slip.
-func solve(i: int, dt: float, drive: float, brake: float, load: float, ground: float,
+func solve(i: int, dt: float, drive: float, brake: float, wheel_load: float, ground: float,
 		side: float, mu: float, inertia: float) -> void:
 	var r := spec[CarSpec.WHEEL_RADIUS]
 	var w := spin[i]
 	angle[i] = TyreModel.slip_angle(ground, side)
-	if load <= 0.0:
+	if wheel_load <= 0.0:
 		# In the air: only the drive and brake turn it, and the tread springs back.
 		w += drive * dt / inertia
 		w = move_toward(w, 0.0, brake * dt / inertia)
@@ -58,12 +58,12 @@ func solve(i: int, dt: float, drive: float, brake: float, load: float, ground: f
 		ratio[i] = 0.0
 		force[i] = Vector2.ZERO
 		return
-	brake += spec[CarSpec.ROLLING] * load * r
+	brake += spec[CarSpec.ROLLING] * wheel_load * r
 	var rolling := ground / r
 	var reach := (absf(drive) + brake) * dt / inertia + absf(w - rolling) + 5.0
 	var lo := minf(w, rolling) - reach
 	var hi := maxf(w, rolling) + reach
-	var road := TyreModel.prepare(spec, deflect[i], ground, side, load, mu, dt)
+	var road := TyreModel.prepare(spec, deflect[i], ground, side, wheel_load, mu, dt)
 	for k in SOLVE_STEPS:
 		var mid := (lo + hi) * 0.5
 		var turning := _torque(road, dt, w, mid, drive, inertia)

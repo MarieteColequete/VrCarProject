@@ -49,10 +49,10 @@ func _test_grab() -> void:
 	expect(absf(rad_to_deg(w.angle) - 35.0) < 0.5,
 		"with both hands, the wheel turns by their average: %.1f°" % rad_to_deg(w.angle))
 	# Turned on round and round, several turns past the lock, a little at a time.
-	var at := 135.0
+	var where := 135.0
 	for i in 300:
-		at += 10.0
-		w.step(STEP, frame, RADIUS, [_rim(at), _rim(at)], [true, true], 0.0)
+		where += 10.0
+		w.step(STEP, frame, RADIUS, [_rim(where), _rim(where)], [true, true], 0.0)
 	expect(is_equal_approx(w.angle, w.lock), "the wheel stops at its lock")
 	for i in 120:
 		w.step(STEP, frame, RADIUS, [far, far], [false, false], 0.0)
