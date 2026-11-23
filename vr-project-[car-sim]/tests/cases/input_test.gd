@@ -19,8 +19,35 @@ func _test_bindings() -> void:
 	for action in [&"look_left", &"look_right", &"look_up", &"look_down"]:
 		expect(InputMap.has_action(action) and has_event(action, "InputEventJoypadMotion"),
 			"%s is bound to a gamepad stick" % action)
-	expect(InputMap.has_action(&"release_mouse") and has_event(&"release_mouse", "InputEventKey"),
-		"release_mouse is bound on the keyboard")
+	expect(_keys(&"release_mouse") == [KEY_BACKSPACE] and _keys(&"menu") == [KEY_ESCAPE],
+		"Backspace frees the mouse and Escape is the menu: %s, %s" % [_keys(&"release_mouse"),
+			_keys(&"menu")])
+	var driving: Array = []
+	for action in DriverInput.CAR_ACTIONS:
+		driving.append_array(_keys(action))
+	var arrows := [KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT]
+	expect(arrows.all(func(k: int) -> bool: return not driving.has(k)),
+		"the arrow keys drive nothing")
+	var tilts: Array = []
+	for action in DriverInput.MIRROR_TILT:
+		tilts.append_array(_keys(action))
+	expect(arrows.all(func(k: int) -> bool: return tilts.has(k)), "they tilt the picked mirror")
+
+
+## The physical keys bound to [param action].
+func _keys(action: StringName) -> Array:
+	var out := []
+	for event in InputMap.action_get_events(action):
+		if event is InputEventKey:
+			out.append(event.physical_keycode)
+	return out
+
+
+func _pad(button: JoyButton) -> InputEventJoypadButton:
+	var event := InputEventJoypadButton.new()
+	event.button_index = button
+	event.pressed = true
+	return event
 
 
 func _release_all() -> void:
@@ -47,11 +74,20 @@ func _test_driver_input() -> void:
 	q.physical_keycode = KEY_Q
 	q.pressed = true
 	expect(DriverInput.indicator_pressed(q) == VehicleProbe.Indicator.LEFT, "Q is the left indicator")
-	var rb := InputEventJoypadButton.new()
-	rb.button_index = JOY_BUTTON_RIGHT_SHOULDER
-	rb.pressed = true
-	expect(DriverInput.indicator_pressed(rb) == VehicleProbe.Indicator.RIGHT,
-		"RB is the right indicator")
+	expect(DriverInput.indicator_pressed(_pad(JOY_BUTTON_DPAD_RIGHT))
+		== VehicleProbe.Indicator.RIGHT, "the D-pad's right is the right indicator")
+	expect(DriverInput.shift_pressed(_pad(JOY_BUTTON_RIGHT_SHOULDER)) == 1
+		and DriverInput.shift_pressed(_pad(JOY_BUTTON_LEFT_SHOULDER)) == -1,
+		"the shoulders move the lever, RB up and LB down")
+	expect(DriverInput.taken_by_mirror(_pad(JOY_BUTTON_DPAD_RIGHT), true)
+		and not DriverInput.taken_by_mirror(_pad(JOY_BUTTON_DPAD_RIGHT), false)
+		and not DriverInput.taken_by_mirror(q, true),
+		"with a mirror picked the D-pad tilts it instead; Q stays the indicator")
+	var flicks := [DriverView.flick_of(Vector2(-0.9, 0.2)), DriverView.flick_of(Vector2(0.1, 0.8)),
+		DriverView.flick_of(Vector2(0.2, -0.9)), DriverView.flick_of(Vector2(0.5, 0.3))]
+	expect(flicks == [Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i.ZERO]
+		and DriverView.DPAD_JOBS[Vector2i(0, 1)] == &"exam_restart",
+		"in VR the left stick flicks as the D-pad, along its larger axis: %s" % [flicks])
 
 
 func _test_driver_view() -> void:
@@ -160,12 +196,12 @@ func _test_car_controls() -> void:
 	# The gamepad's shift_down: a tap moves the lever, held half a second it parks.
 	car.dynamics.gearbox.select(Gearbox.Selector.DRIVE)
 	var pad := InputEventJoypadButton.new()
-	pad.button_index = JOY_BUTTON_DPAD_DOWN
+	pad.button_index = JOY_BUTTON_LEFT_SHOULDER
 	pad.pressed = true
 	car._unhandled_input(pad)
 	await physics_frame
 	var up := InputEventJoypadButton.new()
-	up.button_index = JOY_BUTTON_DPAD_DOWN
+	up.button_index = JOY_BUTTON_LEFT_SHOULDER
 	up.pressed = false
 	car._unhandled_input(up)
 	await physics_frame

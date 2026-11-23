@@ -8,32 +8,48 @@ situations of the practical driving exam into scenarios driven in VR.
 The simulator is VR only, built for a headset and a driving wheel, on PC VR and standalone headsets.
 For development it also runs flat on a monitor with a keyboard and mouse or a gamepad. Bindings are
 input actions in `project.godot`, so a device is added or remapped there without code changes; car
-scripts read them through `DriverInput`. The one gesture is park on a gamepad: a pad has no button
-left for it, so holding `shift_down` for `DriverInput.PARK_HOLD` (half a second) parks, wherever
-`shift_down` is bound.
+scripts read them through `DriverInput`. The gamepad is the reference layout: the motion
+controllers (see Virtual reality) and a steering wheel match it one to one, so a button does the
+same job on each. The one gesture is park on a gamepad: a pad has no button left for it, so holding
+`shift_down` (LB, the left paddle on a wheel) for `DriverInput.PARK_HOLD` (half a second) parks,
+and a quicker press moves the lever down. [docs/driving-guide.md](docs/driving-guide.md) walks
+through driving with all of them.
 
-| Action | Keyboard and mouse | Gamepad |
+| Action | Keyboard and mouse | Gamepad and wheel |
 |---|---|---|
-| Throttle | W, Up | Right trigger |
-| Brake | S, Down | Left trigger |
-| Steer | A and D, Left and Right | Left stick |
+| Throttle, brake | W, S | Right, left trigger (a wheel's pedals) |
+| Steer | A and D | Left stick (a wheel's rim, turned 1:1) |
 | Handbrake | Space | A (Cross) |
-| Engine: hold to start, press to switch off | Enter | Start |
-| Gear lever up, down (the automatic's D, N, R; from P, up is D and down is R; the manual's 6 to 1, N, R) | Shift, Ctrl | B (Circle), D-pad down |
-| Park (the automatic) | P | Hold D-pad down |
-| Indicators | Q and E | Left and right shoulder |
+| Mirror switch: interior, left, right, then none; then tilt the mirror | Tab, then the arrow keys | B (Circle), then the right stick or the D-pad |
 | Headlights on or off | L | X (Square) |
+| Engine: hold to start, press to switch off; begin the attempt after the briefing | Enter | Y (Triangle) |
+| Menu (a hook for a menu to come; nothing opens yet) | Escape | Start (Menu) |
+| Driver or chase view; in VR, the spectator's chase or shoulder view | V | Select (View) |
+| Gear lever up, down (the automatic's D, N, R; from P, up is D and down is R; the manual's 6 to 1, N, R) | Shift, Ctrl | RB, LB (a wheel's right and left paddles) |
+| Park (the automatic) | P | Hold LB |
+| Indicators | Q and E | D-pad left and right |
+| Restart the attempt | R | D-pad up |
+| Next: the next scenario, or in free drive the next map | N | D-pad down |
 | Look around; in the chase view, orbit the car | Mouse | Right stick |
 | In the chase view, closer, farther | Mouse wheel | |
 | Recentre the view; in the chase view, back behind the car | C | Right stick click |
-| Set a mirror: interior, left, right, then none; parked only | Tab, then the mouse | D-pad up, then the right stick |
-| Driver or chase view; in VR, the spectator's chase or shoulder view | V | Select |
-| Free the mouse, recapture it | Escape, click | |
-| Begin the attempt after the briefing | Enter | Start |
-| Restart the attempt | R | Y (Triangle) |
-| Next scenario, in the sandbox | N | D-pad right |
-| Next map in free drive, in the sandbox | M | D-pad left |
 | Show or hide the debug HUD | F1 | Left stick click |
+| Free the mouse, recapture it | Backspace, click | |
+
+Mirrors can be set standing still or driving. While one is picked the D-pad tilts it, and its
+indicator, restart and next jobs wait until the switch lets go, after six seconds untouched or a
+press past the right mirror; the mouse keeps turning the head.
+
+A steering wheel needs no setup when the platform presents it as a gamepad, as it does most wheels:
+its buttons land on the gamepad's actions, and the first joypad whose name holds "wheel" steers the
+car through `WheelInput`, its rim turning the car's own wheel as far as it turns, with no rate
+limit, up to the car's lock. `user://controls.cfg`, section `wheel`, sets the rest: `enabled`
+(`auto`, true, or false), `device` or `name` to pick the joypad, `steer_axis`, `rotation` (the rim's
+turn lock to lock in degrees, as the wheel's own software sets it; 900 by default, the car's own
+wheel's, which turns two and a half turns lock to lock as a road car's does), and for pedals on axes of their own `throttle_axis` and `brake_axis` with where each rests
+and is fully pressed (`throttle_rest`, `throttle_pressed`, and the same for the brake), so inverted
+and combined pedals read right. A wheel's force feedback is not driven; only rumble reaches a
+joypad.
 
 With the Dev HUD on (see Maps), F3 to F9 drive its tools, as input actions; its free camera flies
 with the mouse, W, A, S, and D, Q and E for down and up, and Shift to go faster, keys that are
@@ -51,22 +67,33 @@ starts in the headset and `DriverView` follows the head; otherwise it starts fla
 with no alert, and the mouse and right stick turn the view. `--xr-mode off` on the command line
 forces flat, for a machine whose active runtime would otherwise launch, such as SteamVR. Closing
 the application from the headset's menu quits the game. The action map (`openxr_action_map.tres`)
-is Godot's stock map, and `DriverView` turns the motion controllers' inputs into the car's input
-actions, so the car reads them as it reads a keyboard or a gamepad:
+is Godot's stock map with a Valve Index profile added, and `DriverView` turns the motion
+controllers' inputs into the car's input actions, so the car reads them as it reads a keyboard or a
+gamepad. The layout is the gamepad's: right A and B are its A and B, left X and Y its X and Y (on an
+Index, whose hands both have A and B, the left hand's), the left stick flicked is its D-pad, and
+the right stick flicked its shoulders:
 
-| Action | Motion controllers |
-|---|---|
-| Steer | Grip the steering wheel's rim with one or both hands and turn it |
-| Throttle | Right trigger |
-| Brake | Left trigger |
-| Handbrake | Right A |
-| Engine: hold to start, press to switch off | Left X |
-| Gear lever up, down (the automatic's D, N, R; the manual's gears) | Flick the right stick up or down (down moves the lever when let go) |
-| Park (the automatic) | Hold the right stick down |
-| Indicators | Flick the left stick left or right |
-| Headlights on or off | Right B |
-| Recentre the seat | Right stick click, or hold both grips away from the wheel for 2 s |
-| Set a mirror | Grip its glass and move the hand across it, or the left stick click, then the right stick |
+| Action | Motion controllers | Gamepad |
+|---|---|---|
+| Steer | Grip the steering wheel's rim with one or both hands and turn it | Left stick |
+| Throttle, brake | Right, left trigger | Right, left trigger |
+| Handbrake | Right A | A |
+| Mirror switch, then tilt the mirror | Right B, then the right stick; or grip its glass and move the hand across it | B |
+| Headlights on or off | Left X | X |
+| Engine: hold to start, press to switch off; begin the attempt | Left Y | Y |
+| Menu | Left menu button (on an Index, the left trackpad pressed) | Start |
+| Gear lever up, down; hold down to park | Flick the right stick up or down (down moves the lever when let go); hold it down | RB, LB; hold LB |
+| Indicators | Flick the left stick left or right | D-pad left, right |
+| Restart, next | Flick the left stick up, down | D-pad up, down |
+| Recentre the seat | Right stick click, or hold both grips away from the wheel for 2 s | Right stick click |
+| With a real wheel: line the car's wheel up with it | Hold its rim at a quarter to three with both controllers for 2 s | |
+| Show or hide the debug HUD | Left stick click | Left stick click |
+
+Controllers without face buttons (Vive wands, Windows Mixed Reality) are not laid out. With a real
+steering wheel connected, gripping the car's own wheel is switched off: the hands are on the real
+one, and the car's turns with it. Holding the real rim at a quarter to three with both controllers
+for two seconds lines the car's wheel up with it: the headset's room shifts so the controllers'
+midpoint is the car's rim's centre, and the shift is kept in `user://controls.cfg`, section `vr`.
 
 A grip within 10 cm of the rim takes hold of the wheel there (`WheelGrab`), and the glove is drawn
 on the rim while it holds; the wheel turns as the holding hands move round it, the average of the
@@ -232,9 +259,9 @@ The driving aids (`Assists`) come in three presets, set by the project setting `
 `exam`, the default and always the one in an exam attempt, with anti-lock brakes, traction
 control and stability control; `sport`, with anti-lock brakes and a late traction control; and
 `sim`, with anti-lock brakes only. They act through the brakes and the engine, as on a road car,
-and never steer. The steering wheel held in VR turns the wheels directly; the keys and sticks turn
-it as a hand would, at a hand's pace, the same at any speed, so at speed a small turn is a big
-one.
+and never steer. A real steering wheel, and the car's own held in VR, turn the wheels directly;
+the keys and sticks turn it as a hand would, at a hand's pace, the same at any speed, so at speed
+a small turn is a big one.
 
 The player's car is built in layers, as a real car is. The plant is the physics: the body, the
 suspension, the steering, the contacts, the wheels and tyres (`Suspension`, `Steering`,
@@ -250,8 +277,8 @@ brakes, traction control and stability control on those estimates; the transmiss
 body controller (`BodyController`) lights the brake lamps from the pedal's switch and the reversing
 lamps from the reverse switch. Everything the driver reads or feels follows the signals: the
 speedometer shows the ABS module's speed from the wheels, so a car falling through the air shows
-what its wheels turn at, not its fall, and the lamps, the dash, the controllers' buzz and the
-mirror lock read the same record. What is physical follows the plant: the tyres are
+what its wheels turn at, not its fall, and the lamps, the dash and the controllers' buzz read the
+same record. What is physical follows the plant: the tyres are
 heard where they touch the road, each wheel turns at its own spin, and the body leans with its
 motion. The exam judges the car from its pose, as an examiner sees it.
 
@@ -307,9 +334,9 @@ The driver sets the mirrors as in a real car. In VR a grip within 8 cm of a mirr
 hold of it (`MirrorGrab`), and moving the hand across the glass tilts it, right to see more to the
 right, up to see higher. On the keyboard, the gamepad, or the controllers, the mirror switch
 (`MirrorAdjust`, the `mirror_adjust` action) picks the interior mirror, then the left, then the
-right; the picked mirror's glass lights up a little, and the look controls tilt it instead of
-turning the head. Like a car's mirror switch, it is for a car standing still: it lets go once the
-car passes 5 km/h, or after 6 s untouched. Each mirror tilts up to 20° either way from where the
+right; the picked mirror's glass lights up a little, and the arrow keys, the D-pad, or the look
+stick tilt it, standing still or driving, while the mouse still turns the head. It lets go after
+6 s untouched. Each mirror tilts up to 20° either way from where the
 car sets it for the seat, and the tilts are kept between sessions in `user://car.cfg`.
 
 To save the frame, the interior mirror is drawn on one frame and the door mirrors
@@ -631,7 +658,7 @@ To build a map (in more detail in [docs/map-guide.md](docs/map-guide.md)):
    Library. For a road user, place a car and a checkpoint and press **Drive to checkpoint**; for a
    steady flow, place a traffic source.
 3. Move `Spawn` to where the car starts, and add more spawns for other starts.
-4. Clear the **Problems**, then **Play**; in the sandbox, M moves from map to map.
+4. Clear the **Problems**, then **Play**; in the sandbox, N moves from map to map.
 
 ### Building a scenario
 

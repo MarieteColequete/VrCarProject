@@ -192,6 +192,8 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not input_enabled:
 		return
+	if DriverInput.taken_by_mirror(event, car_mirrors.adjust.active()):
+		return
 	if DriverInput.headlights_pressed(event):
 		probe.headlights = VehicleProbe.Toggle.OFF if probe.headlights == VehicleProbe.Toggle.ON \
 			else VehicleProbe.Toggle.ON
@@ -242,14 +244,18 @@ func save_mirror_tilts() -> void:
 
 
 func _process(delta: float) -> void:
-	car_mirrors.step_switch(delta, signals.vehicle_speed)
+	car_mirrors.step_switch(delta)
 	car_mirrors.draw()
 
 
 func _physics_process(delta: float) -> void:
 	if _pad_down.advance(delta):
 		_park = true
-	if model and input_enabled:
+	var real_wheel := DriverInput.wheel.active()
+	driver_view.real_rim = global_transform * model.steering_frame() \
+		if model and real_wheel else null
+	if model and input_enabled and not real_wheel:
+		# With a real wheel the hands are on it, not on the car's.
 		driver_view.grab_wheel(delta, global_transform * model.steering_frame(),
 			model.steering_radius, _steer)
 		car_mirrors.step_hands()
@@ -489,7 +495,11 @@ func _drive(delta: float) -> void:
 ## as a hand would, at a hand's pace toward where they point. The steering only turns the front
 ## wheels; nothing else steers.
 func _turn_wheel(c: Dictionary, delta: float) -> void:
-	if not c.held and driver_view.wheel.held():
+	# A real wheel, or the car's own gripped in VR, turns it as far as the hands do; keys and
+	# sticks turn it at a hand's pace.
+	if not c.held and DriverInput.wheel.active():
+		_steer = DriverInput.wheel.steer()
+	elif not c.held and driver_view.wheel.held():
 		_steer = driver_view.wheel.steer()
 	else:
 		var outward: bool = absf(c.steer) > absf(_steer) and c.steer * _steer >= 0.0

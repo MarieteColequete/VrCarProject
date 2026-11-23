@@ -1,8 +1,9 @@
 class_name DriverInput
 extends RefCounted
-## The car controls, read from the input actions in project.godot. Keyboard, gamepad, and later a
-## wheel are events on the same actions, so a car script reads these helpers and never a device.
-## Keys give full values; triggers and sticks give analog values past the action's deadzone.
+## The car controls, read from the input actions in project.godot. Keyboard, gamepad, and a wheel
+## the platform presents as a gamepad are events on the same actions, so a car script reads these
+## helpers and never a device; a wheel's rim and pedals also come through [WheelInput]. Keys give
+## full values; triggers and sticks give analog values past the action's deadzone.
 
 const THROTTLE := &"throttle"
 const BRAKE := &"brake"
@@ -24,6 +25,10 @@ const PARK := &"park"
 const PARK_HOLD := 0.5
 ## The key: held to turn the engine over until it catches, pressed to switch it off.
 const IGNITION := &"ignition"
+## The mirror tilt controls: the arrow keys, and the D-pad, whose other jobs (the indicators,
+## restart, next) wait while a mirror is picked ([method taken_by_mirror]).
+const MIRROR_TILT: Array[StringName] = [&"mirror_tilt_left", &"mirror_tilt_right",
+	&"mirror_tilt_up", &"mirror_tilt_down"]
 
 ## Every action a car reads, for checks that the bindings exist.
 const CAR_ACTIONS: Array[StringName] = [
@@ -31,14 +36,22 @@ const CAR_ACTIONS: Array[StringName] = [
 	HEADLIGHTS, SHIFT_UP, SHIFT_DOWN, PARK, IGNITION]
 
 
-## Accelerator, 0 to 1.
+## The steering wheel and pedals ([WheelInput]), read once from its settings; replaced by tests.
+static var wheel: WheelInput:
+	get:
+		if wheel == null:
+			wheel = WheelInput.load_from()
+		return wheel
+
+
+## Accelerator, 0 to 1: the throttle action or a wheel's pedal, whichever is further down.
 static func throttle() -> float:
-	return Input.get_action_strength(THROTTLE)
+	return maxf(Input.get_action_strength(THROTTLE), wheel.throttle())
 
 
-## Brake, 0 to 1.
+## Brake, 0 to 1: the brake action or a wheel's pedal, whichever is further down.
 static func brake() -> float:
-	return Input.get_action_strength(BRAKE)
+	return maxf(Input.get_action_strength(BRAKE), wheel.brake())
 
 
 ## Steering, -1 (full right) to 1 (full left), matching a positive rotation about Y.
@@ -68,6 +81,17 @@ static func indicator_pressed(event: InputEvent) -> VehicleProbe.Indicator:
 	if event.is_action_pressed(INDICATOR_RIGHT):
 		return VehicleProbe.Indicator.RIGHT
 	return VehicleProbe.Indicator.OFF
+
+
+## Whether [param event] tilts a mirror rather than doing its other job, with a mirror picked
+## when [param picking]: the D-pad tilts the mirror while one is picked.
+static func taken_by_mirror(event: InputEvent, picking: bool) -> bool:
+	if not picking:
+		return false
+	for action in MIRROR_TILT:
+		if event.is_action(action):
+			return true
+	return false
 
 
 ## Whether [param event] presses the park button.

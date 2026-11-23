@@ -1,11 +1,11 @@
 extends TestCase
 ## The debug HUD and sandbox: the exam bindings, the briefing, beginning, the fault feed, road user
-## reactions, the performance readout, the result, moving to the next scenario, and the result as
-## plain data for a UI.
+## reactions, the performance readout, the result, moving on (the next scenario in a scenario, the
+## next map in free drive), the menu seam, and the result as plain data for a UI.
 
 const SANDBOX := preload("res://scenarios/debug/scenario_sandbox.tscn")
 const EXAM_ACTIONS: Array[StringName] = [
-	&"exam_begin", &"exam_restart", &"exam_next_scenario", &"toggle_debug_hud"]
+	&"exam_begin", &"exam_restart", &"exam_next", &"menu", &"toggle_debug_hud"]
 
 
 func run() -> void:
@@ -37,7 +37,7 @@ func _test_sandbox() -> void:
 	var session := runner.session
 	expect(session.state == ExamSession.State.BRIEFING and hud.message_panel.visible
 		and hud.message_label.text.contains(session.definition.briefing)
-		and hud.message_label.text.contains("Enter or Start to begin"),
+		and hud.message_label.text.contains("Enter or Y to begin"),
 		"the sandbox waits on the briefing, with the begin keys read from the input map")
 
 	_press(hud, &"exam_begin")
@@ -80,12 +80,28 @@ func _test_sandbox() -> void:
 		and not String(data.faults[0].description).is_empty(),
 		"the result data names the scenario, counts each tier, and describes each fault")
 
-	_press(hud, &"exam_next_scenario")
+	_press(hud, &"exam_next")
 	await process_frame
 	await process_frame
 	expect(runner.scenario.definition.id == &"traffic_lights" and hud.feed.get_child_count() == 0
 		and session.state == ExamSession.State.BRIEFING,
-		"exam_next_scenario loads the next catalogued scenario afresh")
+		"in a scenario, exam_next loads the next catalogued scenario afresh")
+
+	var asked := [0]
+	hud.menu_requested.connect(func() -> void: asked[0] += 1)
+	_press(hud, &"menu")
+	expect(asked[0] == 1, "the menu button asks for the menu")
+
+	hud.next_map()
+	await process_frame
+	await process_frame
+	var first_map := runner.map_scene.resource_path
+	_press(hud, &"exam_next")
+	await process_frame
+	await process_frame
+	expect(runner.map_scene != null and runner.map_scene.resource_path != first_map,
+		"in free drive, exam_next drives the next map: %s after %s" % [
+			runner.map_scene.resource_path if runner.map_scene else "none", first_map])
 
 	_press(hud, &"toggle_debug_hud")
 	expect(not hud.visible, "toggle_debug_hud hides the overlay")

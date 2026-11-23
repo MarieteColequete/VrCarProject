@@ -8,8 +8,10 @@ extends RefCounted
 ## rolls round one centre on the line of the rear axle. Node free: it keeps
 ## its own state from step to step and reads nothing but its arguments.
 
-## How far the steering wheel turns at full lock either way, radians.
-const WHEEL_TURN := deg_to_rad(150.0)
+## How far the steering wheel turns at full lock either way, radians: 900 degrees lock to lock, two
+## and a half turns, as a road car's and the common sim wheel's default (Logitech's 900, most
+## others 900 to 1080), so a wheel at its default turns the car's 1:1.
+const WHEEL_TURN := deg_to_rad(450.0)
 
 ## The steering wheel's turn, -1 (full right) to 1 (full left).
 var turn := 0.0

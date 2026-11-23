@@ -96,7 +96,7 @@ parent in the scene dock and press Ctrl+A (Add Child Node), then search for its 
    each way, the lane width, one way or not, the speed limit in km/h, the centre line, and the
    kerbs with their pavement width.
 
-   <img src="images/map-guide/04-palette.png" width="300" alt="The Palette section listing the road, lane, marking, traffic, sign, and zone pieces">
+   <img src="images/map-guide/04-palette.png" width="300" alt="The Palette section listing the road, lane, marking, traffic, sign, terrain, and zone pieces">
 
    ![A road piece armed for placing: its ghost over the ground and the placing hint at the bottom of the 3D view](images/map-guide/05-road-ghost.png)
 
@@ -423,11 +423,21 @@ standing.
 ## Trying a map
 
 **Play** saves the map and drives it in free drive, in the map sandbox. The controls are in the
-README's [Controls](../README.md#controls); in the sandbox, M moves to the next map. The driver
-sits in the car's cockpit, where the instruments show the speed, the indicators, and the
-handbrake, headlights, and reverse lights; V switches to a view from behind the car.
+README's [Controls](../README.md#controls), and driving is in [Driving](driving-guide.md); in the sandbox, N moves to the next map. Enter begins
+the drive after the free drive note. The car starts with its engine running and the automatic in
+P: Shift moves the lever to D (Ctrl to R), and W drives.
 
-![The driver's view in sample_town at 28 km/h: the instrument panel behind the steering wheel shows the speed and the right indicator arrow lit](images/map-guide/21-cockpit.png)
+The driver sits in the Kiri '86's cabin, with an interior mirror and two door mirrors on the
+car's own glass. The instrument cluster in the binnacle behind the wheel shows the speed and the
+revolutions, fuel and coolant gauges, the indicator arrows, the handbrake, headlights, and reverse
+tell-tales, and the engine, oil, battery, ABS, stability, and low fuel lights.
+
+![The driver's view in sample_town at 28 km/h: the textured cabin, the interior and door mirrors, and the instrument cluster behind the steering wheel](images/map-guide/21-cockpit.png)
+
+![The instrument cluster close up: the fuel gauge, the speed at 28 km/h, the rev counter, the coolant gauge, and the warning lights along its bottom](images/map-guide/21b-cluster.png)
+
+V switches to a view from behind the car, which the mouse or the right stick orbits round the car
+and the mouse wheel brings closer or farther; C puts it back behind the car.
 
 ![The view from behind the car, switched with V](images/map-guide/22-chase.png)
 
@@ -444,7 +454,7 @@ With **Dev HUD when playing** on, the game shows the Dev HUD:
 
 A check box on its panel draws the trigger zones and lanes in 3D.
 
-![The cockpit with the Dev HUD: the session at the top left, and at the top right the frame times, the car's speed, position, lane, the road users near it, the lights, the time scale, and the spawn; the lanes are drawn in 3D as yellow lines](images/map-guide/20-play-dev-hud.png)
+![The cabin with the Dev HUD: the session at the top left, and at the top right the frame times, the car's speed, position, lane, the road users near it, the lights, the time scale, and the spawn; the lanes are drawn in 3D as yellow lines, and the right indicator is lit on the cluster](images/map-guide/20-play-dev-hud.png)
 
 ![The free camera, F4, flying over the paused drive](images/map-guide/23-free-camera.png)
 
@@ -503,8 +513,9 @@ is not.
 - Props and scenery are no longer in the palette; existing ones still work with **Next look** and
   **Drive to checkpoint**.
 - Creating, renaming, duplicating, and deleting maps cannot be undone.
-- The VR controllers are not yet bound to driving; the sandbox is driven with a keyboard or a
-  gamepad.
+- VR controllers without face buttons (Vive wands, Windows Mixed Reality) have no layout, and
+  a steering wheel the platform does not present as a gamepad needs its axes set by hand in
+  `user://controls.cfg`; a wheel's force feedback is not driven.
 
 ## Example maps
 

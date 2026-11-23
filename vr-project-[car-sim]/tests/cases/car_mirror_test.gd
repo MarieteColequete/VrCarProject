@@ -91,19 +91,18 @@ func _test_switch() -> void:
 		order.append(a.cycle(3))
 	expect(order == [0, 1, 2, -1], "the switch picks the interior, left, right, then none: %s" % [order])
 	a.cycle(3)
-	var t := a.step(0.5, Vector2(1.0, -1.0), 0.0)
+	var t := a.step(0.5, Vector2(1.0, -1.0))
 	expect(t.x > 0.0 and t.y > 0.0, "the look controls right and up tilt it right and up: %s" % t)
 	var idle := 0.0
 	while a.active() and idle < 10.0:
-		a.step(0.1, Vector2.ZERO, 0.0)
+		a.step(0.1, Vector2.ZERO)
 		idle += 0.1
 	expect(not a.active() and absf(idle - MirrorAdjust.IDLE) < 0.15,
 		"left untouched, the switch lets go after %.1f s" % idle)
 	a.cycle(3)
-	a.step(0.1, Vector2.ZERO, 0.0, true)
-	expect(a.active(), "the mouse keeps it")
-	a.step(0.1, Vector2(1.0, 0.0), 3.0)
-	expect(not a.active(), "and it lets go once the car moves")
+	for i in 50:
+		a.step(0.1, Vector2(0.2, 0.0))
+	expect(a.active(), "tilted now and then, it keeps the mirror picked, the car standing or driving")
 
 
 func _test_on_car() -> void:

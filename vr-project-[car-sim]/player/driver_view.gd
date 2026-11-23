@@ -10,8 +10,11 @@ extends Node3D
 @export var max_yaw_degrees := 120.0
 @export var min_pitch_degrees := -60.0
 @export var max_pitch_degrees := 60.0
-## Seconds both grips are held, away from the wheel, to recentre the seat in VR.
+## Seconds both grips are held, away from the wheel, to recentre the seat in VR; with a real
+## steering wheel, holding its rim at a quarter to three, to line the car's up with it.
 @export var recentre_hold := 2.0
+## The settings file the seat's shift onto a real wheel is kept in ([method align_seat]).
+@export var controls_path := WheelInput.PATH
 ## Captures the mouse when the view starts; a click recaptures it and release_mouse frees it.
 @export var capture_mouse := true
 ## Mouse motion turns the view only while the mouse is captured.
@@ -23,9 +26,21 @@ const LOOK_UP := &"look_up"
 const LOOK_DOWN := &"look_down"
 const LOOK_RESET := &"look_reset"
 const RELEASE_MOUSE := &"release_mouse"
+## The mirror tilt controls: the arrow keys, and the D-pad (where they wait on its other jobs).
+const TILT_LEFT := &"mirror_tilt_left"
+const TILT_RIGHT := &"mirror_tilt_right"
+const TILT_UP := &"mirror_tilt_up"
+const TILT_DOWN := &"mirror_tilt_down"
 ## How far a grip is squeezed to hold, and a stick pushed to flick, 0 to 1.
 const GRIP_HOLD := 0.6
 const FLICK := 0.7
+## The settings section the seat's shift onto a real wheel is kept under.
+const VR_SECTION := "vr"
+## What a flick of the left stick does in VR, as the gamepad's D-pad: by the way it is flicked
+## ([method flick_of]).
+const DPAD_JOBS := {Vector2i(-1, 0): DriverInput.INDICATOR_LEFT,
+	Vector2i(1, 0): DriverInput.INDICATOR_RIGHT, Vector2i(0, 1): &"exam_restart",
+	Vector2i(0, -1): &"exam_next"}
 
 ## Radians; 0 looks straight ahead.
 var yaw := 0.0
@@ -43,21 +58,27 @@ var headset: SubViewport
 var wheel := WheelGrab.new()
 ## The mirrors in the driver's hands, in VR.
 var mirror_grab := MirrorGrab.new()
-## While the driver sets a mirror with the controls, the look controls tilt it ([method mirror_look])
-## and leave the head where it is.
+## While the driver sets a mirror with the controls, the tilt controls and the look stick tilt it
+## ([method mirror_look]) and leave the head where it is; the mouse still turns the head.
 var look_locked := false
 ## The motion controllers in VR, left then right; empty otherwise.
 var hands: Array[XRController3D] = []
+## Where a real steering wheel drives the car, the car's own rim (its origin the rim's centre, as
+## [method grab_wheel] takes it), for lining the seat up with the real one; null without one.
+var real_rim: Variant = null
+## How far the headset's room is shifted from the seat, in the seat's space, so the car's rim sits
+## where a real wheel's is ([method align_seat]); kept between sessions.
+var seat_offset := Vector3.ZERO
 ## Whether this view is the one shown; a car may switch to another camera.
 var active := true:
 	set = set_active
 
-var _flicked := 0
+## The way the left stick was last flicked, as the D-pad: x left or right, y up or down.
+var _flicked := Vector2i.ZERO
 ## The right stick pulled down: held, the park button; flicked, the lever down.
 var _lever_down := HoldTap.new()
 var _buttons := {}
 var _both_grips := 0.0
-var _mouse_tilt := Vector2.ZERO
 
 @onready var flat_camera: Camera3D = $FlatCamera
 @onready var xr_origin: XROrigin3D = $XROrigin3D
@@ -74,6 +95,10 @@ func _ready() -> void:
 			get_viewport().use_xr = true
 		xr_camera.cull_mask &= ~Layers.SPECTATOR_VISUAL
 		XRServer.center_on_hmd(XRServer.RESET_BUT_KEEP_TILT, false)
+		var config := ConfigFile.new()
+		if config.load(controls_path) == OK:
+			seat_offset = config.get_value(VR_SECTION, &"seat_offset", Vector3.ZERO)
+		_place_room()
 		# Godot only reports the runtime's request to close the application (closing it from the
 		# headset's menu); OpenXR expects the process to end, and the game is VR only.
 		if not xr.instance_exiting.is_connected(_on_instance_exiting):
@@ -138,16 +163,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	elif event is InputEventMouseMotion and not vr:
 		if not require_capture or Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-			if look_locked:
-				_mouse_tilt += Vector2(event.relative.x, -event.relative.y) * mouse_sensitivity * 0.5
-			else:
-				turn(-event.relative.x * mouse_sensitivity, -event.relative.y * mouse_sensitivity)
+			turn(-event.relative.x * mouse_sensitivity, -event.relative.y * mouse_sensitivity)
 
 
 func _process(delta: float) -> void:
 	if headset:
 		# The headset's origin lives in its own viewport; it rides with the seat.
-		xr_origin.global_transform = get_global_transform_interpolated()
+		xr_origin.global_transform = get_global_transform_interpolated().translated_local(
+			seat_offset)
 	if not active:
 		return
 	if vr:
@@ -183,17 +206,16 @@ func grab_wheel(delta: float, frame: Transform3D, radius: float, current: float)
 			glove.position = Vector3.ZERO
 
 
-## What the look controls give while [member look_locked]: [code]{stick, mouse}[/code], the stick
-## as [method Input.get_vector] gives it (x to the right, y down; in VR the right controller's), and
-## the tilt the mouse has moved since the last call, radians (x to the right, y up).
-func mirror_look() -> Dictionary:
-	var stick := Input.get_vector(LOOK_LEFT, LOOK_RIGHT, LOOK_UP, LOOK_DOWN)
+## What tilts a mirror while [member look_locked], as [method Input.get_vector] gives it (x to the
+## right, y down): the tilt controls (the arrow keys, the D-pad) and the look stick, or in VR the
+## right controller's stick.
+func mirror_look() -> Vector2:
+	var stick := Input.get_vector(LOOK_LEFT, LOOK_RIGHT, LOOK_UP, LOOK_DOWN) \
+		+ Input.get_vector(TILT_LEFT, TILT_RIGHT, TILT_UP, TILT_DOWN)
 	if vr and hands.size() == 2:
 		var right := hands[1].get_vector2(&"primary")
 		stick = Vector2(right.x, -right.y)
-	var mouse := _mouse_tilt
-	_mouse_tilt = Vector2.ZERO
-	return {stick = stick, mouse = mouse}
+	return stick.limit_length(1.0)
 
 
 ## Takes the mirrors' glass at [param glasses] (world frames, facing their +Z) in the hands, after
@@ -291,11 +313,13 @@ static func _glove(left: bool) -> Node3D:
 	return glove
 
 
-## The controllers as the car's controls: the right trigger is the throttle, the left the brake,
-## the right A the handbrake, the right B the headlights, a flick of the left stick an indicator,
-## the left stick's click the mirror switch ([MirrorAdjust]), a flick of the right stick up or down
-## the gear lever (held down, the park button), the left X held the key, and the right stick's click recentres;
-## holding both grips away from the wheel and the mirrors recentres too.
+## The controllers as the car's controls, laid out as the gamepad: the right trigger is the
+## throttle, the left the brake; right A the handbrake and right B the mirror switch
+## ([MirrorAdjust]); left X the headlights, left Y held the key (and begin); the left menu button
+## the menu; the left stick flicked the D-pad ([constant DPAD_JOBS]) and clicked the debug HUD; a
+## flick of the right stick up or down the gear lever (held down, the park button), and its click
+## recentres; holding both grips away from the wheel and the mirrors recentres too, or with a real
+## steering wheel, its rim held, lines the car's rim up with it.
 func _xr_controls(delta: float) -> void:
 	if hands.size() < 2:
 		return
@@ -303,17 +327,23 @@ func _xr_controls(delta: float) -> void:
 	var right := hands[1]
 	_hold(DriverInput.THROTTLE, right.get_float(&"trigger"))
 	_hold(DriverInput.BRAKE, left.get_float(&"trigger"))
+	# The face buttons are the gamepad's: right A and B are its A and B, left X and Y its X and Y.
 	_hold(DriverInput.HANDBRAKE, 1.0 if right.is_button_pressed(&"ax_button") else 0.0)
-	_hold(DriverInput.IGNITION, 1.0 if left.is_button_pressed(&"ax_button") else 0.0)
-	var flick := left.get_vector2(&"primary").x
-	var flicked := 0 if absf(flick) < FLICK else int(signf(flick))
-	if flicked != 0 and flicked != _flicked:
-		_tap(DriverInput.INDICATOR_LEFT if flicked < 0 else DriverInput.INDICATOR_RIGHT)
+	_edge(&"mirror", right.is_button_pressed(&"by_button"), MirrorAdjust.ACTION)
+	_edge(&"headlights", left.is_button_pressed(&"ax_button"), DriverInput.HEADLIGHTS)
+	var key := left.is_button_pressed(&"by_button")
+	_hold(DriverInput.IGNITION, 1.0 if key else 0.0)
+	_edge(&"begin", key, &"exam_begin")
+	_edge(&"menu", left.is_button_pressed(&"menu_button"), &"menu")
+	_edge(&"debug_hud", left.is_button_pressed(&"primary_click"), &"toggle_debug_hud")
+	_edge(&"recentre", right.is_button_pressed(&"primary_click"), LOOK_RESET)
+	# The left stick is the gamepad's D-pad, flicked: left and right the indicators, up restart,
+	# down next.
+	var flicked := flick_of(left.get_vector2(&"primary"))
+	if flicked != Vector2i.ZERO and flicked != _flicked:
+		_tap(DPAD_JOBS[flicked])
 		pulse(0.3, 0.03)
 	_flicked = flicked
-	_edge(&"headlights", right.is_button_pressed(&"by_button"), DriverInput.HEADLIGHTS)
-	_edge(&"recentre", right.is_button_pressed(&"primary_click"), LOOK_RESET)
-	_edge(&"mirror", left.is_button_pressed(&"primary_click"), MirrorAdjust.ACTION)
 	# A flick of the right stick up or down moves the gear lever, unless it sets a mirror; held down
 	# half a second it is the park button, a quicker flick down moving the lever when let go.
 	var lever := right.get_vector2(&"primary").y if not look_locked else 0.0
@@ -331,8 +361,47 @@ func _xr_controls(delta: float) -> void:
 	_both_grips = _both_grips + delta if both else 0.0
 	if _both_grips >= recentre_hold:
 		_both_grips = -INF
-		reset_look()
+		if real_rim != null:
+			align_seat(real_rim, (left.global_position + right.global_position) * 0.5)
+		else:
+			reset_look()
 		pulse(0.5, 0.1)
+
+
+## Lines the car's rim [param rim] up with a real wheel held at a quarter to three, its centre
+## midway between the hands at [param hands_mid]: shifts the headset's room so the hands are on
+## the car's rim, and keeps the shift.
+func align_seat(rim: Transform3D, hands_mid: Vector3) -> void:
+	seat_offset += seat_shift(global_transform, rim.origin, hands_mid)
+	_place_room()
+	var config := ConfigFile.new()
+	config.load(controls_path)
+	config.set_value(VR_SECTION, &"seat_offset", seat_offset)
+	config.save(controls_path)
+
+
+## The shift, in the space of [param seat], that takes a point at [param hands_mid] onto
+## [param rim_centre].
+static func seat_shift(seat: Transform3D, rim_centre: Vector3, hands_mid: Vector3) -> Vector3:
+	return seat.basis.inverse() * (rim_centre - hands_mid)
+
+
+## Places the headset's room at the seat, shifted by [member seat_offset].
+func _place_room() -> void:
+	if headset:
+		xr_origin.global_transform = global_transform.translated_local(seat_offset)
+	else:
+		xr_origin.position = seat_offset
+
+
+## The way a stick at [param stick] (y up, as a controller gives it) is flicked: one of the four
+## directions once pushed past [constant FLICK], along its larger axis; none short of that.
+static func flick_of(stick: Vector2) -> Vector2i:
+	if stick.length() < FLICK:
+		return Vector2i.ZERO
+	if absf(stick.x) >= absf(stick.y):
+		return Vector2i(int(signf(stick.x)), 0)
+	return Vector2i(0, int(signf(stick.y)))
 
 
 func _hold(action: StringName, value: float) -> void:

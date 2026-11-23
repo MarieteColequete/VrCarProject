@@ -74,16 +74,14 @@ func switch() -> void:
 	_show_picked()
 
 
-## A step of the mirror switch at the car's [param speed]: the picked mirror tilts with the look
-## controls; once the switch lets go, the mirrors are saved as they are.
-func step_switch(delta: float, speed: float) -> void:
+## A step of the mirror switch, standing still or driving: the picked mirror tilts with the
+## tilt controls; once the switch lets go, the mirrors are saved as they are.
+func step_switch(delta: float) -> void:
 	if not adjust.active():
 		return
-	var look := _driver_view.mirror_look()
-	var mouse: Vector2 = look.mouse
-	var tilt := adjust.step(delta, look.stick, speed, mouse != Vector2.ZERO)
+	var tilt := adjust.step(delta, _driver_view.mirror_look())
 	if adjust.active():
-		mirrors[adjust.picked].nudge(tilt + mouse)
+		mirrors[adjust.picked].nudge(tilt)
 	else:
 		_show_picked()
 		save_tilts()
