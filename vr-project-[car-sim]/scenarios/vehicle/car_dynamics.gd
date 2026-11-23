@@ -144,7 +144,8 @@ static func corner_load(p_spec: PackedFloat64Array, compression: float, rate: fl
 
 ## One step of [param dt] seconds. [param controls]: [code]throttle[/code] and [code]brake[/code]
 ## 0 to 1, [code]handbrake[/code] 0 to 1, [code]steer[/code] the front wheels' angle in radians
-## (left positive), [code]shift[/code] +1 or -1 to move the lever or change gear, and, for tests
+## (left positive), [code]shift[/code] +1 or -1 to move the lever or change gear,
+## [code]park[/code] the park button pressed, and, for tests
 ## and spawns, [code]select[/code] a [enum Gearbox.Selector] to put the lever at, and
 ## [code]starter[/code] whether the key is held to start the engine (a fresh press of it switches a
 ## running engine off). Each wheel's
@@ -166,6 +167,8 @@ func step(dt: float, controls: Dictionary, loads: PackedFloat64Array, along: Pac
 	var shift := int(controls.get("shift", 0))
 	shifted = shift != 0 and gearbox.request(shift, at)
 	shift_refused = shift != 0 and not shifted
+	if bool(controls.get("park", false)):
+		shifted = gearbox.park(at) or shifted
 	gearbox.step(dt, pedal, at, units == null or not units.gear_hold)
 	stalled = false
 	if gearbox.gear != before:

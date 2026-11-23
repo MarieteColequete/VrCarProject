@@ -53,6 +53,7 @@ var active := true:
 	set = set_active
 
 var _flicked := 0
+var _lever_down_for := 0.0
 var _buttons := {}
 var _both_grips := 0.0
 var _mouse_tilt := Vector2.ZERO
@@ -292,7 +293,7 @@ static func _glove(left: bool) -> Node3D:
 ## The controllers as the car's controls: the right trigger is the throttle, the left the brake,
 ## the right A the handbrake, the right B the headlights, a flick of the left stick an indicator,
 ## the left stick's click the mirror switch ([MirrorAdjust]), a flick of the right stick up or down
-## the gear lever, the left X held the key, and the right stick's click recentres;
+## the gear lever (held down, the park button), the left X held the key, and the right stick's click recentres;
 ## holding both grips away from the wheel and the mirrors recentres too.
 func _xr_controls(delta: float) -> void:
 	if hands.size() < 2:
@@ -312,10 +313,19 @@ func _xr_controls(delta: float) -> void:
 	_edge(&"headlights", right.is_button_pressed(&"by_button"), DriverInput.HEADLIGHTS)
 	_edge(&"recentre", right.is_button_pressed(&"primary_click"), LOOK_RESET)
 	_edge(&"mirror", left.is_button_pressed(&"primary_click"), MirrorAdjust.ACTION)
-	# A flick of the right stick up or down changes gear in the manual, unless it sets a mirror.
+	# A flick of the right stick up or down moves the gear lever, unless it sets a mirror; held down
+	# half a second it is the park button, a quicker flick down moving the lever when let go.
 	var lever := right.get_vector2(&"primary").y if not look_locked else 0.0
 	_edge(&"shift_up", lever > FLICK, DriverInput.SHIFT_UP)
-	_edge(&"shift_down", lever < -FLICK, DriverInput.SHIFT_DOWN)
+	if lever < -FLICK:
+		var before := _lever_down_for
+		_lever_down_for += delta
+		if before < DriverInput.PARK_HOLD and _lever_down_for >= DriverInput.PARK_HOLD:
+			_tap(DriverInput.PARK)
+	elif _lever_down_for > 0.0:
+		if _lever_down_for < DriverInput.PARK_HOLD:
+			_tap(DriverInput.SHIFT_DOWN)
+		_lever_down_for = 0.0
 	var both := not wheel.held() and not mirror_grab.held() \
 		and left.get_float(&"grip") > GRIP_HOLD \
 		and right.get_float(&"grip") > GRIP_HOLD

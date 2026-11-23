@@ -1,10 +1,11 @@
 extends TestCase
 ## The gearbox ([Gearbox]) and the engine's own revolutions ([CarDynamics]), stepped by hand: the
-## automatic's P-R-N-D lever, free to move at any speed, a gearbox that never moves between reverse and
-## forward on its own however the car jitters at rest, an automatic that climbs through its gears
-## without hunting, kicks down only on a pedal floored and held, holds its gear with the driven
-## wheels in the air, the manual's gears and its refusal to over-rev, and an engine that revs freely
-## out of gear, idles in the air with the throttle shut, and reaches its limiter, never past it.
+## automatic's D-N-R lever with its park button, free to move at any speed, a gearbox that never
+## moves between reverse and forward on its own however the car jitters at rest, an automatic that
+## climbs through its gears without hunting, kicks down only on a pedal floored and held, holds its
+## gear with the driven wheels in the air, the manual's gears and its refusal to over-rev, and an
+## engine that revs freely out of gear, idles in the air with the throttle shut, and reaches its
+## limiter, never past it.
 
 const KIRI := preload("res://scenarios/vehicle/specs/kiri86.tres")
 
@@ -25,24 +26,24 @@ func run() -> void:
 func _test_lever() -> void:
 	var box := Gearbox.new(KIRI.packed())
 	expect(box.selector == Gearbox.Selector.PARK and box.gear == 0, "the automatic starts in park")
-	expect(box.request(1, 0.0) and box.selector == Gearbox.Selector.REVERSE and box.gear == -1,
-		"up a notch from park is reverse")
-	expect(box.request(1, 0.0) and box.selector == Gearbox.Selector.NEUTRAL and box.gear == 0,
-		"then neutral")
 	expect(box.request(1, 0.0) and box.selector == Gearbox.Selector.DRIVE and box.gear == 1,
-		"then drive, in first")
-	expect(not box.request(1, 0.0), "drive is the end of the lever")
+		"up from park is drive, in first")
+	expect(not box.request(1, 0.0), "drive is the top of the lever")
 	expect(box.request(-1, 5.0) and box.selector == Gearbox.Selector.NEUTRAL,
-		"back to neutral while moving")
+		"down a notch is neutral, while moving")
 	expect(box.request(-1, 5.0) and box.gear == -1,
 		"and on into reverse while rolling forward: nothing is locked out")
-	box.select(Gearbox.Selector.NEUTRAL)
-	expect(box.request(1, -2.0) and box.gear == 1,
-		"into drive while rolling backward, in first")
-	box.select(Gearbox.Selector.REVERSE)
-	expect(box.request(-1, 3.0) and box.selector == Gearbox.Selector.PARK,
-		"into park while moving")
-	expect(not box.request(-1, 3.0), "park is the other end of the lever")
+	expect(not box.request(-1, 5.0), "reverse is the bottom of the lever: park is not on it")
+	expect(box.request(1, -2.0) and box.selector == Gearbox.Selector.NEUTRAL
+		and box.request(1, -2.0) and box.gear == 1, "back up through neutral into drive, in first")
+	expect(box.park(3.0) and box.selector == Gearbox.Selector.PARK and box.gear == 0,
+		"the park button puts it in park, moving or not")
+	expect(not box.park(3.0), "pressed again in park, nothing changes")
+	expect(box.request(-1, 0.0) and box.selector == Gearbox.Selector.REVERSE,
+		"down from park is reverse")
+	var manual := Gearbox.new(KIRI.packed(), true)
+	expect(not manual.park(0.0) and manual.selector == Gearbox.Selector.NEUTRAL,
+		"a manual has no park")
 	box.select(Gearbox.Selector.NEUTRAL)
 	expect(box.request(1, 20.0) and box.gear > 2,
 		"put into drive rolling fast, it takes a gear that suits the speed: %d" % box.gear)
@@ -161,9 +162,13 @@ func _test_manual() -> void:
 func _test_letters() -> void:
 	var box := Gearbox.new(KIRI.packed())
 	var letters := []
-	for i in 4:
-		letters.append(box.letter())
-		box.request(1, 0.0)
+	letters.append(box.letter())
+	box.request(-1, 0.0)
+	letters.append(box.letter())
+	box.request(1, 0.0)
+	letters.append(box.letter())
+	box.request(1, 0.0)
+	letters.append(box.letter())
 	expect(letters == ["P", "R", "N", "1"], "the cluster shows P, R, N, then the gear: %s"
 		% [letters])
 

@@ -8,7 +8,9 @@ situations of the practical driving exam into scenarios driven in VR.
 The simulator is VR only, built for a headset and a driving wheel, on PC VR and standalone headsets.
 For development it also runs flat on a monitor with a keyboard and mouse or a gamepad. Bindings are
 input actions in `project.godot`, so a device is added or remapped there without code changes; car
-scripts read them through `DriverInput`.
+scripts read them through `DriverInput`. The one gesture is park on a gamepad: a pad has no button
+left for it, so holding `shift_down` for `DriverInput.PARK_HOLD` (half a second) parks, wherever
+`shift_down` is bound.
 
 | Action | Keyboard and mouse | Gamepad |
 |---|---|---|
@@ -17,11 +19,13 @@ scripts read them through `DriverInput`.
 | Steer | A and D, Left and Right | Left stick |
 | Handbrake | Space | A (Cross) |
 | Engine: hold to start, press to switch off | Enter | Start |
-| Gear lever toward D, toward P (the automatic's P, R, N, D; the manual's R, N, 1 to 6) | Shift, Ctrl | B (Circle), D-pad down |
+| Gear lever up, down (the automatic's D, N, R; from P, up is D and down is R; the manual's 6 to 1, N, R) | Shift, Ctrl | B (Circle), D-pad down |
+| Park (the automatic) | P | Hold D-pad down |
 | Indicators | Q and E | Left and right shoulder |
 | Headlights on or off | L | X (Square) |
-| Look around | Mouse | Right stick |
-| Recentre the view | C | Right stick click |
+| Look around; in the chase view, orbit the car | Mouse | Right stick |
+| In the chase view, closer, farther | Mouse wheel | |
+| Recentre the view; in the chase view, back behind the car | C | Right stick click |
 | Set a mirror: interior, left, right, then none; parked only | Tab, then the mouse | D-pad up, then the right stick |
 | Driver or chase view; in VR, the spectator's chase or shoulder view | V | Select |
 | Free the mouse, recapture it | Escape, click | |
@@ -57,7 +61,8 @@ actions, so the car reads them as it reads a keyboard or a gamepad:
 | Brake | Left trigger |
 | Handbrake | Right A |
 | Engine: hold to start, press to switch off | Left X |
-| Gear lever toward D, toward P (the automatic's P, R, N, D; the manual's R, N, 1 to 6) | Flick the right stick up or down |
+| Gear lever up, down (the automatic's D, N, R; the manual's gears) | Flick the right stick up or down (down moves the lever when let go) |
+| Park (the automatic) | Hold the right stick down |
 | Indicators | Flick the left stick left or right |
 | Headlights on or off | Right B |
 | Recentre the seat | Right stick click, or hold both grips away from the wheel for 2 s |
@@ -241,8 +246,10 @@ help and the mirror lock read the same record. What is physical follows the plan
 heard where they touch the road, each wheel turns at its own spin, and the body leans with its
 motion. The exam judges the car from its pose, as an examiner sees it.
 
-The gearbox (`Gearbox`) is an automatic with a P, R, N, D lever by default, moved one notch at a
-time with `shift_up` (toward D) and `shift_down` (toward P). The car starts in P, which holds it
+The gearbox (`Gearbox`) is an automatic by default, its lever running D, N, R from top to bottom,
+moved one notch at a time with `shift_up` and `shift_down`; park is a button of its own (`park`,
+or `shift_down` held half a second on a gamepad or the right stick in VR), and leaving it the lever
+goes straight to D (up) or R (down), as on a car shifted by wire. The car starts in P, which holds it
 with the park pawl, which ratchets while the car rolls and drops in once it is slow. The brake only
 brakes, and the throttle drives the way the lever is set, backward in R. Nothing locks the lever
 out: R while rolling forward, or D while rolling backward, above a walking pace stalls the engine

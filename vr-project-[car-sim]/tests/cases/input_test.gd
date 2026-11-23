@@ -18,9 +18,10 @@ func _has_event(action: StringName, type: String) -> bool:
 
 func _test_bindings() -> void:
 	for action in DriverInput.CAR_ACTIONS + [&"look_reset", &"toggle_view", MirrorAdjust.ACTION]:
-		expect(InputMap.has_action(action) and _has_event(action, "InputEventKey")
-			and (_has_event(action, "InputEventJoypadMotion")
-				or _has_event(action, "InputEventJoypadButton")),
+		# Park on a gamepad is shift_down held, so it needs a key only.
+		var pad: bool = action == DriverInput.PARK or _has_event(action, "InputEventJoypadMotion") \
+			or _has_event(action, "InputEventJoypadButton")
+		expect(InputMap.has_action(action) and _has_event(action, "InputEventKey") and pad,
 			"%s is bound on the keyboard and the gamepad" % action)
 	for action in [&"look_left", &"look_right", &"look_up", &"look_down"]:
 		expect(InputMap.has_action(action) and _has_event(action, "InputEventJoypadMotion"),
@@ -118,12 +119,11 @@ func _test_debug_car_controls() -> void:
 	Input.action_release(DriverInput.IGNITION)
 	expect(car.dynamics.engine == CarDynamics.EngineState.RUNNING,
 		"and the key held turns it over until it runs again")
-	for i in 3:
-		_tap(DriverInput.SHIFT_UP)
-		await physics_frame
-		await physics_frame
+	_tap(DriverInput.SHIFT_UP)
+	await physics_frame
+	await physics_frame
 	expect(car.dynamics.gearbox.selector == Gearbox.Selector.DRIVE,
-		"shift_up three times moves the lever from P through R and N to D")
+		"shift_up once moves the lever from P straight to D")
 	Input.action_press(&"throttle")
 	for i in 60:
 		await physics_frame
@@ -160,8 +160,48 @@ func _test_debug_car_controls() -> void:
 	await physics_frame
 	expect(probe.handbrake == VehicleProbe.Toggle.OFF, "releasing the handbrake reaches the probe")
 
+	_tap(DriverInput.PARK)
+	await physics_frame
+	await physics_frame
+	expect(car.dynamics.gearbox.selector == Gearbox.Selector.PARK, "the park button parks the car")
+	# The gamepad's shift_down: a tap moves the lever, held half a second it parks.
+	car.dynamics.gearbox.select(Gearbox.Selector.DRIVE)
+	var pad := InputEventJoypadButton.new()
+	pad.button_index = JOY_BUTTON_DPAD_DOWN
+	pad.pressed = true
+	car._unhandled_input(pad)
+	await physics_frame
+	var up := InputEventJoypadButton.new()
+	up.button_index = JOY_BUTTON_DPAD_DOWN
+	up.pressed = false
+	car._unhandled_input(up)
+	await physics_frame
+	await physics_frame
+	expect(car.dynamics.gearbox.selector == Gearbox.Selector.NEUTRAL,
+		"a tap of the gamepad's shift_down moves the lever down, D to N")
+	car._unhandled_input(pad)
+	for i in roundi(DriverInput.PARK_HOLD / DT) + 3:
+		await physics_frame
+	expect(car.dynamics.gearbox.selector == Gearbox.Selector.PARK,
+		"held, it parks the car")
+	car._unhandled_input(up)
+	await physics_frame
+	await physics_frame
+	expect(car.dynamics.gearbox.selector == Gearbox.Selector.PARK,
+		"and letting go after does not move the lever too")
+
 	car._unhandled_input(_action_event(&"toggle_view"))
 	expect(car.chase_camera.current and not car.driver_view.active, "toggle_view shows the chase camera")
+	var chase: ChaseCamera = car.chase_camera
+	var behind := chase.position
+	chase.orbit(0.8, 0.2)
+	expect(chase.position.distance_to(behind) > 2.0 and absf(chase.position.distance_to(
+		Vector3(0.0, chase.pivot_height, 0.0)) - chase.distance) < 0.001,
+		"the look controls orbit the chase camera round the car, keeping its distance")
+	var to_pivot := (Vector3(0.0, chase.pivot_height, 0.0) - chase.position).normalized()
+	expect((-chase.basis.z).dot(to_pivot) > 0.999, "still looking at the car")
+	chase.reset_view()
+	expect(chase.position.distance_to(behind) < 0.01, "and look_reset puts it back behind")
 	runner.queue_free()
 	await process_frame
 

@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://scenarios/scenes/debug_car.gd" id="1_car"]
 [ext_resource type="Script" path="res://scenarios/core/vehicle_probe.gd" id="2_probe"]
 [ext_resource type="PackedScene" path="res://player/driver_view.tscn" id="3_view"]
+[ext_resource type="Script" path="res://player/chase_camera.gd" id="4_chase"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_body"]
 size = Vector3(1.8, 1.25, 4.2)
@@ -41,6 +42,7 @@ script = ExtResource("2_probe")
 
 [node name="ChaseCamera" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.9659258, 0.25881904, 0, -0.25881904, 0.9659258, 0, 3.2, 7.5)
+script = ExtResource("4_chase")
 
 [node name="DriverView" parent="." instance=ExtResource("3_view")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.4, 1.35, 0.4)

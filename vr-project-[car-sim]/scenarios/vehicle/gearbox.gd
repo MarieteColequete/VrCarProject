@@ -1,7 +1,8 @@
 class_name Gearbox
 extends RefCounted
-## A car's gearbox and its lever. The automatic has a P-R-N-D lever the driver moves one notch at a
-## time ([method request]); in D it picks the forward gear itself ([method step]) from how fast the
+## A car's gearbox and its lever. The automatic's lever runs D, N, R from top to bottom, moved a
+## notch at a time ([method request]); park is a button of its own ([method park]), and leaving it
+## the lever goes straight to D (up) or R (down), as on a car shifted by wire. In D it picks the forward gear itself ([method step]) from how fast the
 ## driven wheels turn, with hysteresis, so it never hunts. The manual steps through R, N and the
 ## forward gears. Neither moves on its own between reverse and forward: only the driver does, at
 ## any speed; a move against the car's motion is the engine's to suffer ([CarDynamics] stalls it).
@@ -54,19 +55,38 @@ func rpm_in(in_gear: int, wheel_speed: float) -> float:
 		* 60.0 / TAU
 
 
-## Moves the lever one notch ([param step] +1 toward D, or up a gear; -1 back), with the driven
-## wheels at [param wheel_speed] m/s. Returns false, moving nothing, only when the lever is at its
-## end. Nothing is locked out: a move against the car's motion, or a change down past the
+## Moves the lever one notch ([param step] +1 up toward D, or up a gear; -1 down toward R, or
+## down a gear), with the driven wheels at [param wheel_speed] m/s; from P, up is D and down is R.
+## Returns false, moving nothing, only when the lever is at its end. Nothing is locked out: a move against the car's motion, or a change down past the
 ## redline, goes through, and the engine pays for it.
 func request(step: int, wheel_speed: float) -> bool:
 	if step == 0:
 		return false
 	if manual:
 		return _request_gear(clampi(gear + signi(step), -1, Powertrain.gear_count(spec)))
-	var next: int = clampi(selector + signi(step), Selector.PARK, Selector.DRIVE)
+	var next: int = selector
+	match selector:
+		Selector.PARK:
+			next = Selector.DRIVE if step > 0 else Selector.REVERSE
+		Selector.REVERSE:
+			next = Selector.NEUTRAL if step > 0 else Selector.REVERSE
+		Selector.NEUTRAL:
+			next = Selector.DRIVE if step > 0 else Selector.REVERSE
+		Selector.DRIVE:
+			next = Selector.DRIVE if step > 0 else Selector.NEUTRAL
 	if next == selector:
 		return false
 	_set_selector(next, wheel_speed)
+	return true
+
+
+## The park button, with the driven wheels at [param wheel_speed] m/s: the automatic goes to P,
+## whose pawl drops in once the car is slow. Returns false when already in P, or on a manual,
+## which has none.
+func park(wheel_speed: float) -> bool:
+	if manual or selector == Selector.PARK:
+		return false
+	_set_selector(Selector.PARK, wheel_speed)
 	return true
 
 

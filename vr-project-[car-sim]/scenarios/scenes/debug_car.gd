@@ -134,6 +134,10 @@ var _abs_was := false
 var _shifting_was := false
 var _settled := false
 var _shift := 0
+## The park button pressed since the last step, and the gamepad's shift_down held, for how long.
+var _park := false
+var _pad_down_holding := false
+var _pad_down_for := 0.0
 ## The speed, m/s, a [member start] gives the body when it is first let go.
 var _launch := 0.0
 ## Whether the key is read: off during a briefing, whose Enter (or Start) begins the attempt and
@@ -184,6 +188,19 @@ func _unhandled_input(event: InputEvent) -> void:
 	if DriverInput.headlights_pressed(event):
 		probe.headlights = VehicleProbe.Toggle.OFF if probe.headlights == VehicleProbe.Toggle.ON \
 			else VehicleProbe.Toggle.ON
+		return
+	if DriverInput.park_pressed(event):
+		_park = true
+		return
+	if DriverInput.is_pad_shift_down(event):
+		# The gamepad's shift_down: held, it parks; let go sooner, it moves the lever down.
+		if event.is_pressed():
+			_pad_down_for = 0.0
+			_pad_down_holding = true
+		elif _pad_down_holding:
+			_pad_down_holding = false
+			if _pad_down_for < DriverInput.PARK_HOLD:
+				_shift -= 1
 		return
 	var shift := DriverInput.shift_pressed(event)
 	if shift != 0:
@@ -306,6 +323,11 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _pad_down_holding:
+		var before := _pad_down_for
+		_pad_down_for += delta
+		if before < DriverInput.PARK_HOLD and _pad_down_for >= DriverInput.PARK_HOLD:
+			_park = true
 	if model and input_enabled:
 		driver_view.grab_wheel(delta, global_transform * model.steering_frame(),
 			model.steering_radius, _steer)
@@ -432,8 +454,11 @@ func _show(delta: float) -> void:
 func _controls() -> Dictionary:
 	var shift := _shift
 	_shift = 0
+	var park := _park
+	_park = false
 	if not held_controls.is_empty():
-		return {throttle = float(held_controls.get("throttle", 0.0)),
+		return {throttle = float(held_controls.get("throttle", 0.0)), park = bool(
+			held_controls.get("park", false)) or park,
 			brake = float(held_controls.get("brake", 0.0)),
 			handbrake = float(held_controls.get("handbrake", 0.0)),
 			steer = float(held_controls.get("steer", 0.0)), shift = shift, held = true,
@@ -441,7 +466,7 @@ func _controls() -> Dictionary:
 			ignition = bool(held_controls.get("ignition", false))}
 	return {throttle = DriverInput.throttle(), brake = DriverInput.brake(),
 		handbrake = 1.0 if DriverInput.handbrake() else 0.0, steer = DriverInput.steer(),
-		shift = shift, held = false, select = "", ignition = _key()}
+		shift = shift, held = false, select = "", ignition = _key(), park = park}
 
 
 ## The key as the car reads it: never while [member key_live] is off, and once on, only after it
@@ -574,7 +599,7 @@ func _drive(delta: float) -> void:
 		{steer_angle = wheel_angle, throttle = throttle, brake = brake, handbrake = c.handbrake})
 	systems.decide(_packed, dynamics.aids, delta)
 	var step := {throttle = throttle, brake = brake, handbrake = c.handbrake, steer = wheel_angle,
-		shift = c.shift, starter = c.ignition}
+		shift = c.shift, starter = c.ignition, park = c.park}
 	if not str(c.select).is_empty():
 		step.select = SELECTOR_LETTERS.find(str(c.select))
 	dynamics.step(delta, step, loads, along, across, mu, systems.signals)
