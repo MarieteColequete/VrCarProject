@@ -277,6 +277,11 @@ func stamp_roads(out: HeightField) -> void:
 	weight.resize(out.heights.size())
 	var target := PackedFloat32Array()
 	target.resize(out.heights.size())
+	# How far each point is from the piece it takes its height from: of two pieces that hold it
+	# as firmly, the nearer one sets it.
+	var near := PackedFloat32Array()
+	near.resize(out.heights.size())
+	near.fill(INF)
 	var reach := out.rect()
 	var found: Array[Node] = []
 	Scenario.collect(map, found)
@@ -292,17 +297,21 @@ func stamp_roads(out: HeightField) -> void:
 			var along := road.frames()
 			for i in along.size() - 1:
 				_stamp_stretch(out, placed * (along[i][0] as Vector3),
-					placed * (along[i + 1][0] as Vector3), inner, weight, target)
+					placed * (along[i + 1][0] as Vector3), inner, weight, target, near)
 		elif node is RoadJunction:
 			var junction := node as RoadJunction
-			_stamp_pad(out, to_terrain * RoadMap.to_map(junction, map), junction, weight, target)
+			_stamp_pad(out, to_terrain * RoadMap.to_map(junction, map), junction, weight, target,
+				near)
 	for k in out.heights.size():
 		if weight[k] > 0.0:
 			out.heights[k] = lerpf(out.heights[k], target[k], weight[k])
 
 
+## Stamps the road between [param a] and [param b]. A point beyond the stretch's ends is as far as
+## the nearer end, so the stretches either side of a bend both reach it; the nearest sets its
+## height, or on a slope the land would take the height of road metres up or down it.
 func _stamp_stretch(out: HeightField, a: Vector3, b: Vector3, inner: float,
-		weight: PackedFloat32Array, target: PackedFloat32Array) -> void:
+		weight: PackedFloat32Array, target: PackedFloat32Array, near: PackedFloat32Array) -> void:
 	var outer := inner + road_blend
 	var a2 := Vector2(a.x, a.z)
 	var b2 := Vector2(b.x, b.z)
@@ -321,13 +330,14 @@ func _stamp_stretch(out: HeightField, a: Vector3, b: Vector3, inner: float,
 				continue
 			var w := Geo.ease_out(inner, outer, lateral)
 			var k := j * out.count_x + i
-			if w > weight[k]:
+			if w > weight[k] or (w == weight[k] and lateral < near[k]):
 				weight[k] = w
+				near[k] = lateral
 				target[k] = lerpf(a.y, b.y, t) - ROAD_SINK
 
 
 func _stamp_pad(out: HeightField, placed: Transform3D, junction: RoadJunction,
-		weight: PackedFloat32Array, target: PackedFloat32Array) -> void:
+		weight: PackedFloat32Array, target: PackedFloat32Array, near: PackedFloat32Array) -> void:
 	var reach := junction.road_width / 2.0 + junction.arm_length
 	var edge := RoadKit.PAVEMENT + SHOULDER
 	var outer := edge + road_blend
@@ -346,8 +356,9 @@ func _stamp_pad(out: HeightField, placed: Transform3D, junction: RoadJunction,
 				continue
 			var w := Geo.ease_out(edge, outer, distance)
 			var k := j * out.count_x + i
-			if w > weight[k]:
+			if w > weight[k] or (w == weight[k] and distance < near[k]):
 				weight[k] = w
+				near[k] = distance
 				target[k] = y
 
 

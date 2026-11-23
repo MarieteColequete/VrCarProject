@@ -1,8 +1,9 @@
 extends TestCase
 ## Faults the code-quality pass found, each held fixed: Map Kit's problem list building no nodes
 ## until a fix is applied; the land under a moved road built again from what the road reaches; a
-## road user replaced between two draws leaving the traffic view; and the car's contacts written
-## only when they change, so the car is read once a tick.
+## road user replaced between two draws leaving the traffic view; the car's contacts written
+## only when they change, so the car is read once a tick; and the land under a sloping road cut to
+## the road's own height there, not to the height of the road metres up the slope.
 
 
 func run() -> void:
@@ -10,6 +11,7 @@ func run() -> void:
 	await _test_moved_road()
 	await _test_replaced_road_user()
 	_test_contacts_written_on_change()
+	await _test_sloping_road()
 
 
 func _test_problems_build_nothing() -> void:
@@ -94,3 +96,28 @@ func _test_contacts_written_on_change() -> void:
 	var d := Detection.contacts(world, 0.1)
 	expect(d.write_count() == 0, "nothing touching, as before: the car's contacts are not written")
 
+
+func _test_sloping_road() -> void:
+	var map := RoadMap.new()
+	var terrain := Terrain.new()
+	terrain.size = Vector2(120, 120)
+	map.add_child(terrain)
+	# Down 9 m over 90 m, a point every 2 m, as a draped road is.
+	var curve := Curve3D.new()
+	for i in 46:
+		curve.add_point(Vector3(0, 4.5 - i * 0.2, 45.0 - i * 2.0))
+	var road := RoadSegment.new()
+	road.curve = curve
+	map.add_child(road)
+	root.add_child(map)
+	await process_frame
+	terrain.rebuild()
+	var worst := 0.0
+	for i in 41:
+		var at := curve.get_baked_length() * (0.05 + 0.9 * i / 40.0)
+		var p := curve.sample_baked(at)
+		worst = maxf(worst, absf(terrain.height_at(p) - (p.y - Terrain.ROAD_SINK)))
+	expect(worst < 0.02, "the land under a road falling 10% lies just under it all along: "
+		+ "%.3f m off at worst" % worst)
+	map.queue_free()
+	await process_frame

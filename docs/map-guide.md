@@ -12,12 +12,13 @@ same tools in the order a map is built.
 3. [A first map, step by step](#a-first-map-step-by-step)
 4. [The Map Kit dock](#the-map-kit-dock)
 5. [Placing pieces and models](#placing-pieces-and-models)
-6. [The Asset Library](#the-asset-library)
-7. [Traffic and people](#traffic-and-people)
-8. [Trying a map](#trying-a-map)
-9. [Adding models: asset packs](#adding-models-asset-packs)
-10. [Known limits](#known-limits)
-11. [Example maps](#example-maps)
+6. [Land with height: terrain](#land-with-height-terrain)
+7. [The Asset Library](#the-asset-library)
+8. [Traffic and people](#traffic-and-people)
+9. [Trying a map](#trying-a-map)
+10. [Adding models: asset packs](#adding-models-asset-packs)
+11. [Known limits](#known-limits)
+12. [Example maps](#example-maps)
 
 ## What a map is
 
@@ -190,7 +191,8 @@ with **Check now**. The problems and their fixes:
   terrain: roads follow the land no steeper than 12%, junctions stand on it, and lanes, markings,
   spawns, signs and props lie on the road or the land under them.
 
-**Terrain shape.** Shown while one terrain shape (Hill, Valley, Ramp, Plateau) is selected:
+**Terrain shape.** Shown while one terrain shape (Hill, Valley, Ramp, Plateau) is selected (see
+[Land with height: terrain](#land-with-height-terrain)):
 
 - **Kind** turns it into another kind of shape.
 - **Height**, **Radius** (a ramp's **Length** and **Width**), and **Falloff** set its size on
@@ -261,6 +263,86 @@ placement is one undo step.
 | Badge at the top right | The map's title, and its warning and notice counts |
 
 The overlay button on the 3D view's toolbar also shows or hides it.
+
+## Land with height: terrain
+
+A new map is flat. Hills, valleys, slopes, and raised ground come from a `Terrain`, the map's land
+as a grid of heights, shaped by terrain shapes placed from the palette. The roads are then laid
+onto that land. `maps/hill_road/` is built this way, and the pictures here are taken from it.
+
+![hill_road from above: a crossroads on a plateau, two hills and a valley around it, each shape's outline drawn on the land](images/map-guide/24-terrain-overview.png)
+
+1. **Add the land.** Under **Selection**, press **Add terrain**. The map gets a `Terrain` node the
+   size of its ground, and the flat ground is turned off; both are one undo step. Select the
+   `Terrain` node to set, in the inspector:
+   - **Size**: the land's width and length, in metres.
+   - **Cell**: how far apart its heights are, 1 m by default. A smaller cell gives finer land and
+     takes longer to build.
+   - **Heightmap** and **Heightmap height**: an optional greyscale image for the land's relief,
+     white standing that many metres above black. The shapes go on top of it.
+   - **Road blend**: how far, in metres, the land eases back to its own height beside a road.
+   - **Rebuild**: builds the whole land again, if it ever looks out of date.
+
+   <img src="images/map-guide/25-selection-terrain.png" width="300" alt="The Selection section of the Map Kit dock with the Add terrain and Drape on terrain buttons">
+
+2. **Place shapes.** The palette's **Terrain** section has four shapes. Pick one and click in the
+   3D view to place it, like any piece; each goes under the `Terrain` node, and they apply in
+   tree order.
+   - **Hill** raises the land by its height within its radius, easing out over its falloff.
+   - **Valley** lowers the land the same way.
+   - **Plateau** makes the land within its radius flat, at its height above the node, easing out
+     over its falloff: ground for a town or a junction to stand on.
+   - **Ramp** is a straight slope over a rectangle, from the node's height at one end to its
+     height above that at the other, easing out at the sides.
+
+   <img src="images/map-guide/26-palette-terrain.png" width="300" alt="The palette with its Terrain section: Hill, Valley, Ramp, and Plateau">
+
+3. **Shape them in the 3D view.** Each shape's outline lies on the land: an inner line where its
+   full effect ends, and an outer one where its falloff ends. An upright marker runs from the land
+   to the height the shape aims at. Shapes that are not selected are drawn dimmed. The selected
+   shape has round handles:
+   - on a hill, valley, or plateau, one on the inner line for the radius and one on the outer line
+     for the falloff, dragged across the land, and one on the marker for the height, dragged up or
+     down;
+   - on a ramp, its length, width, height, and falloff.
+
+   Handles snap to half a metre, or to a tenth of a metre with Shift held, and each drag is one
+   undo step. Only the land the shape reached and now reaches is built again, so the ground follows
+   the mouse; the solid ground the car drives on catches up a moment after the drag ends. Move or
+   turn a shape with the usual move and rotate tools.
+
+   ![A hill selected: its inner and outer outlines on the land, the height marker, and its handles](images/map-guide/27-hill-handles.png)
+
+   ![The plateau the main road climbs onto, selected, its wide falloff reaching past the crossroads](images/map-guide/29-plateau-handles.png)
+
+   ![A ramp selected: its rectangle and falloff outlined on the land, with its handles](images/map-guide/30-ramp-handles.png)
+
+4. **Or set them in the dock.** While one shape is selected, the dock shows a **Terrain shape**
+   section: **Kind** turns it into another of the four shapes, and sliders set its **Height**,
+   **Radius** (a ramp's **Length** and **Width**), and **Falloff**; one slider drag is one undo
+   step. **Stand on the land** moves the shape's base onto the land under it, the land without the
+   shape itself, so a plateau's or a ramp's height counts from the ground there. Use it after
+   placing a plateau or a ramp on ground that is not at height 0.
+
+   <img src="images/map-guide/28-terrain-shape-dock.png" width="300" alt="The Terrain shape section for a hill: its kind, a note, the Height, Radius, and Falloff sliders, and Stand on the land">
+
+5. **Lay the roads on the land.** Roads and junctions are drawn at their own heights; under each
+   one the land is cut or filled to just below the road, across the asphalt, the pavements, and a
+   metre beyond, and eased back to the land over the road blend. To make the roads follow the
+   land instead of keeping their heights, press **Drape on terrain** under **Selection**: with
+   nodes selected it drapes those, with none the whole map. Roads take the land's heights along
+   their length, never steeper than 12%; junctions stand on the land; lanes, markings, spawns,
+   signs, and props settle onto the road or the land under them. Drape again after reshaping the
+   land under a road.
+
+   ![A side road draped on the land, falling away from the crossroads on the plateau](images/map-guide/31-draped-road.png)
+
+6. **Check and drive.** Clear **Problems**, then **Play**. The car climbs and descends the land,
+   and road users keep to the roads' heights. The `hill_start` scenario on `hill_road` stops the
+   car halfway up the main road and judges a hill start.
+
+Roads never pass over one another: traffic and the exam's checks work on the ground plan, with
+heights from the roads, so a bridge or an underpass cannot be built.
 
 ## The Asset Library
 
