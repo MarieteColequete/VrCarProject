@@ -36,6 +36,8 @@ static func measure(signals: CarSignals, dynamics: CarDynamics, motion: Dictiona
 	signals.gear_letter = dynamics.gearbox.letter()
 	signals.reverse_switch = dynamics.gear == -1
 	signals.shifting = dynamics.shifting > 0.0
+	signals.shifted = dynamics.shifted
+	signals.shift_refused = dynamics.shift_refused
 	signals.engine_state = dynamics.engine
 	signals.stalled = dynamics.stalled
 	signals.start_refused = dynamics.start_refused

@@ -140,13 +140,15 @@ func _test_live() -> void:
 		await process_frame
 		return
 
-	model.drive(0.5, 3.0, 1.0, true, false, true, false, true)
+	var rolling := PackedFloat64Array([10.0, 10.0, 10.0, 10.0])
+	model.drive(0.5, rolling, 1.0, true, false, true, false, true)
 	expect(model.wheel_turn() > deg_to_rad(20.0), "steering left turns the front wheels left: %.0f°"
 		% rad_to_deg(model.wheel_turn()))
 	expect(model.is_lit(&"blinkers_left") and not model.is_lit(&"blinkers_right")
 		and model.is_lit(&"brake") and model.is_lit(&"headlights") and not model.is_lit(&"reverse"),
 		"the lights show the left indicator, the brake, and the headlights")
-	model.drive(0.1, 0.0, 0.0, false, false, false, true, false)
+	model.drive(0.1, PackedFloat64Array([0.0, 0.0, 0.0, 0.0]), 0.0, false, false, false, true,
+		false)
 	expect(is_zero_approx(model.wheel_turn()) and model.is_lit(&"reverse")
 		and not model.is_lit(&"blinkers_left"), "and change as the car does")
 
@@ -160,8 +162,10 @@ func _test_live() -> void:
 		and instruments.mounted.material_override != null,
 		"the instruments are drawn on the model's own gauge face")
 	expect(instruments.speed_kmh > 10.0 and is_equal_approx(instruments.speed_kmh,
-		car.current_speed * 3.6), "the speedometer reads the car's speed: %.0f km/h"
-		% instruments.speed_kmh)
+		absf(car.signals.vehicle_speed) * 3.6)
+		and absf(instruments.speed_kmh - car.current_speed * 3.6) < 2.0,
+		"the speedometer reads the car's speed from its wheels: %.0f km/h, the body %.0f"
+		% [instruments.speed_kmh, car.current_speed * 3.6])
 	expect(instruments.headlights and not instruments.left_on, "the headlights tell-tale is lit")
 	expect(instruments.rpm > car.spec.idle_rpm - 1.0 and instruments.gear == car.dynamics.gearbox.letter(),
 		"the rev counter and the gear follow the drivetrain: %.0f rpm, %s"

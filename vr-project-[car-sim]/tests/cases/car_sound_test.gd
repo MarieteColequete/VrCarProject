@@ -131,7 +131,8 @@ func _test_on_car() -> void:
 	for i in 90:
 		await physics_frame
 	expect(is_equal_approx(sound.engine_low.pitch_scale,
-		clampf(car.rpm / CarSound.LOW_RPM, 0.5, 4.0)), "the engine's pitch follows the revolutions")
+		clampf(car.signals.rpm / CarSound.LOW_RPM, 0.5, 4.0)),
+		"the engine's pitch follows the crank sensor's revolutions")
 	var before := sound.ticks
 	car.probe.indicator = VehicleProbe.Indicator.LEFT
 	for i in 90:

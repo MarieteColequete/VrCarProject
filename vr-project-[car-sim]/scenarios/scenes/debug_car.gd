@@ -65,7 +65,9 @@ const ACCEL_SMOOTHING := 30.0
 ## in park (the manual in neutral), standing still.
 @export var start: CarStart
 
-## The car's speed along its length, m/s, negative reversing.
+## The body's true speed along its length, m/s, negative reversing: the plant's, for the forces on
+## it (drag, rolling resistance) and for tests watching it. Nothing the driver reads or the car's
+## electronics use comes from it: they read [member signals].
 var current_speed := 0.0
 ## The engine, the gearbox, the brakes and the tyres: the plant.
 var dynamics: CarDynamics
@@ -118,16 +120,18 @@ var settings_path := "user://car.cfg"
 
 var _packed: PackedFloat64Array
 var _steer := 0.0
-var _braking := false
 var _accel := Vector2.ZERO
 var _last_velocity := Vector3.ZERO
 var _settled_motion := false
+## How fast the grounded tyres' contact patches move over the road, m/s; the plant's.
+var _patch_speed := 0.0
 var _mirror_frame := 0
 var _on_kerb := false
 var _mirror_quality := "full"
 var _blink_clock := 0.0
 var _mirror_held := false
 var _abs_was := false
+var _shifting_was := false
 var _settled := false
 var _shift := 0
 ## The speed, m/s, a [member start] gives the body when it is first let go.
@@ -263,7 +267,7 @@ func _adjust_mirrors(delta: float) -> void:
 		return
 	var look := driver_view.mirror_look()
 	var mouse: Vector2 = look.mouse
-	var tilt := mirror_adjust.step(delta, look.stick, current_speed, mouse != Vector2.ZERO)
+	var tilt := mirror_adjust.step(delta, look.stick, signals.vehicle_speed, mouse != Vector2.ZERO)
 	if mirror_adjust.active():
 		mirrors[mirror_adjust.picked].nudge(tilt + mouse)
 	else:
@@ -309,6 +313,18 @@ func _physics_process(delta: float) -> void:
 			_grab_mirrors()
 	_drive(delta)
 	_show(delta)
+
+
+## The tyres' tread speed where they touch the road, m/s: the mean of the grounded wheels' spin at
+## their tread, nought with none on the road. Physical, for the sound.
+func rolling_tread() -> float:
+	var total := 0.0
+	var count := 0
+	for i in 4:
+		if grounded[i]:
+			total += absf(dynamics.spin[i]) * spec.wheel_radius
+			count += 1
+	return total / count if count > 0 else 0.0
 
 
 ## Whether an indicator blinking for [param clock] seconds is lit: lit first, then dark, each for
@@ -377,32 +393,39 @@ func wheel_position(i: int) -> Vector3:
 	return Vector3(x, 0.0, z)
 
 
-## Moves the live parts and the instruments to the car's state.
+## Moves the live parts and the instruments to the car's state. What the driver reads (the
+## instruments, the lamps) comes from the car's signals ([member signals]); what is physical (the
+## wheels turning, the body leaning, the tyres heard) from the plant.
 func _show(delta: float) -> void:
 	_blink_clock += delta
 	var lit := blink_on(_blink_clock)
 	var left := probe.indicator == VehicleProbe.Indicator.LEFT and lit
 	var right := probe.indicator == VehicleProbe.Indicator.RIGHT and lit
 	var headlights := probe.headlights == VehicleProbe.Toggle.ON
-	var reversing := current_speed < -0.1
 	if model:
-		model.drive(delta, current_speed, _steer, left, right, _braking, reversing, headlights)
+		model.drive(delta, dynamics.spin, _steer, left, right, signals.brake_light,
+			signals.reverse_light, headlights)
 		model.lean(delta, _accel.x, _accel.y)
 	if sound:
 		var blinking := probe.indicator == VehicleProbe.Indicator.LEFT \
 			or probe.indicator == VehicleProbe.Indicator.RIGHT
+		# The tyres are heard where they meet the road: they slip and slide as fast as their contact
+		# patches move over it, and roll as fast as their tread turns on it, so a car in the air is
+		# silent and a locked wheel skids without rolling.
+		var tread := rolling_tread()
 		var tyres := CarSound.tyre_voices(_packed, dynamics.ratio, dynamics.angle, dynamics.force,
-			grounded, current_speed, on_loose)
-		sound.follow(rpm, throttle, dynamics.shifting > 0.0, blinking and lit, tyres,
-			current_speed, dynamics.engine, signals.abs_active, delta)
+			grounded, _patch_speed, on_loose)
+		sound.follow(signals.rpm, signals.throttle_position, signals.shifting, blinking and lit,
+			tyres, tread, signals.engine_state, signals.abs_active, delta)
 	if instruments:
 		var parked := probe.handbrake == VehicleProbe.Toggle.ON
 		instruments.redline = spec.redline_rpm
-		instruments.dash.step(delta, dynamics.engine, rpm, throttle, dynamics.stalled,
-			signals.esc_active or signals.tcs_active)
-		instruments.show_state(delta, absf(current_speed) * 3.6, rpm,
-			dynamics.gearbox.letter(), left, right, parked, headlights,
-			reversing)
+		instruments.dash.step(delta, signals.engine_state, signals.rpm, signals.throttle_position,
+			signals.stalled, signals.esc_active or signals.tcs_active)
+		# The speedometer reads the ABS module's speed, from the wheels: it shows what the wheels
+		# say, not how fast the body moves through the air.
+		instruments.show_state(delta, absf(signals.vehicle_speed) * 3.6, signals.rpm,
+			signals.gear_letter, left, right, parked, headlights, signals.reverse_light)
 
 
 ## The controls this step: the tests' held ones, or the player's.
@@ -435,7 +458,6 @@ func _drive(delta: float) -> void:
 		throttle = 0.0
 		_steer = 0.0
 		wheel_angle = 0.0
-		_braking = false
 		_accel = Vector2.ZERO
 		return
 	var forward := -global_basis.z
@@ -449,7 +471,6 @@ func _drive(delta: float) -> void:
 	probe.handbrake = VehicleProbe.Toggle.ON if c.handbrake > 0.5 else VehicleProbe.Toggle.OFF
 
 	# The brake only brakes; the throttle drives whichever way the gearbox is in.
-	_braking = brake > 0.0 and absf(current_speed) > 0.1
 
 	# Hands on the wheel steer it directly; the keys and sticks ease toward their steering, with
 	# the aids' lock at speed and their counter-steer.
@@ -534,6 +555,11 @@ func _drive(delta: float) -> void:
 		var moving := velocity + angular_velocity.cross(contacts[i] - centre)
 		along[i] = moving.dot(heading)
 		across[i] = moving.dot(side)
+	var patches := 0.0
+	for i in 4:
+		if grounded[i]:
+			patches += Vector2(along[i], across[i]).length() / grounded.count(1)
+	_patch_speed = patches
 
 	# The car's electronics: its sensors measure the plant, its control units decide, and the plant
 	# then applies what they asked.
@@ -564,15 +590,19 @@ func _drive(delta: float) -> void:
 	if absf(current_speed) > 0.3 and grounded.count(1) > 0:
 		apply_central_force(-forward * signf(current_speed) * spec.rolling * weight)
 
-	if is_equal_approx(dynamics.shifting, spec.shift_time) or dynamics.shifted:
+	# What the driver feels through the controllers comes from the car's signals: a change
+	# beginning or going through, a refusal, a stall, the starter, ABS working. The kerb below is
+	# physical, a bump through the body.
+	if (signals.shifting and not _shifting_was) or signals.shifted:
 		driver_view.pulse(0.15, 0.05)
-	elif dynamics.shift_refused:
+	elif signals.shift_refused:
 		driver_view.pulse(0.5, 0.15)
-	if dynamics.stalled:
+	_shifting_was = signals.shifting
+	if signals.stalled:
 		driver_view.pulse(1.0, 0.4)
-	elif dynamics.start_refused:
+	elif signals.start_refused:
 		driver_view.pulse(0.5, 0.15)
-	elif dynamics.engine == CarDynamics.EngineState.CRANKING:
+	elif signals.engine_state == CarDynamics.EngineState.CRANKING:
 		driver_view.pulse(0.15, delta)
 	if signals.abs_active and not _abs_was:
 		driver_view.pulse(0.3, 0.06)

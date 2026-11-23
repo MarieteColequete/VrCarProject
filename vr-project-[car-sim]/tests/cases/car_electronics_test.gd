@@ -1,9 +1,11 @@
 extends TestCase
 ## The player's car's electronics, each layer on its own: the sensors ([CarSensors]) measuring the
 ## plant as hardware does, and the control units ([AbsModule], [TransmissionUnit],
-## [BodyController]) deciding from [CarSignals] alone, fed here by hand with no physics behind them.
+## [BodyController]) deciding from [CarSignals] alone, fed here by hand with no physics behind them;
+## then the whole car: what the driver reads follows the car's sensors, not the body's motion.
 
 const KIRI := preload("res://scenarios/vehicle/specs/kiri86.tres")
+const CAR := preload("res://scenarios/scenes/debug_car.tscn")
 const FL := CarDynamics.FL
 const FR := CarDynamics.FR
 const RL := CarDynamics.RL
@@ -18,6 +20,8 @@ func run() -> void:
 	_test_stability()
 	_test_transmission()
 	_test_lamps()
+	await _test_falling_speedometer()
+	await _test_lamps_on_car()
 
 
 func _test_sensors() -> void:
@@ -150,3 +154,58 @@ func _test_lamps() -> void:
 	BodyController.step(signals)
 	expect(signals.reverse_light and not signals.brake_light,
 		"the reversing lights follow the reverse switch")
+
+
+func _test_falling_speedometer() -> void:
+	var floor := ground()
+	var car: Node3D = CAR.instantiate()
+	root.add_child(car)
+	await physics_frame
+	car.held_controls = {throttle = 0.5, select = "D"}
+	for i in 120:
+		await physics_frame
+	var before: float = car.instruments.speed_kmh
+	# Lifted 40 m: it falls for nearly three seconds, the wheels turning on in the air.
+	car.global_position += Vector3.UP * 40.0
+	car.reset_physics_interpolation()
+	car.held_controls = {select = "D"}
+	var fastest := 0.0
+	var shown := 0.0
+	for i in 150:
+		await physics_frame
+		if car.grounded.count(1) == 0:
+			fastest = maxf(fastest, car.linear_velocity.length())
+			shown = maxf(shown, car.instruments.speed_kmh)
+	expect(fastest * 3.6 > before + 60.0 and shown <= before + 3.0,
+		"falling at up to %.0f km/h, the speedometer shows the wheels, at most %.0f (before %.0f)"
+		% [fastest * 3.6, shown, before])
+	car.queue_free()
+	floor.queue_free()
+	await process_frame
+
+
+func _test_lamps_on_car() -> void:
+	var floor := ground()
+	var car: Node3D = CAR.instantiate()
+	root.add_child(car)
+	await physics_frame
+	car.held_controls = {brake = 1.0, select = "N"}
+	for i in 30:
+		await physics_frame
+	expect(car.model.is_lit(&"brake") and absf(car.current_speed) < 0.05,
+		"standing still, the brake pedal lights the brake lamps")
+	# Rolled backward in neutral, as if pushed: no reverse gear, no reversing lamps.
+	car.held_controls = {select = "N"}
+	car.linear_velocity = car.global_basis.z * 2.0
+	for i in 10:
+		await physics_frame
+	expect(car.current_speed < -0.5 and not car.model.is_lit(&"reverse")
+		and not car.model.is_lit(&"brake"),
+		"rolling backward in neutral, no reversing lamps: they follow the reverse switch")
+	car.held_controls = {brake = 1.0, select = "R"}
+	for i in 60:
+		await physics_frame
+	expect(car.model.is_lit(&"reverse"), "in R, standing still, the reversing lamps are lit")
+	car.queue_free()
+	floor.queue_free()
+	await process_frame

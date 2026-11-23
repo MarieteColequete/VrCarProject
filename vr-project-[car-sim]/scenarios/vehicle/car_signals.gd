@@ -35,8 +35,11 @@ var reverse_switch := false
 var gear := 0
 var selector := 0
 var gear_letter := "P"
-## Whether a change is under way.
+## Whether a change is under way, whether the last change asked for went through, and whether it
+## was refused at the lever's end.
 var shifting := false
+var shifted := false
+var shift_refused := false
 ## The engine's state ([enum CarDynamics.EngineState]), and whether it stalled or the starter was
 ## refused this step.
 var engine_state := 0

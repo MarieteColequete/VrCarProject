@@ -223,6 +223,24 @@ what the tyres can use, and counter-steer catches a slide); `sport`, with anti-l
 traction control and less steering help; and `sim`, with anti-lock brakes only. The steering wheel
 held in VR always steers the wheels directly.
 
+The player's car is built in layers, as a real car is. The plant is the physics: the body, its
+contacts, the wheels and tyres (`CarDynamics`, `TyreModel`). Its sensors (`CarSensors`) measure it
+as hardware does into one record each step (`CarSignals`): each wheel's speed from its own spin,
+the output shaft, the crank, a yaw-rate gyro, an accelerometer (it feels 1 g up at rest and nothing
+in free fall), the steering angle, the throttle position, and the brake, handbrake and reverse
+switches. Its control units decide from those signals alone, a step behind as real ones do
+(`CarSystems`): the ABS module (`AbsModule`) estimates the car's speed from the wheels and the
+accelerometer, each wheel's slip, the rear's slide and the road's grip, and runs the anti-lock
+brakes, traction control and stability control on those estimates; the transmission unit
+(`TransmissionUnit`) holds the automatic's gear while the driven wheels flare, as in the air; the
+body controller (`BodyController`) lights the brake lamps from the pedal's switch and the reversing
+lamps from the reverse switch. Everything the driver reads or feels follows the signals: the
+speedometer shows the ABS module's speed from the wheels, so a car falling through the air shows
+what its wheels turn at, not its fall, and the lamps, the dash, the controllers' buzz, steering
+help and the mirror lock read the same record. What is physical follows the plant: the tyres are
+heard where they touch the road, each wheel turns at its own spin, and the body leans with its
+motion. The exam judges the car from its pose, as an examiner sees it.
+
 The gearbox (`Gearbox`) is an automatic with a P, R, N, D lever by default, moved one notch at a
 time with `shift_up` (toward D) and `shift_down` (toward P). The car starts in P, which holds it
 with the park pawl, which ratchets while the car rolls and drops in once it is slow. The brake only

@@ -105,7 +105,6 @@ var _lean_velocity := Vector2.ZERO
 ## The parts that lean: [code]{node, rest}[/code] each, in the model's own space.
 var _leaning: Array[Dictionary] = []
 var _lean_pivot := Vector3.ZERO
-var _roll := 0.0
 var _lights := {}
 ## The headlamps' beams, lit with the headlights.
 var beams: Array[SpotLight3D] = []
@@ -137,17 +136,22 @@ static func make(wheelbase: float) -> PlayerCarModel:
 	return car
 
 
-## Moves the live parts for a step of [param delta] seconds at [param speed] metres per second
-## and [param steer] (-1 full right to 1 full left), with the lights as given; the blinkers
-## [param left_on] and [param right_on] are lit or dark at this moment of their blink.
-func drive(delta: float, speed: float, steer: float, left_on: bool, right_on: bool,
+## Moves the live parts for a step of [param delta] seconds: each wheel turning at its own
+## [param spins] (rad/s, forward positive, in [CarDynamics]' order), so a locked wheel stands still
+## and a spinning one spins, the front ones steered by [param steer] (-1 full right to 1 full
+## left), with the lights as given; the blinkers [param left_on] and [param right_on] are lit or
+## dark at this moment of their blink.
+func drive(delta: float, spins: PackedFloat64Array, steer: float, left_on: bool, right_on: bool,
 		braking: bool, reversing: bool, headlights: bool) -> void:
-	_roll = fmod(_roll + speed * delta / radius, TAU)
 	var lock := clampf(steer, -1.0, 1.0)
 	for wheel in wheels:
 		var rest: Transform3D = wheel.rest
 		var turn := Basis(Vector3.UP, lock * WHEEL_LOCK) if wheel.front else Basis.IDENTITY
-		var spin := Basis(Vector3.BACK, _roll * float(wheel.sign))
+		var turned: float = wheel.roll
+		if wheel.index >= 0 and wheel.index < spins.size():
+			turned = fmod(turned + spins[wheel.index] * delta, TAU)
+			wheel.roll = turned
+		var spin := Basis(Vector3.BACK, turned * float(wheel.sign))
 		(wheel.node as Node3D).transform = Transform3D(turn * rest.basis * spin, rest.origin)
 	if steering_wheel:
 		# Steering left turns the wheel anticlockwise as the driver sees it.
@@ -258,7 +262,8 @@ func _build(model: Node3D, wheelbase: float) -> void:
 		# Rolling forward (+X in the model) turns the wheel about -Z; its axle may point either way.
 		var axle := (wheel.transform.basis * Vector3.BACK).normalized()
 		wheels.append({node = wheel, rest = wheel.transform, front = is_front,
-			sign = 1.0 if axle.dot(Vector3.FORWARD) > 0.0 else -1.0})
+			sign = 1.0 if axle.dot(Vector3.FORWARD) > 0.0 else -1.0,
+			index = ["Wheel_FL", "Wheel_FR", "Wheel_RL", "Wheel_RR"].find(key), roll = 0.0})
 	# The model faces +X; turned to face -Z, scaled to the wheelbase, its wheels' middle on the
 	# origin, standing where it stands.
 	var natural := maxf(front.x - rear.x, 0.01)
@@ -308,7 +313,7 @@ func _build(model: Node3D, wheelbase: float) -> void:
 			_leaning.append({node = part, rest = (part as Node3D).transform})
 	# The body leans about the middle of its wheels, at their axles.
 	_lean_pivot = (front + rear) / 2.0
-	drive(0.0, 0.0, 0.0, false, false, false, false, false)
+	drive(0.0, PackedFloat64Array([0.0, 0.0, 0.0, 0.0]), 0.0, false, false, false, false, false)
 
 
 ## The direction across the flattest extent of [param mesh]'s points: a disc's axis.
