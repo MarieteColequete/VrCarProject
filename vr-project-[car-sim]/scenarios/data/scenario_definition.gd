@@ -21,7 +21,7 @@ extends Resource
 @export_file("*.tscn") var scene_path: String
 @export var policy: ScoringPolicy = preload("res://scenarios/data/default_policy.tres")
 ## The car scene spawned at the scenario's spawn point. It needs a [VehicleProbe] child.
-@export var car_scene: PackedScene = preload("res://scenarios/scenes/debug_car.tscn")
+@export var car_scene: PackedScene = preload("res://scenarios/scenes/player_car.tscn")
 ## How the car starts: its engine, its lever, its speed. Empty leaves the car as it makes itself:
 ## running, in park, standing still.
 @export var car_start: CarStart

@@ -30,7 +30,7 @@ func _test_meshes() -> void:
 	expect(KitModels.mesh("res://assets/kenney/no_such.glb") == null,
 		"a missing model builds nothing")
 	var previews := PackedStringArray()
-	for piece in MapKitTools.pieces():
+	for piece in MapPalette.pieces():
 		if not ResourceLoader.exists(piece.icon):
 			previews.append(piece.label)
 	expect(previews.is_empty(), "every palette piece has an icon %s" % [previews])

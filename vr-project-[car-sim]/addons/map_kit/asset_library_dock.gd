@@ -496,7 +496,7 @@ func _replace_selection(entry: AssetCatalogue.Entry) -> void:
 	var edit := MapKitTools.Edit.new()
 	for node in EditorInterface.get_selection().get_top_selected_nodes():
 		if node is MapAsset:
-			MapKitTools.set_model(edit, node as MapAsset, entry)
+			AssetTools.set_model(edit, node as MapAsset, entry)
 	if not plugin.apply(edit, "Replace with %s" % entry.label):
 		_info.text = "Select map assets in the scene to replace."
 

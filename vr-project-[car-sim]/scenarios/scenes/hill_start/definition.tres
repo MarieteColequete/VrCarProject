@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="ScenarioDefinition" format=3]
 
-[ext_resource type="PackedScene" path="res://scenarios/scenes/debug_car.tscn" id="1_esos6"]
+[ext_resource type="PackedScene" path="res://scenarios/scenes/player_car.tscn" id="1_esos6"]
 [ext_resource type="Script" path="res://scenarios/vehicle/car_start.gd" id="2_v1eck"]
 [ext_resource type="Resource" path="res://scenarios/data/default_policy.tres" id="3_ey0a1"]
 [ext_resource type="Script" path="res://scenarios/data/scenario_definition.gd" id="4_hwygr"]

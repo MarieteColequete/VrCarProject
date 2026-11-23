@@ -13,18 +13,18 @@ func run() -> void:
 
 
 func _test_problems_build_nothing() -> void:
-	var map: RoadMap = load(MapKitTools.BASE).instantiate()
+	var map: RoadMap = load(MapFiles.BASE).instantiate()
 	var road := RoadSegment.new()
 	road.name = "Bare"
 	road.curve = straight(30.0)
 	map.add_child(road)
 	var shape := TerrainShape.new()
 	map.add_child(shape)
-	MapKitTools.problems(map)
+	MapProblems.problems(map)
 	var before := Performance.get_monitor(Performance.OBJECT_NODE_COUNT)
 	var labels: Array = []
 	for i in 20:
-		labels = MapKitTools.problems(map).filter(func(p: Dictionary) -> bool:
+		labels = MapProblems.problems(map).filter(func(p: Dictionary) -> bool:
 			return p.fix != null).map(func(p: Dictionary) -> String: return p.fix_label)
 	var after := Performance.get_monitor(Performance.OBJECT_NODE_COUNT)
 	expect(after - before == 0 and labels.has("Generate") and labels.has("Add terrain"),

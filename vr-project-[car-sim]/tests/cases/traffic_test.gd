@@ -5,6 +5,7 @@ const TRAFFIC_FIXTURE := preload("res://tests/fixtures/traffic_fixture.tscn")
 
 
 func run() -> void:
+	_test_driver_model()
 	_test_scripted_agent()
 	_test_traffic_light()
 	_test_spawner()
@@ -165,3 +166,16 @@ func _test_traffic_drives() -> void:
 	r = await drive([{to = at(-20), speed = 4.0}, {wait = 8.0}], TRAFFIC_FIXTURE)
 	expect(r.has_fault(&"contact_pedestrian") and r.reason == &"eliminated",
 		"waiting on the pedestrian's path gets the car walked into: " + r.summary())
+
+
+func _test_driver_model() -> void:
+	var free := DriverModel.idm(5.0, INF, 0.0, 10.0, 2.0, 1.5, 1.5, 2.0, 8.0)
+	var behind := DriverModel.idm(10.0, 8.0, 0.0, 10.0, 2.0, 1.5, 1.5, 2.0, 8.0)
+	expect(free > 1.3 and behind < -2.0,
+		"on a free road it pulls away at nearly its most; 8 m behind a stopped car it brakes: "
+		+ "%.2f, %.2f m/s²" % [free, behind])
+	expect(DriverModel.forced(2.0, 3.0, 5.0, 5.0) and not DriverModel.forced(2.0, 40.0, 10.0, 10.0),
+		"something within its gap forces a reaction; a car ahead keeping pace far off does not")
+	expect(is_equal_approx(DriverModel.needed_decel(2.0, 10.0, 27.0, 0.0), 2.0)
+		and DriverModel.needed_decel(2.0, 10.0, 27.0, 12.0) == 0.0,
+		"closing at 10 m/s with 25 m to spare needs 2 m/s²; opening needs none")

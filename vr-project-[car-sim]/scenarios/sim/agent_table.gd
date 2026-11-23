@@ -456,8 +456,9 @@ func _decide_speed(i: int, ahead: PackedFloat64Array, rule: Kind, target: float,
 	var reacting := reaction[i] != Kind.NONE
 	# Once reacting, the model keeps control until the road user is back at its scripted speed
 	# with nothing holding it back, so it neither creeps up on a leader nor lets go too early.
-	if found and (reacting or _forced(i, gap, ahead_speed, v)):
-		var model := _idm(i, v, gap, ahead_speed, target)
+	if found and (reacting or DriverModel.forced(min_gap[i], gap, ahead_speed, v)):
+		var model := DriverModel.idm(v, gap, ahead_speed, target, min_gap[i], time_headway[i],
+			max_accel[i], comfort_decel[i], max_decel[i])
 		if not (reacting and v >= target - 0.01 and model >= 0.0):
 			accel = model
 			kind = Kind.STOPPED if v + accel * dt < 0.3 else Kind.FOLLOWING
@@ -479,8 +480,10 @@ func _decide_speed(i: int, ahead: PackedFloat64Array, rule: Kind, target: float,
 ## decision, with a [code]&"forced_to_brake"[/code] event in [param events] when it starts to.
 func _decide_braking(i: int, ahead: PackedFloat64Array, events: Array) -> void:
 	var body := int(ahead[AHEAD_ENTITY])
-	var needed := _needed_decel(i, current_speed[i], ahead[AHEAD_GAP], ahead[AHEAD_SPEED]) \
-		if body else 0.0
+	var needed := 0.0
+	if body:
+		needed = DriverModel.needed_decel(min_gap[i], current_speed[i], ahead[AHEAD_GAP],
+			ahead[AHEAD_SPEED])
 	var hard := braking_hard[i] == 1
 	if needed > hard_brake[i] and not hard:
 		hard = true
@@ -667,38 +670,6 @@ func _markings_allow(i: int, target: LaneData, markings: MarkingIndex) -> bool:
 				or hit.kind == RoadMarking.Kind.KERB:
 			return false
 	return true
-
-
-## Whether something [param gap] metres ahead, moving at [param ahead_speed], forces a reaction at
-## speed [param v]: it is within the gap kept at a reaction's headway, or closing so fast that
-## keeping the script would need braking.
-func _forced(i: int, gap: float, ahead_speed: float, v: float) -> bool:
-	if gap <= min_gap[i] + v * 0.5:
-		return true
-	var closing := v - ahead_speed
-	if closing <= 0.0:
-		return false
-	return closing * closing / (2.0 * maxf(gap - min_gap[i], 0.01)) > 0.5
-
-
-## The deceleration that stopping short of what is ahead, keeping the minimum gap, needs at speed
-## [param v]; 0 when it is not closing in.
-func _needed_decel(i: int, v: float, gap: float, ahead_speed: float) -> float:
-	var closing := v - ahead_speed
-	if closing <= 0.0:
-		return 0.0
-	return closing * closing / (2.0 * maxf(gap - min_gap[i], 0.1))
-
-
-## The Intelligent Driver Model's acceleration behind what is ahead, towards the scripted speed.
-func _idm(i: int, v: float, gap: float, ahead_speed: float, target: float) -> float:
-	var closing := v - ahead_speed
-	var accel := max_accel[i]
-	var wanted := min_gap[i] + maxf(0.0, v * time_headway[i]
-		+ v * closing / (2.0 * sqrt(accel * comfort_decel[i])))
-	var g := maxf(gap, 0.05)
-	var free := 1.0 - pow(v / maxf(target, 0.1), 4.0)
-	return maxf(accel * (free - (wanted / g) * (wanted / g)), -max_decel[i])
 
 
 ## The point of lane [param slot] at [param offset] along it.

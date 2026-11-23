@@ -169,9 +169,9 @@ func show_problems(problems: Array[Dictionary]) -> void:
 	for row in _problem_rows.get_children():
 		row.queue_free()
 	var warnings := problems.filter(func(p: Dictionary) -> bool:
-		return p.severity == MapKitTools.WARNING)
+		return p.severity == MapProblems.WARNING)
 	var notices := problems.filter(func(p: Dictionary) -> bool:
-		return p.severity != MapKitTools.WARNING)
+		return p.severity != MapProblems.WARNING)
 	_problems_section.title = "Problems (%d)" % problems.size() if not problems.is_empty() \
 		else "Problems"
 	title = "Map Kit (%d)" % warnings.size() if not warnings.is_empty() else "Map Kit"
@@ -191,10 +191,10 @@ func show_problems(problems: Array[Dictionary]) -> void:
 func _problem_row(problem: Dictionary) -> Control:
 	var row := HBoxContainer.new()
 	var icon := TextureRect.new()
-	icon.texture = editor_icon(&"StatusWarning" if problem.severity == MapKitTools.WARNING
+	icon.texture = editor_icon(&"StatusWarning" if problem.severity == MapProblems.WARNING
 		else &"NodeInfo")
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
-	icon.tooltip_text = "Warning" if problem.severity == MapKitTools.WARNING else "Notice"
+	icon.tooltip_text = "Warning" if problem.severity == MapProblems.WARNING else "Notice"
 	row.add_child(icon)
 	var node: Node = problem.node
 	var text := Button.new()
@@ -334,7 +334,7 @@ func _build_shape(column: VBoxContainer) -> void:
 	_shape_section = box.get_parent() as FoldableContainer
 	_shape_section.visible = false
 	_shape_kind = OptionButton.new()
-	for label: String in MapKitTools.SHAPE_NOTES:
+	for label: String in MapPalette.SHAPE_NOTES:
 		_shape_kind.add_item(label, TerrainShape.Kind[label.to_upper()])
 	_shape_kind.item_selected.connect(func(index: int) -> void:
 		_set_shape(&"kind", _shape_kind.get_item_id(index), false))
@@ -389,8 +389,8 @@ func _show_shape() -> void:
 		return
 	_shape_kind.select(_shape_kind.get_item_index(_shape.kind))
 	var label := _shape_kind.get_item_text(_shape_kind.selected)
-	_shape_note.text = MapKitTools.SHAPE_NOTES.get(label, "")
-	var fields := MapKitTools.shape_fields(_shape.kind)
+	_shape_note.text = MapPalette.SHAPE_NOTES.get(label, "")
+	var fields := TerrainAuthoring.shape_fields(_shape.kind)
 	for field: StringName in _shape_sliders:
 		var slider: EditorSpinSlider = _shape_sliders[field]
 		slider.visible = fields.has(field)
@@ -401,7 +401,7 @@ func _set_shape(field: StringName, value: float, merge: bool) -> void:
 	if _shape == null or not is_instance_valid(_shape):
 		return
 	var named := "kind" if field == &"kind" else String(field).capitalize().to_lower()
-	plugin.apply(MapKitTools.set_shape(_shape, field, value), "Set terrain shape's " + named,
+	plugin.apply(TerrainAuthoring.set_shape(_shape, field, value), "Set terrain shape's " + named,
 		false, merge)
 
 
@@ -412,7 +412,7 @@ func _snap_shape() -> void:
 	if Terrain.of(road_map) == null:
 		_say("The map has no terrain: press Add terrain first.")
 		return
-	plugin.apply(MapKitTools.snap_shape_base(road_map, _shape), "Stand terrain shape on the land")
+	plugin.apply(TerrainAuthoring.snap_shape_base(road_map, _shape), "Stand terrain shape on the land")
 
 
 func _build_road_users(column: VBoxContainer) -> void:
@@ -442,7 +442,7 @@ func _build_palette(column: VBoxContainer) -> void:
 	box.add_child(_palette)
 	var section := ""
 	var flow: HFlowContainer
-	for piece in MapKitTools.pieces():
+	for piece in MapPalette.pieces():
 		if piece.section != section:
 			section = piece.section
 			var heading := Label.new()
@@ -540,11 +540,11 @@ func _commit_description() -> void:
 
 func _create_map() -> void:
 	var map_name := _new_name.text.strip_edges()
-	if not MapKitTools.is_map_name(map_name):
+	if not MapFiles.is_map_name(map_name):
 		_say("Name the map with lower case letters, digits, and underscores, starting with a "
 			+ "letter.")
 		return
-	var path := MapKitTools.create_map(map_name, map_name.capitalize())
+	var path := MapFiles.create_map(map_name, map_name.capitalize())
 	if path.is_empty():
 		_say("Could not create %s; it may exist already." % map_name)
 		return
@@ -624,16 +624,16 @@ func _on_name_confirmed() -> void:
 		return
 	var problem := ""
 	if _pending.action == &"rename":
-		var was_open := _close_if_open(MapKitTools.map_path(old))
+		var was_open := _close_if_open(MapFiles.map_path(old))
 		if was_open == null:
 			_say("Close %s first: it is open but not the current scene." % old)
 			return
-		problem = MapKitTools.rename_map(old, new)
+		problem = MapFiles.rename_map(old, new)
 		_after_files_changed()
 		if problem.is_empty() and was_open:
-			EditorInterface.open_scene_from_path(MapKitTools.map_path(new))
+			EditorInterface.open_scene_from_path(MapFiles.map_path(new))
 	else:
-		problem = MapKitTools.duplicate_map(old, new, _title_field.text.strip_edges())
+		problem = MapFiles.duplicate_map(old, new, _title_field.text.strip_edges())
 		_after_files_changed()
 	_say(problem if not problem.is_empty() else "%s %s as %s." % [
 		"Renamed" if _pending.action == &"rename" else "Duplicated", old, new])
@@ -646,7 +646,7 @@ func _ask_delete() -> void:
 		_say("Select a map first.")
 		return
 	var map_name := path.get_file().get_basename()
-	var users := MapKitTools.map_users(path)
+	var users := MapFiles.map_users(path)
 	if not users.is_empty():
 		_say("%s is used by %s; it stays." % [map_name, ", ".join(users)])
 		return
@@ -658,10 +658,10 @@ func _ask_delete() -> void:
 func _on_delete_confirmed() -> void:
 	var map_name: String = _pending.get("old", "")
 	_pending = {}
-	if _close_if_open(MapKitTools.map_path(map_name)) == null:
+	if _close_if_open(MapFiles.map_path(map_name)) == null:
 		_say("Close %s first: it is open but not the current scene." % map_name)
 		return
-	var problem := MapKitTools.delete_map(map_name)
+	var problem := MapFiles.delete_map(map_name)
 	_after_files_changed()
 	_say(problem if not problem.is_empty() else "Moved %s to the trash." % map_name)
 
@@ -698,23 +698,14 @@ func _fix_everything() -> void:
 func _set_as_road() -> void:
 	if not _need_map():
 		return
-	var edit := MapKitTools.Edit.new()
-	for node in _selected():
-		if node is GeometryInstance3D:
-			edit.set_value(node, &"material_override", MapKitTools.ASPHALT)
-	if not plugin.apply(edit, "Set as road"):
+	if not plugin.apply(AssetTools.set_as_road(_selected()), "Set as road"):
 		_say("Select meshes to set as road.")
 
 
 func _set_as_obstacle() -> void:
 	if not _need_map():
 		return
-	var edit := MapKitTools.Edit.new()
-	for node in _selected():
-		if node is Node3D and not node is StaticBody3D and not node.has_node("Obstacle"):
-			var body := MapKitTools.obstacle_body(node)
-			if body:
-				edit.add(node, body)
+	var edit := AssetTools.set_as_obstacle(_selected())
 	if plugin.apply(edit, "Set as obstacle"):
 		_say("Gave %d nodes a solid body." % edit.adds.size())
 	else:
@@ -725,16 +716,7 @@ func _connect_lanes() -> void:
 	var road_map := _need_map()
 	if road_map == null:
 		return
-	var lanes := _selected().filter(func(n: Node) -> bool: return n is TrafficLane)
-	var edit := MapKitTools.Edit.new()
-	if lanes.size() < 2:
-		edit = MapKitTools.link_lanes(road_map)
-	else:
-		var links := MapKitTools.lane_links(lanes)
-		for lane: TrafficLane in links:
-			var next: Array[TrafficLane] = lane.next.duplicate()
-			next.append_array(links[lane])
-			edit.set_value(lane, &"next", next)
+	var edit := RoadNetwork.connect_lanes(road_map, _selected())
 	if plugin.apply(edit, "Connect lanes"):
 		_say("Linked %d lanes." % edit.sets.size())
 	else:
@@ -744,13 +726,8 @@ func _connect_lanes() -> void:
 func _snap() -> void:
 	if not _need_map():
 		return
-	var edit := MapKitTools.Edit.new()
-	var step: float = plugin.setting("grid_step", 0.5)
-	for node in _selected():
-		if node is Node3D:
-			edit.set_value(node, &"position", MapKitTools.snapped(node.position,
-				step if step > 0.0 else 0.5))
-	plugin.apply(edit, "Snap to grid")
+	plugin.apply(MapKitTools.snap_nodes(_selected(), plugin.setting("grid_step", 0.5)),
+		"Snap to grid")
 
 
 func _drive_to() -> void:
@@ -758,15 +735,12 @@ func _drive_to() -> void:
 	if road_map == null:
 		return
 	var picked := _selected()
-	var checkpoints := picked.filter(func(n: Node) -> bool: return n is Checkpoint)
-	if checkpoints.is_empty():
-		checkpoints = road_map.nodes().filter(func(n: Node) -> bool: return n is Checkpoint)
-	if checkpoints.size() != 1:
+	var checkpoint := RoadNetwork.checkpoint_for(road_map, picked)
+	if checkpoint == null:
 		_say("Select one checkpoint with the cars, or place one: Palette, Traffic, Checkpoint.")
 		return
-	var checkpoint: Checkpoint = checkpoints[0]
 	var cars := picked.filter(func(n: Node) -> bool: return not n is Checkpoint)
-	var edit := MapKitTools.drive_to(road_map, cars, checkpoint)
+	var edit := RoadNetwork.drive_to(road_map, cars, checkpoint)
 	if plugin.apply(edit, "Drive to %s" % checkpoint.name, true):
 		_say("%d road users drive to %s." % [edit.adds.size() + edit.sets.size(),
 			checkpoint.name])
@@ -781,7 +755,7 @@ func _drape() -> void:
 	if Terrain.of(road_map) == null:
 		_say("The map has no terrain: press Add terrain first.")
 		return
-	if not plugin.apply(MapKitTools.drape(road_map, _selected(), MAX_GRADE), "Drape on terrain"):
+	if not plugin.apply(TerrainAuthoring.drape(road_map, _selected(), MAX_GRADE), "Drape on terrain"):
 		_say("Nothing to drape: select roads, lanes, markings, or places.")
 
 
@@ -789,14 +763,14 @@ func _add_terrain() -> void:
 	var road_map := _need_map()
 	if road_map == null:
 		return
-	if not plugin.apply(MapKitTools.add_terrain(road_map), "Add terrain", true):
+	if not plugin.apply(TerrainAuthoring.add_terrain(road_map), "Add terrain", true):
 		_say("The map has a terrain already.")
 
 
 func _next_look() -> void:
 	if not _need_map():
 		return
-	if not plugin.apply(MapKitTools.next_look(_selected()), "Next look"):
+	if not plugin.apply(AssetTools.next_look(_selected()), "Next look"):
 		_say("Select cars, vans, buildings, scenery, or map assets.")
 
 

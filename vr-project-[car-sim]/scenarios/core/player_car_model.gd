@@ -137,8 +137,8 @@ static func make(wheelbase: float) -> PlayerCarModel:
 ## Moves the live parts for a step of [param delta] seconds: each wheel turning at its own
 ## [param spins] (rad/s, forward positive, in [CarDynamics]' order), so a locked wheel stands still
 ## and a spinning one spins, each front one at its road angle from [param steering] and the
-## steering wheel at its turn, with the lights as given; the blinkers [param left_on] and [param right_on] are lit or
-## dark at this moment of their blink.
+## steering wheel at its turn, with the lights as given; the blinkers [param left_on] and
+## [param right_on] are lit or dark at this moment of their blink.
 func drive(delta: float, spins: PackedFloat64Array, steering: Steering, left_on: bool,
 		right_on: bool, braking: bool, reversing: bool, headlights: bool) -> void:
 	for wheel in wheels:
@@ -284,7 +284,7 @@ func _build(model: Node3D, wheelbase: float) -> void:
 	if steering_mesh:
 		steering_wheel = steering_mesh
 		_steering_rest = steering_mesh.transform
-		steering_axis = plane_normal(steering_mesh.mesh)
+		steering_axis = MeshCut.plane_normal(steering_mesh.mesh)
 		# The driver sits behind the wheel: -X in the model.
 		var column := steering.transform.basis * _steering_rest.basis * steering_axis
 		if column.dot(Vector3.LEFT) < 0.0:
@@ -314,50 +314,6 @@ func _build(model: Node3D, wheelbase: float) -> void:
 	_lean_pivot = (front + rear) / 2.0
 	drive(0.0, PackedFloat64Array([0.0, 0.0, 0.0, 0.0]), Steering.new(), false, false, false, false,
 		false)
-
-
-## The direction across the flattest extent of [param mesh]'s points: a disc's axis.
-static func plane_normal(mesh: Mesh) -> Vector3:
-	var points := PackedVector3Array()
-	for surface in mesh.get_surface_count():
-		points.append_array(mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX])
-	if points.size() < 3:
-		return Vector3.RIGHT
-	var centre := Vector3.ZERO
-	for p in points:
-		centre += p
-	centre /= points.size()
-	# The covariance's two largest directions span the disc; the normal crosses them.
-	var c := [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
-	for p in points:
-		var d := p - centre
-		for i in 3:
-			for j in 3:
-				c[i][j] += d[i] * d[j]
-	var first := _largest(c, Vector3(0.3, 0.6, 0.7))
-	var lambda := _apply(c, first).dot(first)
-	for i in 3:
-		for j in 3:
-			c[i][j] -= lambda * first[i] * first[j]
-	var second := _largest(c, first.cross(Vector3(0.1, 0.9, 0.4)).normalized())
-	var normal := first.cross(second)
-	return normal.normalized() if normal.length() > 0.0001 else Vector3.RIGHT
-
-
-static func _largest(c: Array, start: Vector3) -> Vector3:
-	var v := start.normalized()
-	for i in 64:
-		var next := _apply(c, v)
-		if next.length() < 0.0000001:
-			break
-		v = next.normalized()
-	return v
-
-
-static func _apply(c: Array, v: Vector3) -> Vector3:
-	return Vector3(c[0][0] * v.x + c[0][1] * v.y + c[0][2] * v.z,
-		c[1][0] * v.x + c[1][1] * v.y + c[1][2] * v.z,
-		c[2][0] * v.x + c[2][1] * v.y + c[2][2] * v.z)
 
 
 ## Gives each part a material made from the kit's textures, whose own paths point elsewhere.
@@ -424,8 +380,7 @@ static func _material(key: String, source: StandardMaterial3D) -> StandardMateri
 
 
 static func _texture(file: String) -> Texture2D:
-	var path := TEXTURES + file
-	return load(path) as Texture2D if ResourceLoader.exists(path) else null
+	return _load(TEXTURES + file)
 
 
 ## Which part of the cabin a triangle of the interior is, at [param centre] facing [param normal]
@@ -458,19 +413,18 @@ func _split_cabin(part: MeshInstance3D) -> void:
 			var centre := to_car * ((a + b + c) / 3.0) * scale_back
 			var facing := (normal_to_car * (c - a).cross(b - a)).normalized()
 			return cabin_zone(centre, facing) == key
-		var mesh := cut_mesh(part.mesh, picks, true)
+		var mesh := MeshCut.cut_mesh(part.mesh, picks, true)
 		if mesh.get_surface_count() == 0:
 			continue
-		_cut_away(part, picks)
+		MeshCut.cut_away(part, picks)
 		var zone := MeshInstance3D.new()
 		zone.name = "Cabin" + String(key).to_pascal_case()
-		zone.mesh = box_mapped(mesh, to_car, CABIN[key].tile)
+		zone.mesh = MeshCut.box_mapped(mesh, to_car, CABIN[key].tile)
 		zone.material_override = _cabin_material(key)
 		zone.transform = part.transform
 		part.get_parent().add_child(zone)
 		cabin_parts[key] = zone
-	part.mesh = box_mapped(cut_mesh(part.mesh, func(_a, _b, _c) -> bool: return true, true),
-		to_car, CABIN.dash.tile)
+	part.mesh = MeshCut.box_mapped(MeshCut.unindexed(part.mesh), to_car, CABIN.dash.tile)
 	part.material_override = _cabin_material(&"dash")
 	cabin_parts[&"dash"] = part
 
@@ -482,47 +436,9 @@ func _dress_wheel(wheel_mesh: MeshInstance3D) -> void:
 	var to_car: Transform3D = body.transform * (wheel_mesh.get_parent() as Node3D).transform \
 		* wheel_mesh.transform
 	var scaled := Transform3D(Basis.from_scale(to_car.basis.get_scale()), Vector3.ZERO)
-	wheel_mesh.mesh = box_mapped(cut_mesh(wheel_mesh.mesh, func(_a, _b, _c) -> bool: return true,
-		true), scaled, CABIN.wheel.tile)
+	wheel_mesh.mesh = MeshCut.box_mapped(MeshCut.unindexed(wheel_mesh.mesh), scaled,
+		CABIN.wheel.tile)
 	wheel_mesh.material_override = _cabin_material(&"wheel")
-
-
-## [param mesh] (unindexed triangles) with new texture coordinates laid across it: each triangle
-## projected along the axis it most faces, in the space [param to_space] turns it into, one repeat
-## each [param tile] metres; and tangents to match, for the normal maps.
-static func box_mapped(mesh: ArrayMesh, to_space: Transform3D, tile: float) -> ArrayMesh:
-	var out := ArrayMesh.new()
-	var normal_to := to_space.basis.inverse().transposed()
-	for surface in mesh.get_surface_count():
-		var arrays := mesh.surface_get_arrays(surface)
-		var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-		arrays[Mesh.ARRAY_TEX_UV] = box_uvs(points, to_space, normal_to, tile)
-		arrays[Mesh.ARRAY_TANGENT] = null
-		var tool := SurfaceTool.new()
-		tool.create_from_arrays(arrays)
-		tool.generate_tangents()
-		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, tool.commit_to_arrays())
-	return out
-
-
-## The texture coordinates of the unindexed triangles [param points]: each corner of a triangle
-## projected along the axis the triangle most faces, after [param to_space] (its normals turned by
-## [param normal_to]), one unit each [param tile] metres.
-static func box_uvs(points: PackedVector3Array, to_space: Transform3D, normal_to: Basis,
-		tile: float) -> PackedVector2Array:
-	var uvs := PackedVector2Array()
-	uvs.resize(points.size())
-	for t in range(0, points.size() - 2, 3):
-		var a := to_space * points[t]
-		var b := to_space * points[t + 1]
-		var c := to_space * points[t + 2]
-		var n := (normal_to * (points[t + 2] - points[t]).cross(points[t + 1] - points[t])).abs()
-		for i in 3:
-			var p: Vector3 = [a, b, c][i]
-			var uv := Vector2(p.z, p.y) if n.x >= n.y and n.x >= n.z \
-				else (Vector2(p.x, p.z) if n.y >= n.z else Vector2(p.x, p.y))
-			uvs[t + i] = uv / tile
-	return uvs
 
 
 ## The material of the cabin's part [param key], from its set in [constant CABIN].
@@ -545,24 +461,6 @@ static func _load(path: String) -> Texture2D:
 	return load(path) as Texture2D if ResourceLoader.exists(path) else null
 
 
-## Takes the triangles [param picks] picks out of [param part], which keeps its materials.
-static func _cut_away(part: MeshInstance3D, picks: Callable) -> void:
-	var materials := _surface_materials(part)
-	var sources := []
-	part.mesh = cut_mesh(part.mesh, picks, false, sources)
-	for surface in sources.size():
-		part.set_surface_override_material(surface, materials[sources[surface]])
-
-
-## Each surface's material as [param part] draws it: its override, else the mesh's own.
-static func _surface_materials(part: MeshInstance3D) -> Array:
-	var materials := []
-	for surface in part.mesh.get_surface_count():
-		var material := part.get_surface_override_material(surface)
-		materials.append(material if material else part.mesh.surface_get_material(surface))
-	return materials
-
-
 ## Cuts the housing of mirror [param key] out of [param part] (whose space [param to_car] turns
 ## into the car's), the rest of what lies in its shell box, into a mesh of its own on
 ## [constant Layers.MIRROR_HOUSING_VISUAL]: drawn for the driver, left out of the mirrors.
@@ -571,12 +469,12 @@ func _cut_housing(key: StringName, part: MeshInstance3D, to_car: Transform3D) ->
 	shell = AABB(shell.position * fit, shell.size * fit)
 	var picks := func(a: Vector3, b: Vector3, c: Vector3) -> bool:
 		return shell.has_point(to_car * ((a + b + c) / 3.0))
-	var materials := _surface_materials(part)
+	var materials := MeshCut.surface_materials(part)
 	var sources := []
-	var mesh := cut_mesh(part.mesh, picks, true, sources)
+	var mesh := MeshCut.cut_mesh(part.mesh, picks, true, sources)
 	if mesh.get_surface_count() == 0:
 		return
-	_cut_away(part, picks)
+	MeshCut.cut_away(part, picks)
 	var housing := MeshInstance3D.new()
 	housing.name = "MirrorHousing" + String(key).to_pascal_case()
 	housing.mesh = mesh
@@ -616,10 +514,10 @@ func _cut_face(part: MeshInstance3D, box: AABB, facing: float, title: String) ->
 		# Godot's front faces wind clockwise: their outward normal is (c - a) x (b - a).
 		var normal := (normal_to_car * (c - a).cross(b - a)).normalized()
 		return box.has_point(centre) and normal.z >= facing
-	var face_mesh := cut_mesh(part.mesh, picks, true)
+	var face_mesh := MeshCut.cut_mesh(part.mesh, picks, true)
 	if face_mesh.get_surface_count() == 0:
 		return null
-	_cut_away(part, picks)
+	MeshCut.cut_away(part, picks)
 	var arrays := face_mesh.surface_get_arrays(0)
 	var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var normal_sum := Vector3.ZERO
@@ -660,51 +558,6 @@ func _cut_face(part: MeshInstance3D, box: AABB, facing: float, title: String) ->
 	return face
 
 
-## The triangles of [param mesh] that [param picks] picks (given their three corners), or with
-## [param kept] false the ones it leaves, as a mesh of their own. A surface left with no triangles
-## is dropped; [param sources] gets the source surface of each one made.
-static func cut_mesh(mesh: Mesh, picks: Callable, kept: bool, sources: Array = []) -> ArrayMesh:
-	var out := ArrayMesh.new()
-	for surface in mesh.get_surface_count():
-		var tool := SurfaceTool.new()
-		tool.create_from(mesh, surface)
-		tool.deindex()
-		var arrays := tool.commit_to_arrays()
-		var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-		var keep := PackedInt32Array()
-		for t in range(0, points.size() - 2, 3):
-			if picks.call(points[t], points[t + 1], points[t + 2]) == kept:
-				keep.append_array([t, t + 1, t + 2])
-		if keep.is_empty():
-			continue
-		if kept:
-			# The glass on its own: only its own corners, unindexed.
-			for column in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_TANGENT,
-					Mesh.ARRAY_TEX_UV, Mesh.ARRAY_TEX_UV2, Mesh.ARRAY_COLOR]:
-				arrays[column] = _pick(arrays[column], keep, column == Mesh.ARRAY_TANGENT)
-			arrays[Mesh.ARRAY_INDEX] = null
-		else:
-			arrays[Mesh.ARRAY_INDEX] = keep
-		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-		sources.append(surface)
-	return out
-
-
-static func _pick(column: Variant, rows: PackedInt32Array, tangent: bool) -> Variant:
-	if column == null:
-		return null
-	if tangent:
-		var out := PackedFloat32Array()
-		for r in rows:
-			out.append_array((column as PackedFloat32Array).slice(r * 4, r * 4 + 4))
-		return out
-	var picked: Variant = column.duplicate()
-	picked.resize(rows.size())
-	for i in rows.size():
-		picked[i] = column[rows[i]]
-	return picked
-
-
 ## Splits the blinkers, one mesh for both sides, into the left and the right, each its own light.
 func _split_blinkers(mesh: MeshInstance3D) -> void:
 	if mesh == null:
@@ -713,32 +566,12 @@ func _split_blinkers(mesh: MeshInstance3D) -> void:
 	for side: StringName in [&"blinkers_left", &"blinkers_right"]:
 		var part := MeshInstance3D.new()
 		part.name = String(side).to_pascal_case()
-		part.mesh = split_mesh(mesh.mesh, func(centroid: Vector3) -> bool:
+		part.mesh = MeshCut.split_mesh(mesh.mesh, func(centroid: Vector3) -> bool:
 			return (centroid.z > 0.0) == (side == &"blinkers_left"))
 		part.transform = mesh.transform
 		mesh.get_parent().add_child(part)
 		_glow(part, side, BLINKER)
 	mesh.visible = false
-
-
-## The triangles of [param mesh] whose centroid [param keep] keeps, as a mesh of their own.
-static func split_mesh(mesh: Mesh, keep: Callable) -> ArrayMesh:
-	var out := ArrayMesh.new()
-	for surface in mesh.get_surface_count():
-		var tool := SurfaceTool.new()
-		tool.create_from(mesh, surface)
-		tool.deindex()
-		var arrays := tool.commit_to_arrays()
-		var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-		var kept := PackedInt32Array()
-		for t in range(0, points.size() - 2, 3):
-			if keep.call((points[t] + points[t + 1] + points[t + 2]) / 3.0):
-				kept.append_array([t, t + 1, t + 2])
-		if kept.is_empty():
-			continue
-		arrays[Mesh.ARRAY_INDEX] = kept
-		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	return out
 
 
 func _glow(mesh: MeshInstance3D, group: StringName, colour: Color) -> void:
@@ -774,7 +607,7 @@ func _beams(mesh: MeshInstance3D) -> void:
 		return
 	# In the model, +Z is to the right: one lamp each side.
 	for left in [true, false]:
-		var half := split_mesh(mesh.mesh, func(centroid: Vector3) -> bool:
+		var half := MeshCut.split_mesh(mesh.mesh, func(centroid: Vector3) -> bool:
 			return (centroid.z < 0.0) == left)
 		if half.get_surface_count() == 0:
 			continue

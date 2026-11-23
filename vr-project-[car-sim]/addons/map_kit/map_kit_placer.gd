@@ -63,7 +63,7 @@ func arm(p_piece: MapKitTools.Piece) -> void:
 	if _ghost is MapAsset:
 		(_ghost as MapAsset).preview = true
 	_base_y = _ghost.position.y
-	_ends = MapKitTools.road_ends(road_map) if piece.joins_roads else []
+	_ends = RoadNetwork.road_ends(road_map) if piece.joins_roads else []
 	_ghost.visible = false
 	road_map.add_child(_ghost, false, Node.INTERNAL_MODE_BACK)
 	armed_changed.emit(piece)
@@ -151,7 +151,7 @@ func place(road_map: RoadMap, point: Vector3) -> void:
 		* _placement(road_map, node, point)
 	plugin.apply(MapKitTools.Edit.new().add(parent, node), "Add %s" % piece.label.to_lower(), true)
 	if piece.joins_roads:
-		_ends = MapKitTools.road_ends(road_map)
+		_ends = RoadNetwork.road_ends(road_map)
 	last = piece
 	placed.emit(piece)
 
@@ -244,7 +244,7 @@ static func placement(point: Vector3, step: float, turn: float, height: float) -
 ## [method placement] puts it.
 func _placement(road_map: RoadMap, node: Node3D, point: Vector3) -> Transform3D:
 	if piece.joins_roads:
-		var joined: Variant = MapKitTools.joining_transform(road_map, node, point, _ends)
+		var joined: Variant = RoadNetwork.joining_transform(road_map, node, point, _ends)
 		if joined != null:
 			return joined
 	return placement(point, plugin.setting("grid_step", 0.5), piece.turn, _base_y)

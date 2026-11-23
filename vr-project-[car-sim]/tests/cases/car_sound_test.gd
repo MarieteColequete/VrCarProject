@@ -86,13 +86,13 @@ func _test_voices() -> void:
 
 
 func _test_streams() -> void:
-	var loop := CarSound.engine_loop(CarSound.LOW_RPM, 1)
+	var loop := SoundSynth.engine_loop(CarSound.LOW_RPM, 1)
 	expect(loop.loop_mode == AudioStreamWAV.LOOP_FORWARD and loop.get_length() > 0.5
 		and loop.data.size() == loop.loop_end * 2, "the engine is a seamless loop: %.2f s"
 		% loop.get_length())
-	expect(CarSound.click(2000.0, 0.01).get_length() < 0.05, "a tick is short")
-	for wav: AudioStreamWAV in [CarSound.squeal_loop(), CarSound.skid_loop(),
-			CarSound.scrub_loop(), CarSound.roll_loop()]:
+	expect(SoundSynth.click(2000.0, 0.01).get_length() < 0.05, "a tick is short")
+	for wav: AudioStreamWAV in [SoundSynth.squeal_loop(), SoundSynth.skid_loop(),
+			SoundSynth.scrub_loop(), SoundSynth.roll_loop()]:
 		var last := wav.data.size() - 2
 		var seam := absf(wav.data.decode_s16(last) - wav.data.decode_s16(0)) / 32768.0
 		var step := 0.0

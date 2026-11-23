@@ -116,13 +116,13 @@ var model: PlayerCarModel
 var instruments: InstrumentCluster
 ## The engine, the indicator's tick, the tyres, and the kerbs, heard in the cabin.
 var sound: CarSound
+## The car's mirrors ([CarMirrors]): the glass, the switch, the hands, and the tilts kept.
+var car_mirrors := CarMirrors.new()
 ## The interior mirror and the left and right door mirrors, in that order; empty with the
 ## project setting [code]car/mirrors[/code] off.
-var mirrors: Array[CarMirror] = []
-## The names the mirrors' tilts are saved by, in the order of [member mirrors].
-var mirror_keys: Array[StringName] = []
-## The mirror switch, for setting the mirrors with the controls.
-var mirror_adjust := MirrorAdjust.new()
+var mirrors: Array[CarMirror]:
+	get:
+		return car_mirrors.mirrors
 ## The settings file the driver's mirror tilts are kept in between sessions.
 var settings_path := "user://car.cfg"
 
@@ -133,13 +133,15 @@ var _last_velocity := Vector3.ZERO
 var _settled_motion := false
 ## How fast the grounded tyres' contact patches move over the road, m/s; the plant's.
 var _patch_speed := 0.0
-var _mirror_frame := 0
-var _on_kerb := false
-var _mirror_quality := "full"
 var _blink_clock := 0.0
-var _mirror_held := false
-var _abs_was := false
-var _shifting_was := false
+## What the driver feels through the controllers.
+var feedback := CarFeedback.new()
+## Each wheel's cast this step ([method _cast_wheels]): where it touches, the road's normal and
+## friction there, and how far it is pushed into its travel.
+var _contacts := PackedVector3Array([Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, Vector3.ZERO])
+var _normals := PackedVector3Array([Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP])
+var _mu := PackedFloat64Array([1.0, 1.0, 1.0, 1.0])
+var _squeezed := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
 var _shift := 0
 ## The park button pressed since the last step, and the gamepad's shift_down ([HoldTap]).
 var _park := false
@@ -163,6 +165,8 @@ var _ray := PhysicsRayQueryParameters3D.new()
 func _ready() -> void:
 	BodyType.of(&"player").apply(self)
 	_setup_body()
+	car_mirrors.name = "Mirrors"
+	add_child(car_mirrors)
 	probe.mass = spec.mass
 	probe.wheelbase = spec.wheelbase
 	probe.track = spec.track
@@ -226,104 +230,24 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Puts the glass on the model's mirrors, set up for the driver's seat, and tells the probe where
 ## they are, for the gaze checks.
 func _mount_mirrors() -> void:
-	_mirror_quality = str(ProjectSettings.get_setting(MIRRORS_SETTING, "full"))
-	var points := PackedVector3Array()
-	var seat := driver_view.position
-	for key: StringName in [&"rear", &"left", &"right"]:
-		var spot := model.mirror_spot(key, seat)
-		if spot.is_empty():
-			continue
-		var at: Transform3D = spot.transform
-		points.append(at.origin)
-		if _mirror_quality == "off":
-			continue
-		var width: int = spot.width / 2 if _mirror_quality == "low" else spot.width
-		var mirror := CarMirror.make(String(key).to_pascal_case() + "Mirror", spot.size, width,
-			spot.glass)
-		mirror.transform = at
-		mirror.rest_pivot = at.affine_inverse() * (spot.aim as Transform3D)
-		mirror.widen = spot.widen
-		mirror.eye = driver_view.eye()
-		model.cabin.add_child(mirror)
-		mirrors.append(mirror)
-		mirror_keys.append(key)
-	probe.mirrors = points
-	load_mirror_tilts()
+	car_mirrors.settings_path = settings_path
+	probe.mirrors = car_mirrors.mount(model, driver_view,
+		str(ProjectSettings.get_setting(MIRRORS_SETTING, "full")))
 
 
-## Sets the mirrors as the driver last left them, from [member settings_path].
-func load_mirror_tilts() -> void:
-	var tilts := CarMirror.load_tilts(settings_path)
-	for i in mirrors.size():
-		mirrors[i].tilt = tilts.get(mirror_keys[i], Vector2.ZERO)
-
-
-## Keeps the mirrors as the driver has set them, in [member settings_path].
-func save_mirror_tilts() -> void:
-	if mirrors.is_empty():
-		return
-	var tilts := {}
-	for i in mirrors.size():
-		tilts[mirror_keys[i]] = mirrors[i].tilt
-	CarMirror.save_tilts(settings_path, tilts)
-
-
-## Moves the mirror switch on to the next mirror, or to none, lighting the mirror picked and
-## giving it the look controls.
+## Moves the mirror switch on to the next mirror, or to none ([method CarMirrors.switch]).
 func switch_mirror() -> void:
-	mirror_adjust.cycle(mirrors.size())
-	_show_picked()
+	car_mirrors.switch()
 
 
-func _show_picked() -> void:
-	for i in mirrors.size():
-		mirrors[i].selected = i == mirror_adjust.picked
-	driver_view.look_locked = mirror_adjust.active()
+## Keeps the mirrors as the driver has set them ([method CarMirrors.save_tilts]).
+func save_mirror_tilts() -> void:
+	car_mirrors.save_tilts()
 
 
-## A step of the mirror switch: the picked mirror tilts with the look controls; once the switch
-## lets go, the mirrors are saved as they are.
-func _adjust_mirrors(delta: float) -> void:
-	if not mirror_adjust.active():
-		return
-	var look := driver_view.mirror_look()
-	var mouse: Vector2 = look.mouse
-	var tilt := mirror_adjust.step(delta, look.stick, signals.vehicle_speed, mouse != Vector2.ZERO)
-	if mirror_adjust.active():
-		mirrors[mirror_adjust.picked].nudge(tilt + mouse)
-	else:
-		_show_picked()
-		save_mirror_tilts()
-
-
-## The mirrors in the driver's hands: a held mirror tilts as the hand moves across it, and is
-## saved once let go.
-func _grab_mirrors() -> void:
-	var glasses: Array = mirrors.map(func(m: CarMirror) -> Transform3D: return m.global_transform)
-	var tilts := driver_view.grab_mirrors(glasses)
-	for i in mini(tilts.size(), mirrors.size()):
-		if tilts[i] != Vector2.ZERO:
-			mirrors[i].nudge(tilts[i])
-	var held := driver_view.mirror_grab.held()
-	if _mirror_held and not held:
-		save_mirror_tilts()
-	_mirror_held = held
-
-
-## Draws the mirrors, spread over the frames: at full quality the interior mirror one frame and the
-## door mirrors the next, at low quality one mirror a frame.
 func _process(delta: float) -> void:
-	if mirrors.is_empty():
-		return
-	_adjust_mirrors(delta)
-	_mirror_frame += 1
-	if _mirror_quality == "low":
-		mirrors[_mirror_frame % mirrors.size()].render()
-	elif _mirror_frame % 2 == 0:
-		mirrors[0].render()
-	else:
-		for i in range(1, mirrors.size()):
-			mirrors[i].render()
+	car_mirrors.step_switch(delta, signals.vehicle_speed)
+	car_mirrors.draw()
 
 
 func _physics_process(delta: float) -> void:
@@ -332,8 +256,7 @@ func _physics_process(delta: float) -> void:
 	if model and input_enabled:
 		driver_view.grab_wheel(delta, global_transform * model.steering_frame(),
 			model.steering_radius, _steer)
-		if not mirrors.is_empty():
-			_grab_mirrors()
+		car_mirrors.step_hands()
 	_drive(delta)
 	_show(delta)
 
@@ -498,51 +421,14 @@ func _drive(delta: float) -> void:
 
 	# The brake only brakes; the throttle drives whichever way the gearbox is in.
 
-	# The driver turns the steering wheel: hands on it turn it directly; the keys and sticks turn
-	# it as a hand would, at a hand's pace toward where they point. The steering only turns the
-	# front wheels; nothing else steers.
-	if not c.held and driver_view.wheel.held():
-		_steer = driver_view.wheel.steer()
-	else:
-		var outward: bool = absf(c.steer) > absf(_steer) and c.steer * _steer >= 0.0
-		_steer = move_toward(_steer, clampf(c.steer, -1.0, 1.0),
-			(STEER_RATE if outward else RETURN_RATE) * delta)
-	steering.steer(_packed, _steer)
-	wheel_angle = steering.rack
-
-	# The suspension: each wheel cast down to the road.
-	var space := get_world_3d().direct_space_state
-	var length := spec.travel + spec.wheel_radius
-	var mu := PackedFloat64Array([1.0, 1.0, 1.0, 1.0])
-	var contacts := PackedVector3Array([Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, Vector3.ZERO])
-	var normals := PackedVector3Array([up, up, up, up])
-	var squeezed := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
-	var kerb := false
-	for i in 4:
-		var top := global_transform * (wheel_position(i) + Vector3.UP * CAST_FROM)
-		_ray.from = top
-		_ray.to = top - up * length
-		var hit := space.intersect_ray(_ray)
-		grounded[i] = 1 if not hit.is_empty() else 0
-		on_loose[i] = 0
-		if hit.is_empty():
-			squeezed[i] = 0.0
-			contacts[i] = top - up * length
-			continue
-		squeezed[i] = clampf(length - top.distance_to(hit.position), 0.0, spec.travel + 0.05)
-		contacts[i] = hit.position
-		normals[i] = hit.normal
-		var other := hit.collider as CollisionObject3D
-		if other:
-			if other.collision_layer & Layers.PAVEMENT:
-				kerb = true
-			var material: PhysicsMaterial = other.get(&"physics_material_override")
-			if material:
-				mu[i] = material.friction
-				on_loose[i] = 1 if material.resource_name == _loose_name else 0
+	_turn_wheel(c, delta)
+	var kerb := _cast_wheels(up)
+	var contacts := _contacts
+	var normals := _normals
+	var mu := _mu
 	# Each spring pushes its own corner up off the road, along the road's normal: the body
 	# pitches and rolls on them, and the weight on each wheel is what its spring carries.
-	var loads := suspension.loads(_packed, squeezed, grounded, delta)
+	var loads := suspension.loads(_packed, _squeezed, grounded, delta)
 	for i in 4:
 		if grounded[i]:
 			apply_force(normals[i] * loads[i], contacts[i] - global_position)
@@ -588,35 +474,67 @@ func _drive(delta: float) -> void:
 		apply_central_force(-velocity * 0.5 * CarSpec.AIR * spec.drag_area * speed)
 		apply_central_force(-up * 0.5 * CarSpec.AIR * spec.downforce_area * speed * speed)
 
-	# What the driver feels through the controllers comes from the car's signals: a change
-	# beginning or going through, a refusal, a stall, the starter, ABS working. The kerb below is
-	# physical, a bump through the body.
-	if (signals.shifting and not _shifting_was) or signals.shifted:
-		driver_view.pulse(0.15, 0.05)
-	elif signals.shift_refused:
-		driver_view.pulse(0.5, 0.15)
-	_shifting_was = signals.shifting
-	if signals.stalled:
-		driver_view.pulse(1.0, 0.4)
-	elif signals.start_refused:
-		driver_view.pulse(0.5, 0.15)
-	elif signals.engine_state == CarDynamics.EngineState.CRANKING:
-		driver_view.pulse(0.15, delta)
-	if signals.abs_active and not _abs_was:
-		driver_view.pulse(0.3, 0.06)
-	_abs_was = signals.abs_active
+	# What the driver feels through the controllers ([CarFeedback]): from the car's signals, and
+	# the kerb's bump through the body, which is physical.
 	for body in get_colliding_bodies():
 		var solid := body as CollisionObject3D
 		if solid and solid.collision_layer & Layers.PAVEMENT:
 			kerb = true
-	if kerb and not _on_kerb:
-		if sound:
-			sound.knock_kerb()
-		driver_view.pulse(0.6, 0.12)
-	_on_kerb = kerb
+	for pulse in feedback.step(signals, kerb, delta):
+		driver_view.pulse(pulse.x, pulse.y)
+	if feedback.kerb_hit and sound:
+		sound.knock_kerb()
 
 	# The body's acceleration along it and to its left, smoothed, for the model's lean: the plant's
 	# own motion, a physical effect, not a measurement (on a slope at rest it leans nothing).
 	_accel = _accel.lerp(Vector2(felt.dot(forward), felt.dot(left)),
 		clampf(ACCEL_SMOOTHING * delta, 0.0, 1.0))
 
+
+## The driver turns the steering wheel: hands on it turn it directly; the keys and sticks turn it
+## as a hand would, at a hand's pace toward where they point. The steering only turns the front
+## wheels; nothing else steers.
+func _turn_wheel(c: Dictionary, delta: float) -> void:
+	if not c.held and driver_view.wheel.held():
+		_steer = driver_view.wheel.steer()
+	else:
+		var outward: bool = absf(c.steer) > absf(_steer) and c.steer * _steer >= 0.0
+		_steer = move_toward(_steer, clampf(c.steer, -1.0, 1.0),
+			(STEER_RATE if outward else RETURN_RATE) * delta)
+	steering.steer(_packed, _steer)
+	wheel_angle = steering.rack
+
+
+## Casts each wheel down to the road along the body's [param up]: where it touches, the road's
+## normal and friction there, how far the wheel is pushed into its travel, and whether it is on
+## loose ground ([member _contacts], [member _normals], [member _mu], [member _squeezed],
+## [member grounded], [member on_loose]). Returns whether a wheel stands on a kerb.
+func _cast_wheels(up: Vector3) -> bool:
+	var space := get_world_3d().direct_space_state
+	var length := spec.travel + spec.wheel_radius
+	var kerb := false
+	for i in 4:
+		var top := global_transform * (wheel_position(i) + Vector3.UP * CAST_FROM)
+		_ray.from = top
+		_ray.to = top - up * length
+		var hit := space.intersect_ray(_ray)
+		grounded[i] = 1 if not hit.is_empty() else 0
+		on_loose[i] = 0
+		_mu[i] = 1.0
+		_normals[i] = up
+		if hit.is_empty():
+			_squeezed[i] = 0.0
+			_contacts[i] = top - up * length
+			continue
+		_squeezed[i] = clampf(length - top.distance_to(hit.position), 0.0, spec.travel + 0.05)
+		_contacts[i] = hit.position
+		_normals[i] = hit.normal
+		var other := hit.collider as CollisionObject3D
+		if other:
+			if other.collision_layer & Layers.PAVEMENT:
+				kerb = true
+			var material: PhysicsMaterial = other.get(&"physics_material_override")
+			if material:
+				_mu[i] = material.friction
+				on_loose[i] = 1 if material.resource_name == _loose_name else 0
+	return kerb

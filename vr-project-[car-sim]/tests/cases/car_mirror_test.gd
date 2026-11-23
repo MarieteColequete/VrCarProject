@@ -5,7 +5,7 @@ extends TestCase
 ## eyes off the road. The driver tilting the mirrors: the tilted plane, the mirror switch
 ## ([MirrorAdjust]), and the tilts kept between sessions; the housing out of the mirror's picture.
 
-const CAR := preload("res://scenarios/scenes/debug_car.tscn")
+const CAR := preload("res://scenarios/scenes/player_car.tscn")
 const SETTINGS := "user://car_mirror_test.cfg"
 
 

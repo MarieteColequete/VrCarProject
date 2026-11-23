@@ -26,7 +26,7 @@ func loads(spec: PackedFloat64Array, squeezed: PackedFloat64Array, grounded: Pac
 		if not grounded[i]:
 			continue
 		var rate := (squeezed[i] - compression[i]) / dt if _settled else 0.0
-		var spring := CarDynamics.corner_load(spec, squeezed[i], rate, squeezed[i ^ 1])
+		var spring := corner_load(spec, squeezed[i], rate, squeezed[i ^ 1])
 		if squeezed[i] > travel:
 			spring += (squeezed[i] - travel) * spec[CarSpec.SPRING_RATE] * BUMP_STOP
 		out[i] = spring
@@ -34,6 +34,16 @@ func loads(spec: PackedFloat64Array, squeezed: PackedFloat64Array, grounded: Pac
 		compression[i] = squeezed[i] if grounded[i] else 0.0
 	_settled = true
 	return out
+
+
+## The load on a corner's spring and damper, newtons: compressed [param compression] metres,
+## compressing at [param rate] m/s, with the anti-roll bar pulling it toward the other side of its
+## axle, compressed [param other] metres. Never pulls the wheel down.
+static func corner_load(spec: PackedFloat64Array, compression: float, rate: float,
+		other: float) -> float:
+	var load := spec[CarSpec.SPRING_RATE] * compression + spec[CarSpec.DAMPER_RATE] * rate \
+		+ spec[CarSpec.ANTI_ROLL] * (compression - other)
+	return maxf(load, 0.0)
 
 
 ## Forgets the last step's motion, for a car placed by hand.

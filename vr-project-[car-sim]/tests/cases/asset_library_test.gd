@@ -128,12 +128,12 @@ func _test_ghost() -> void:
 func _test_settings_kept() -> void:
 	var tile := AssetCatalogue.make(_entry("road-straight"))
 	root.add_child(tile)
-	MapKitTools.next_look([tile]).apply(tile)
+	AssetTools.next_look([tile]).apply(tile)
 	expect(tile.body_type == BodyType.of(&"pavement") and tile.mesh_collider
 		and not tile.model.ends_with("road-straight.glb"),
 		"a road tile's next look keeps its pavement body and surface collider")
 	var edit := MapKitTools.Edit.new()
-	MapKitTools.set_model(edit, tile, _entry("detail-awning"))
+	AssetTools.set_model(edit, tile, _entry("detail-awning"))
 	edit.apply(tile)
 	expect(tile.body_type == null and not tile.mesh_collider
 		and tile.model.ends_with("detail-awning.glb"),

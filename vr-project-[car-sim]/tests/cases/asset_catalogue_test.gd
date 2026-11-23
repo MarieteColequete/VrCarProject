@@ -109,12 +109,12 @@ func _test_map_asset() -> void:
 func _test_next_look() -> void:
 	var house := AssetCatalogue.make(catalogue_entry("building-type-a"))
 	root.add_child(house)
-	MapKitTools.next_look([house]).apply(house)
+	AssetTools.next_look([house]).apply(house)
 	expect(house.model.ends_with("building-type-b.glb"),
 		"next look steps to the category's next model")
 	var last := AssetCatalogue.make(catalogue_entry("building-type-u"))
 	root.add_child(last)
-	MapKitTools.next_look([last]).apply(last)
+	AssetTools.next_look([last]).apply(last)
 	expect(last.model.ends_with("building-type-a.glb"), "and wraps round")
 	house.free()
 	last.free()

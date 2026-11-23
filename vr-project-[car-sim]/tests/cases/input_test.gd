@@ -6,7 +6,7 @@ func run() -> void:
 	_test_bindings()
 	_test_driver_input()
 	await _test_driver_view()
-	await _test_debug_car_controls()
+	await _test_car_controls()
 
 
 func _test_bindings() -> void:
@@ -88,7 +88,7 @@ func _test_driver_view() -> void:
 	await process_frame
 
 
-func _test_debug_car_controls() -> void:
+func _test_car_controls() -> void:
 	var runner := spawn_runner()
 	var car: Node3D = runner.car
 	await physics_frame

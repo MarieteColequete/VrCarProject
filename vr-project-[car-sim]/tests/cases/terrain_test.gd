@@ -234,7 +234,7 @@ func _test_drape() -> void:
 	map.add_child(spawn)
 	for lane in road.make_lanes():
 		road.add_child(lane)
-	var edit := MapKitTools.drape(map)
+	var edit := TerrainAuthoring.drape(map)
 	edit.apply(map)
 	var steepest := 0.0
 	var top := -INF
@@ -263,12 +263,12 @@ func _test_drape() -> void:
 
 
 func _test_add_terrain() -> void:
-	var map: RoadMap = load(MapKitTools.BASE).instantiate()
-	var edit := MapKitTools.add_terrain(map)
+	var map: RoadMap = load(MapFiles.BASE).instantiate()
+	var edit := TerrainAuthoring.add_terrain(map)
 	edit.apply(map)
 	var environment := map.get_node("Environment") as RoadEnvironment
 	expect(Terrain.of(map) != null and not environment.ground
-		and MapKitTools.add_terrain(map).is_empty(),
+		and TerrainAuthoring.add_terrain(map).is_empty(),
 		"adding terrain turns the flat ground off, and is done once")
 	map.free()
 
@@ -371,18 +371,18 @@ func _test_shape_edits() -> void:
 	terrain.rebuild()
 	var under := terrain.land_height_at(Vector3.ZERO, terrain.land(plateau))
 	var with_it := terrain.land_height_at(Vector3.ZERO)
-	MapKitTools.snap_shape_base(map, plateau).apply(map)
+	TerrainAuthoring.snap_shape_base(map, plateau).apply(map)
 	expect(is_equal_approx(plateau.position.y, under) and under > 1.0
 		and absf(with_it - under) > 1.0,
 		"standing a plateau on the land puts its base on the land under it, not on itself: "
 		+ "%.2f m (%.2f with it)" % [plateau.position.y, with_it])
-	MapKitTools.set_shape(hill, TerrainShape.WIDTH, 7.0).apply(map)
-	MapKitTools.set_shape(hill, &"kind", TerrainShape.Kind.RAMP).apply(map)
-	MapKitTools.set_shape(hill, TerrainShape.FALLOFF, 3.5).apply(map)
+	TerrainAuthoring.set_shape(hill, TerrainShape.WIDTH, 7.0).apply(map)
+	TerrainAuthoring.set_shape(hill, &"kind", TerrainShape.Kind.RAMP).apply(map)
+	TerrainAuthoring.set_shape(hill, TerrainShape.FALLOFF, 3.5).apply(map)
 	expect(hill.kind == TerrainShape.Kind.RAMP and hill.size.x == 7.0 and hill.falloff == 3.5,
 		"the dock's edits set the kind, a ramp's width and the falloff")
-	expect(MapKitTools.shape_fields(TerrainShape.Kind.RAMP).has(TerrainShape.LENGTH)
-		and not MapKitTools.shape_fields(TerrainShape.Kind.HILL).has(TerrainShape.LENGTH),
+	expect(TerrainAuthoring.shape_fields(TerrainShape.Kind.RAMP).has(TerrainShape.LENGTH)
+		and not TerrainAuthoring.shape_fields(TerrainShape.Kind.HILL).has(TerrainShape.LENGTH),
 		"a ramp is sized by its length and width, the rest by their radius")
 	map.queue_free()
 	await process_frame

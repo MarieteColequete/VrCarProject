@@ -25,9 +25,9 @@ func run() -> void:
 
 func _test_create_map() -> void:
 	_remove(ROOT)
-	expect(not MapKitTools.is_map_name("Main Street") and not MapKitTools.is_map_name("1st")
-		and MapKitTools.is_map_name("main_street_2"), "map names are lower case folder names")
-	var path := MapKitTools.create_map("main_street", "Main Street", ROOT)
+	expect(not MapFiles.is_map_name("Main Street") and not MapFiles.is_map_name("1st")
+		and MapFiles.is_map_name("main_street_2"), "map names are lower case folder names")
+	var path := MapFiles.create_map("main_street", "Main Street", ROOT)
 	var entries := MapCatalogue.scan(ROOT)
 	expect(path == ROOT + "main_street/main_street.tscn" and entries.size() == 1
 		and entries[0].id == &"main_street" and entries[0].title == "Main Street",
@@ -38,17 +38,17 @@ func _test_create_map() -> void:
 		"a new map inherits the map base, with its environment and spawn")
 	if road_map:
 		road_map.free()
-	expect(MapKitTools.create_map("main_street", "", ROOT).is_empty(),
+	expect(MapFiles.create_map("main_street", "", ROOT).is_empty(),
 		"an existing map is not overwritten")
 	_remove(ROOT)
 
 
 func _test_palette() -> void:
-	var road_map: RoadMap = load(MapKitTools.BASE).instantiate()
+	var road_map: RoadMap = load(MapFiles.BASE).instantiate()
 	root.add_child(road_map)
 	var problems := PackedStringArray()
 	var labels := {}
-	for piece in MapKitTools.pieces():
+	for piece in MapPalette.pieces():
 		if labels.has(piece.label):
 			problems.append("%s is listed twice" % piece.label)
 		labels[piece.label] = true
@@ -60,14 +60,14 @@ func _test_palette() -> void:
 			problems.append("%s goes under %s, which the base lacks" % [piece.label, piece.group])
 		road_map.add_child(node)
 		MapKitTools.own(node, road_map)
-		if piece.label != MapKitTools.sentence(piece.label.to_upper().replace(" ", "_")) \
+		if piece.label != MapPalette.sentence(piece.label.to_upper().replace(" ", "_")) \
 				and not piece.label.contains("-"):
 			problems.append("%s is not in sentence case" % piece.label)
 		if piece.icon.is_empty() or piece.tip.is_empty():
 			problems.append("%s has no icon or tooltip" % piece.label)
-	for problem in MapKitTools.problems(road_map):
+	for problem in MapProblems.problems(road_map):
 		if problem.node is TrafficLight or problem.node is TrafficSource \
-				or problem.severity == MapKitTools.NOTICE or problem.fix != null:
+				or problem.severity == MapProblems.NOTICE or problem.fix != null:
 			continue
 		problems.append("%s: %s" % [problem.node.name, problem.message])
 	expect(problems.is_empty(), "every palette piece builds, ready to use %s" % [problems])
@@ -90,13 +90,39 @@ func _test_lane_links() -> void:
 	var b := _lane(Vector3(0.3, 0, -0.2), Vector3(0, 0, -10))
 	var back := _lane(Vector3(0, 0, 0), Vector3(0, 0, 10))
 	var far := _lane(Vector3(5, 0, 0), Vector3(5, 0, -10))
-	var links := MapKitTools.lane_links([a, b, back, far])
+	var links := RoadNetwork.lane_links([a, b, back, far])
 	expect(links.size() == 1 and links.has(a) and links[a] == [b],
 		"a lane links to the lane starting where it ends and heading on, not back or far away")
 	a.next = [b]
-	expect(MapKitTools.lane_links([a, b, back, far]).is_empty(), "a link already made is not repeated")
+	expect(RoadNetwork.lane_links([a, b, back, far]).is_empty(), "a link already made is not repeated")
+	a.next = []
+	var connect := RoadNetwork.connect_lanes(null, [a, b, back, far])
+	connect.apply(root)
+	expect(a.next == [b] and connect.sets.size() == 1,
+		"connecting the picked lanes links the ones whose ends meet, as the dock does")
 	for lane in [a, b, back, far]:
 		lane.free()
+	var mesh := MeshInstance3D.new()
+	var empty := Node3D.new()
+	empty.position = Vector3(1.26, 0.3, -0.74)
+	var picked: Array = [mesh, empty]
+	AssetTools.set_as_road(picked).apply(root)
+	MapKitTools.snap_nodes(picked, 0.5).apply(root)
+	expect(mesh.material_override == MapKitTools.ASPHALT
+		and empty.position.is_equal_approx(Vector3(1.5, 0.3, -0.5)),
+		"setting as road gives the meshes asphalt; snapping moves the nodes onto the grid")
+	var road_map := RoadMap.new()
+	var one := Checkpoint.new()
+	road_map.add_child(one)
+	var car := Node3D.new()
+	expect(RoadNetwork.checkpoint_for(road_map, [car]) == one
+		and RoadNetwork.checkpoint_for(road_map, [car, one]) == one,
+		"cars drive to the checkpoint picked with them, else the map's only one")
+	road_map.add_child(Checkpoint.new())
+	expect(RoadNetwork.checkpoint_for(road_map, [car]) == null,
+		"and to none when the map has two and none is picked")
+	for node: Node in [mesh, empty, car, road_map]:
+		node.free()
 
 
 func _test_obstacle_body() -> void:
@@ -107,13 +133,13 @@ func _test_obstacle_body() -> void:
 	mesh.mesh = box
 	mesh.position = Vector3(0, 0.5, 1)
 	holder.add_child(mesh)
-	var body := MapKitTools.obstacle_body(holder)
+	var body := AssetTools.obstacle_body(holder)
 	var shape := body.get_child(0) as CollisionShape3D if body else null
 	expect(body != null and body.collision_layer == Layers.OBSTACLE
 		and shape.shape.size.is_equal_approx(Vector3(2, 1, 4))
 		and shape.position.is_equal_approx(Vector3(0, 0.5, 1)),
 		"a solid body boxes the node's meshes on the obstacle layer")
-	expect(MapKitTools.obstacle_body(Node3D.new()) == null, "a node with no mesh gets no body")
+	expect(AssetTools.obstacle_body(Node3D.new()) == null, "a node with no mesh gets no body")
 	if body:
 		body.free()
 	holder.free()
@@ -123,14 +149,14 @@ func _test_problems() -> void:
 	var road_map := RoadMap.new()
 	var check := ContactCheck.new()
 	road_map.add_child(check)
-	var found := MapKitTools.problems(road_map)
+	var found := MapProblems.problems(road_map)
 	var messages := found.map(func(p: Dictionary) -> String: return p.message)
 	expect(messages.any(func(m: String) -> bool: return m.contains("MapSpawn"))
 		and messages.any(func(m: String) -> bool: return m.contains("checks belong to a scenario")),
 		"a map without a spawn and with a check has both flagged")
 	road_map.free()
 	var other := Node3D.new()
-	expect(MapKitTools.problems(other).size() == 1, "a scene that is not a map is flagged")
+	expect(MapProblems.problems(other).size() == 1, "a scene that is not a map is flagged")
 	other.free()
 
 
@@ -141,43 +167,43 @@ func _test_map_files() -> void:
 	_remove(ROOT)
 	_remove(USERS)
 	DirAccess.make_dir_recursive_absolute(USERS)
-	MapKitTools.create_map("high_street", "High Street", ROOT)
+	MapFiles.create_map("high_street", "High Street", ROOT)
 	var user := USERS + "uses_it.tscn"
 	var file := FileAccess.open(user, FileAccess.WRITE)
 	file.store_string("[ext_resource type=\"PackedScene\" path=\"%s\" id=\"map\"]\n"
-		% MapKitTools.map_path("high_street", ROOT))
+		% MapFiles.map_path("high_street", ROOT))
 	file.close()
-	var users := MapKitTools.map_users(MapKitTools.map_path("high_street", ROOT), USERS)
+	var users := MapFiles.map_users(MapFiles.map_path("high_street", ROOT), USERS)
 	expect(users == PackedStringArray([user]),
 		"a scenario instancing a map is one of its users")
 
-	expect(MapKitTools.rename_map("high_street", "Bad Name", ROOT, USERS) != ""
-		and MapKitTools.rename_map("no_such", "fine", ROOT, USERS) != "",
+	expect(MapFiles.rename_map("high_street", "Bad Name", ROOT, USERS) != ""
+		and MapFiles.rename_map("no_such", "fine", ROOT, USERS) != "",
 		"renaming refuses a bad name and a missing map")
-	expect(MapKitTools.rename_map("high_street", "market_street", ROOT, USERS) == "",
+	expect(MapFiles.rename_map("high_street", "market_street", ROOT, USERS) == "",
 		"a map renames")
 	var entry := MapCatalogue.scan(ROOT)
 	expect(entry.size() == 1 and entry[0].id == &"market_street" and entry[0].title == "High Street"
 		and FileAccess.get_file_as_string(user).contains(
-			MapKitTools.map_path("market_street", ROOT)),
+			MapFiles.map_path("market_street", ROOT)),
 		"renaming moves the folder, sets the id, keeps the title, and repoints its users")
 
-	var saved := load(MapKitTools.map_path("market_street", ROOT)) as PackedScene
+	var saved := load(MapFiles.map_path("market_street", ROOT)) as PackedScene
 	saved.resource_path = ""
-	ResourceSaver.save(saved, MapKitTools.map_path("market_street", ROOT))
-	expect(MapKitTools.duplicate_map("market_street", "market_copy", "Market copy", ROOT) == "",
+	ResourceSaver.save(saved, MapFiles.map_path("market_street", ROOT))
+	expect(MapFiles.duplicate_map("market_street", "market_copy", "Market copy", ROOT) == "",
 		"a map duplicates")
-	var copy_text := FileAccess.get_file_as_string(MapKitTools.map_path("market_copy", ROOT))
+	var copy_text := FileAccess.get_file_as_string(MapFiles.map_path("market_copy", ROOT))
 	var names := MapCatalogue.scan(ROOT).map(func(e: MapCatalogue.Entry) -> String: return e.title)
 	expect(not copy_text.contains("uid=\"uid://") and names == ["Market copy", "High Street"],
 		"a duplicate has its own title and no shared uid")
-	expect(MapKitTools.duplicate_map("market_street", "market_copy", "", ROOT) != "",
+	expect(MapFiles.duplicate_map("market_street", "market_copy", "", ROOT) != "",
 		"duplicating onto an existing map is refused")
 
-	expect(MapKitTools.delete_map("market_street", ROOT, USERS, false) != ""
-		and FileAccess.file_exists(MapKitTools.map_path("market_street", ROOT)),
+	expect(MapFiles.delete_map("market_street", ROOT, USERS, false) != ""
+		and FileAccess.file_exists(MapFiles.map_path("market_street", ROOT)),
 		"a map a scenario uses is not deleted")
-	expect(MapKitTools.delete_map("market_copy", ROOT, USERS, false) == ""
+	expect(MapFiles.delete_map("market_copy", ROOT, USERS, false) == ""
 		and not DirAccess.dir_exists_absolute(ROOT + "market_copy"),
 		"a map no scenario uses is deleted with its folder")
 	_remove(ROOT)
@@ -205,7 +231,7 @@ func _segment(from: Vector3, to: Vector3) -> RoadSegment:
 func _test_road_ends() -> void:
 	var road := _segment(Vector3(0, 0, 0), Vector3(0, 0, -20))
 	var road_map := _map([road])
-	var ends := MapKitTools.road_ends(road_map)
+	var ends := RoadNetwork.road_ends(road_map)
 	expect(ends.size() == 2 and ends[0].transform.origin.is_equal_approx(Vector3.ZERO)
 		and (-ends[0].transform.basis.z).is_equal_approx(Vector3.BACK)
 		and ends[1].transform.origin.is_equal_approx(Vector3(0, 0, -20))
@@ -215,7 +241,7 @@ func _test_road_ends() -> void:
 	var junction := RoadJunction.new()
 	junction.position = Vector3(0, 0, -27.5)
 	road_map.add_child(junction)
-	ends = MapKitTools.road_ends(road_map)
+	ends = RoadNetwork.road_ends(road_map)
 	expect(ends.size() == 4 and not ends.any(func(e: Dictionary) -> bool:
 			return e.transform.origin.is_equal_approx(Vector3(0, 0, -20))),
 		"where a junction's arm meets the road, neither end is open")
@@ -226,7 +252,7 @@ func _test_extend() -> void:
 	var road := _segment(Vector3(0, 0, 0), Vector3(0, 0, -20))
 	road.lanes_each_way = 2
 	var road_map := _map([road])
-	var edit := MapKitTools.extend_road(road_map, road, Vector3(0, 0, -25))
+	var edit := RoadNetwork.extend_road(road_map, road, Vector3(0, 0, -25))
 	var added := edit.added()
 	var next := added[0] as RoadSegment if added.size() == 1 else null
 	expect(next != null and next.lanes_each_way == 2
@@ -234,9 +260,9 @@ func _test_extend() -> void:
 		and (-next.transform.basis.z).is_equal_approx(Vector3.FORWARD),
 		"extending starts a road like it at its far end, heading on")
 	edit.apply(road_map)
-	expect(MapKitTools.road_ends(road_map).size() == 2, "the extended road joins the old one")
+	expect(RoadNetwork.road_ends(road_map).size() == 2, "the extended road joins the old one")
 
-	var junction_edit := MapKitTools.junction_at_end(road_map, road, RoadJunction.Shape.T,
+	var junction_edit := RoadNetwork.junction_at_end(road_map, road, RoadJunction.Shape.T,
 		Vector3(0, 0, 5))
 	var junction: RoadJunction = null
 	if not junction_edit.is_empty():
@@ -244,10 +270,10 @@ func _test_extend() -> void:
 	expect(junction != null and is_equal_approx(junction.road_width, 14.0),
 		"a junction at a road's end takes the road's width")
 	junction_edit.apply(road_map)
-	var open := MapKitTools.road_ends(road_map)
+	var open := RoadNetwork.road_ends(road_map)
 	expect(open.size() == 3 and not open.any(func(e: Dictionary) -> bool: return e.node == road),
 		"the junction's south arm joins the road's end")
-	expect(MapKitTools.extend_road(road_map, road).is_empty(),
+	expect(RoadNetwork.extend_road(road_map, road).is_empty(),
 		"a road with no open end is not extended")
 	road_map.free()
 
@@ -255,18 +281,18 @@ func _test_extend() -> void:
 func _test_generate_all() -> void:
 	var road_map: RoadMap = load("res://maps/sample_town/sample_town.tscn").instantiate()
 	root.add_child(road_map)
-	MapKitTools.generate_all(road_map).apply(road_map)
+	RoadNetwork.generate_all(road_map).apply(road_map)
 	var lanes := road_map.nodes().filter(func(n: Node) -> bool: return n is TrafficLane)
-	var open := MapKitTools.road_ends(road_map)
+	var open := RoadNetwork.road_ends(road_map)
 	var dead := lanes.filter(func(l: TrafficLane) -> bool:
 		return l.next.is_empty() and not _leaves(road_map, l, open))
 	expect(lanes.size() > 8 and dead.is_empty(),
 		"generating the whole map links every lane that does not leave it %s"
 			% [dead.map(func(l: Node) -> String: return l.get_path())])
-	expect(MapKitTools.problems(road_map).all(func(p: Dictionary) -> bool:
+	expect(MapProblems.problems(road_map).all(func(p: Dictionary) -> bool:
 			return p.fix == null or not p.message.contains("not linked")),
 		"after generating, no lane is left unlinked")
-	expect(MapKitTools.link_lanes(road_map).is_empty(), "linking again changes nothing")
+	expect(RoadNetwork.link_lanes(road_map).is_empty(), "linking again changes nothing")
 	road_map.free()
 
 
@@ -283,7 +309,7 @@ func _test_fixes() -> void:
 	var zone := TriggerZone.new()
 	var road := _segment(Vector3(0, 0, 0), Vector3(0, 0, -20))
 	var road_map := _map([zone, road])
-	var found := MapKitTools.problems(road_map)
+	var found := MapProblems.problems(road_map)
 	var labels := found.filter(func(p: Dictionary) -> bool: return p.fix != null) \
 		.map(func(p: Dictionary) -> String: return p.fix_label)
 	expect(labels.has("Add spawn") and labels.has("Add box") and labels.has("Generate"),
@@ -291,12 +317,12 @@ func _test_fixes() -> void:
 	for problem in found:
 		if problem.fix != null:
 			(problem.fix as Callable).call().apply(road_map)
-	var left := MapKitTools.problems(road_map).filter(func(p: Dictionary) -> bool:
-		return p.severity == MapKitTools.WARNING)
+	var left := MapProblems.problems(road_map).filter(func(p: Dictionary) -> bool:
+		return p.severity == MapProblems.WARNING)
 	expect(left.is_empty(), "fixing each problem leaves no warning %s"
 		% [left.map(func(p: Dictionary) -> String: return p.message)])
 	var spawn := road_map.spawns()[0] if not road_map.spawns().is_empty() else null
-	expect(spawn != null and MapKitTools.on_road(road_map, spawn.position),
+	expect(spawn != null and RoadNetwork.on_road(road_map, spawn.position),
 		"the added spawn is on the road")
 	road_map.free()
 
@@ -305,17 +331,17 @@ func _test_joining() -> void:
 	var road := _segment(Vector3(0, 0, 0), Vector3(0, 0, -20))
 	var road_map := _map([road])
 	var placed := RoadSegment.new()
-	var at: Variant = MapKitTools.joining_transform(road_map, placed, Vector3(1, 0, -22))
+	var at: Variant = RoadNetwork.joining_transform(road_map, placed, Vector3(1, 0, -22))
 	expect(at != null and (at as Transform3D).origin.is_equal_approx(Vector3(0, 0, -20))
 		and placed.curve.get_point_position(0).is_equal_approx(Vector3.ZERO),
 		"a road placed near an open end starts on it")
 	var junction := RoadJunction.new()
-	at = MapKitTools.joining_transform(road_map, junction, Vector3(0, 0, 2))
+	at = RoadNetwork.joining_transform(road_map, junction, Vector3(0, 0, 2))
 	var arm: Variant = (at as Transform3D) * junction.arm_end(RoadJunction.Arm.SOUTH).origin \
 		if at != null else null
 	expect(arm != null and (arm as Vector3).is_equal_approx(Vector3.ZERO),
 		"a junction placed near an open end joins it by its south arm")
-	expect(MapKitTools.joining_transform(road_map, RoadSegment.new(), Vector3(20, 0, 20)) == null,
+	expect(RoadNetwork.joining_transform(road_map, RoadSegment.new(), Vector3(20, 0, 20)) == null,
 		"a piece far from every end is not joined")
 	placed.free()
 	junction.free()

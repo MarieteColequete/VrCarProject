@@ -25,7 +25,7 @@ var thumbnails: AssetThumbnails
 var overlay: MapKitOverlay
 ## The terrain shapes' outlines on the land and their handles.
 var shape_gizmo: TerrainShapeGizmo
-## The open map's problems, as [method MapKitTools.problems] lists them.
+## The open map's problems, as [method MapProblems.problems] lists them.
 var problems: Array[Dictionary] = []
 
 var _check_timer: Timer
@@ -219,7 +219,7 @@ func check_now() -> void:
 	var road_map := edited_map()
 	problems.clear()
 	if road_map:
-		problems = MapKitTools.problems(road_map)
+		problems = MapProblems.problems(road_map)
 	overlay.refresh(road_map)
 	problems_changed.emit(problems)
 	update_overlays()

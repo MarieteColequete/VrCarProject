@@ -3,7 +3,7 @@ extends TestCase
 ## steering wheel, its live parts (wheels, steering wheel, lights), and the instruments, all
 ## following the car's state; and its cabin, cut into parts each in a textured material of its own.
 
-const CAR_SCRIPT := preload("res://scenarios/scenes/debug_car.gd")
+const CAR_SCRIPT := preload("res://scenarios/scenes/player_car.gd")
 
 
 func run() -> void:
@@ -61,13 +61,13 @@ func _test_box_uvs() -> void:
 	# A 1 m square facing up, and a wall facing +X, as two triangles each, wound as Godot's are.
 	var floor := PackedVector3Array([Vector3(0, 0, 0), Vector3(1, 0, 0), Vector3(0, 0, 1),
 		Vector3(1, 0, 0), Vector3(1, 0, 1), Vector3(0, 0, 1)])
-	var uvs := PlayerCarModel.box_uvs(floor, Transform3D.IDENTITY, Basis.IDENTITY, 0.5)
+	var uvs := MeshCut.box_uvs(floor, Transform3D.IDENTITY, Basis.IDENTITY, 0.5)
 	var span := Vector2.ZERO
 	for uv in uvs:
 		span = span.max(uv)
 	expect(span.is_equal_approx(Vector2(2.0, 2.0)), "a metre of floor is two repeats at half a metre each: %s" % span)
 	var wall := PackedVector3Array([Vector3(0, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, 1)])
-	var on_wall := PlayerCarModel.box_uvs(wall, Transform3D.IDENTITY, Basis.IDENTITY, 1.0)
+	var on_wall := MeshCut.box_uvs(wall, Transform3D.IDENTITY, Basis.IDENTITY, 1.0)
 	expect(on_wall[1].is_equal_approx(Vector2(0, 1)) and on_wall[2].is_equal_approx(Vector2(1, 0)),
 		"a wall facing sideways is laid out along its length and height: %s" % on_wall)
 	expect(PlayerCarModel.cabin_zone(Vector3(0.0, 1.3, 0.5), Vector3.DOWN) == &"headliner"

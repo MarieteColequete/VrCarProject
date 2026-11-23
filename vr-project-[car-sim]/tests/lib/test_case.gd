@@ -6,7 +6,7 @@ extends RefCounted
 ## failures for the runner.
 
 const RUNNER := preload("res://scenarios/scenes/exam_runner.tscn")
-const PLAYER_CAR := preload("res://scenarios/scenes/debug_car.tscn")
+const PLAYER_CAR := preload("res://scenarios/scenes/player_car.tscn")
 const STOP_JUNCTION := preload("res://scenarios/scenes/stop_junction/stop_junction.tscn")
 const FAULTS := "res://scenarios/data/faults/%s.tres"
 ## The centre of the right-hand lane; scenarios are built with the car driving towards -Z in it.

@@ -66,7 +66,7 @@ static func marks(road_map: RoadMap) -> Dictionary:
 				ROUTE])
 		elif node is TriggerZone:
 			out.labels.append([RoadMap.to_map(node, road_map).origin, String(node.name), ZONE])
-	for end in MapKitTools.road_ends(road_map):
+	for end in RoadNetwork.road_ends(road_map):
 		out.open.append(end.transform.origin)
 	return out
 
@@ -112,7 +112,7 @@ func draw(control: Control, camera: Camera3D, road_map: RoadMap, problems: Array
 func _badge(control: Control, font: Font, size: int, road_map: RoadMap,
 		problems: Array[Dictionary]) -> void:
 	var warnings := problems.filter(func(p: Dictionary) -> bool:
-		return p.severity == MapKitTools.WARNING).size()
+		return p.severity == MapProblems.WARNING).size()
 	var title := road_map.title if not road_map.title.is_empty() else String(road_map.name)
 	var count := "no problems" if problems.is_empty() \
 		else "%d warnings, %d notices" % [warnings, problems.size() - warnings]
