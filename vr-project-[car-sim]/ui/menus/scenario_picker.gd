@@ -95,4 +95,4 @@ static func _format_time(seconds: float) -> String:
 	var total := roundi(seconds)
 	if total < 60:
 		return "%d s" % total
-	return "%d:%02d min" % [total / 60, total % 60]
+	return "%d:%02d min" % [floori(total / 60.0), total % 60]

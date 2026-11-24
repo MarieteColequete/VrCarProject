@@ -46,6 +46,8 @@ func _make_multimesh(mesh: Mesh) -> MultiMesh:
 	multimesh.mesh = mesh
 	multimesh.instance_count = tree_count
 	var instance := MultiMeshInstance3D.new()
+	# The trees stand still, placed once in [method _ready]: nothing to interpolate.
+	instance.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	instance.multimesh = multimesh
 	add_child(instance)
 	return multimesh
