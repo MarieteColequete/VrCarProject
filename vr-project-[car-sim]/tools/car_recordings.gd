@@ -26,6 +26,24 @@ func _init() -> void:
 	_save(_loudness(_loop(slide, 4.5, 9.5), -14.0), "slide_gravel/slide_gravel.wav")
 	var idle := _decode("engine_idle/source/369053__andrewalexander__car-idle-loop.ogg")
 	_save(_loudness(_loop(idle, 0.5, 14.0), -16.0), "engine_idle/engine_idle.wav")
+	# A start, whole and as recorded: the key at 0.1 s, the starter biting at 0.3 s, the engine
+	# firing at 0.9 s and flaring, settled toward idle by 1.6 s, its last 0.3 s faded out for the
+	# idle loop to take over. Its key is far louder than its cranking: brought to a peak of 0.95
+	# there, its cranking (0.3 to 0.9 s) is what the failed attempts are leveled to.
+	var key := _decode(
+		"engine_crank/source/50898__rutgermuller__car-ignition-key-engine-starting-running-idle-2.ogg")
+	var start := _fade_out(_clip(key, 0.0, 1.6), 0.3)
+	start = _gain(start, linear_to_db(0.95 / _peak(start)))
+	_save(start, "engine_crank/engine_start.wav")
+	var cranking := _rms_db(start.slice(int(0.3 * RATE), int(0.9 * RATE)))
+	# Two attempts that do not catch, from the Polo: the long one (its starter biting at 5.85 s and
+	# dying away by 7 s) and the short one (12.5 to 13.3 s), each from its bite, leveled on its
+	# first 0.25 s to the start's cranking.
+	var polo := _decode("engine_crank/source/433772__iainmccurdy__car-ignition.ogg")
+	_save(_level(_fade_out(_clip(polo, 5.8, 1.2), 0.2), 0.05, 0.3, cranking),
+		"engine_crank/engine_fail_long.wav")
+	_save(_level(_fade_out(_clip(polo, 12.45, 0.85), 0.2), 0.1, 0.35, cranking),
+		"engine_crank/engine_fail_short.wav")
 	# The relay clicks every 0.35 s, on and off; the louder clicks at 0.01, 0.17 and 3.01 s are
 	# the stalk.
 	var signal_ := _decode("indicator/source/446322__mpierluissi__nissan-sentra-turning-signal.ogg")
@@ -71,6 +89,26 @@ func _clip(data: PackedFloat32Array, from: float, length: float) -> PackedFloat3
 	for i in tail:
 		out[out.size() - tail + i] *= 1.0 - float(i) / tail
 	return out
+
+
+## [param data] faded out over its last [param seconds].
+func _fade_out(data: PackedFloat32Array, seconds: float) -> PackedFloat32Array:
+	var tail := mini(int(seconds * RATE), data.size())
+	for i in tail:
+		data[data.size() - tail + i] *= 1.0 - float(i) / tail
+	return data
+
+
+## [param data] brought to [param rms_db] measured from [param from] to [param to] seconds.
+func _level(data: PackedFloat32Array, from: float, to: float, rms_db: float) -> PackedFloat32Array:
+	return _gain(data, rms_db - _rms_db(data.slice(int(from * RATE), int(to * RATE))))
+
+
+func _rms_db(data: PackedFloat32Array) -> float:
+	var sum := 0.0
+	for v in data:
+		sum += v * v
+	return linear_to_db(sqrt(sum / data.size()))
 
 
 func _loudness(data: PackedFloat32Array, rms_db: float) -> PackedFloat32Array:
