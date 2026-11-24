@@ -15,6 +15,8 @@ var columns := {}
 ## Counts every change to the store, so a value derived from it can tell whether it is still
 ## current.
 var version := 0
+## Counts the rows taken out, so a view can tell an entity left even when another came in.
+var removals := 0
 
 var _row := {}
 var _sorted := PackedInt64Array()
@@ -28,25 +30,25 @@ var _bools := {}
 ## plain [Array].
 func _init(p_name: StringName, defaults: Dictionary) -> void:
 	name = p_name
-	for column: StringName in defaults:
-		var value: Variant = defaults[column]
-		_defaults[column] = value
+	for field: StringName in defaults:
+		var value: Variant = defaults[field]
+		_defaults[field] = value
 		match typeof(value):
 			TYPE_FLOAT:
-				columns[column] = PackedFloat64Array()
+				columns[field] = PackedFloat64Array()
 			TYPE_INT:
-				columns[column] = PackedInt64Array()
+				columns[field] = PackedInt64Array()
 			TYPE_BOOL:
-				columns[column] = PackedByteArray()
-				_bools[column] = true
+				columns[field] = PackedByteArray()
+				_bools[field] = true
 			TYPE_VECTOR2:
-				columns[column] = PackedVector2Array()
+				columns[field] = PackedVector2Array()
 			TYPE_VECTOR3:
-				columns[column] = PackedVector3Array()
+				columns[field] = PackedVector3Array()
 			TYPE_COLOR:
-				columns[column] = PackedColorArray()
+				columns[field] = PackedColorArray()
 			_:
-				columns[column] = []
+				columns[field] = []
 
 
 func size() -> int:
@@ -66,25 +68,25 @@ func row_of(id: int) -> int:
 ## defaults for the rest. Replaces the values of an entity that already has it.
 func add(id: int, values := {}) -> void:
 	if _row.has(id):
-		for column: StringName in values:
-			set_value(id, column, values[column])
+		for field: StringName in values:
+			set_value(id, field, values[field])
 		return
 	_row[id] = ids.size()
 	ids.append(id)
 	_sorted_valid = false
 	version += 1
-	for column: StringName in columns:
+	for field: StringName in columns:
 		var value: Variant
-		if values.has(column):
-			value = values[column]
+		if values.has(field):
+			value = values[field]
 		else:
-			value = _defaults[column]
+			value = _defaults[field]
 			# A container default is the row's own copy, not one shared by every row.
 			if value is Array or value is Dictionary:
 				value = value.duplicate()
-		if _bools.has(column):
+		if _bools.has(field):
 			value = 1 if value else 0
-		columns[column].append(value)
+		columns[field].append(value)
 
 
 ## Takes the component from [param id]; the last row moves into its place.
@@ -97,31 +99,32 @@ func remove(id: int) -> void:
 		var moved := ids[last]
 		ids[row] = moved
 		_row[moved] = row
-		for column: StringName in columns:
-			columns[column][row] = columns[column][last]
+		for field: StringName in columns:
+			columns[field][row] = columns[field][last]
 	ids.resize(last)
-	for column: StringName in columns:
-		columns[column].resize(last)
+	for field: StringName in columns:
+		columns[field].resize(last)
 	_row.erase(id)
 	_sorted_valid = false
 	version += 1
+	removals += 1
 
 
-func get_value(id: int, column: StringName) -> Variant:
+func get_value(id: int, field: StringName) -> Variant:
 	var row: int = _row.get(id, -1)
 	if row < 0:
-		return _defaults.get(column)
-	var value: Variant = columns[column][row]
-	return value == 1 if _bools.has(column) else value
+		return _defaults.get(field)
+	var value: Variant = columns[field][row]
+	return value == 1 if _bools.has(field) else value
 
 
-func set_value(id: int, column: StringName, value: Variant) -> void:
+func set_value(id: int, field: StringName, value: Variant) -> void:
 	var row: int = _row.get(id, -1)
 	if row < 0:
 		return
-	if _bools.has(column):
+	if _bools.has(field):
 		value = 1 if value else 0
-	columns[column][row] = value
+	columns[field][row] = value
 	version += 1
 
 

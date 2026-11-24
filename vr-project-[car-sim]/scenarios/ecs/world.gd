@@ -15,8 +15,9 @@ var events: Array[WorldEvent] = []
 ## Data shared by the whole simulation that no tick changes, built when a scenario is baked: the
 ## marking index, the lanes, the scenario's steps. Systems read it freely.
 var resources := {}
-## Values derived from the stores and kept while the stores they read are unchanged, each as
-## [code][version, value][/code]: a cache, never state.
+## Values derived from the stores and kept while the stores they read are unchanged, each with
+## what it was derived from (a store's version and the store, or a count) ahead of the value, as
+## its owner checks it: a cache, never state.
 var memo := {}
 
 var _next_id := 1
@@ -28,9 +29,9 @@ var _stores := {}
 func define(component: StringName, defaults: Dictionary) -> ComponentStore:
 	if _stores.has(component):
 		return _stores[component]
-	var store := ComponentStore.new(component, defaults)
-	_stores[component] = store
-	return store
+	var added := ComponentStore.new(component, defaults)
+	_stores[component] = added
+	return added
 
 
 func store(component: StringName) -> ComponentStore:
@@ -44,9 +45,11 @@ func create() -> int:
 	return id
 
 
-## A new entity with [param components]: component name to its values.
-func spawn(components: Dictionary) -> int:
-	var id := create()
+## A new entity with [param components]: component name to its values; entity [param id] when
+## given, one reserved with [method create].
+func spawn(components: Dictionary, id := 0) -> int:
+	if id == 0:
+		id = create()
 	for component: StringName in components:
 		_stores[component].add(id, components[component])
 	return id
@@ -103,8 +106,8 @@ func apply(delta: Delta) -> void:
 			s.remove(removal[1])
 	for id in delta.despawns:
 		despawn(id)
-	for components in delta.spawns:
-		spawn(components)
+	for k in delta.spawns.size():
+		spawn(delta.spawns[k], delta.spawn_ids[k])
 	for event in delta.events:
 		event.time = time
 		events.append(event)

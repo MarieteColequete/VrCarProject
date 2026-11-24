@@ -84,9 +84,9 @@ func _map() -> PackedScene:
 	spawn.position = Vector3(LANE_X, 0, -5)
 	var segment := _segment()
 	var house := _asset(HOUSE, Vector3(LANE_X, 0, HOUSE_Z), BodyType.of(&"obstacle"))
-	var path := _asset(PATH, Vector3(LANE_X, 0, -15), null)
+	var path_asset := _asset(PATH, Vector3(LANE_X, 0, -15), null)
 	var parked := _asset(PARKED, Vector3(-LANE_X, 0, -20), BodyType.of(&"vehicle"))
-	for node: Node in [spawn, segment, house, path, parked]:
+	for node: Node in [spawn, segment, house, path_asset, parked]:
 		road_map.add_child(node)
 		node.owner = road_map
 	root.add_child(road_map)
@@ -111,27 +111,30 @@ func _test_bake(map: PackedScene) -> void:
 
 ## Driven straight at the kerb, the front tyres stop against it, and that is hitting the kerb.
 func _test_head_on(map: PackedScene) -> void:
+	var ground_body := ground()
 	var runner := _runner(map)
 	await process_frame
 	var car: Node3D = runner.car
 	car.look_at(car.global_position + Vector3.RIGHT, Vector3.UP)
 	car.reset_physics_interpolation()
-	car.set(&"held_controls", {throttle = 1.0})
+	car.set(&"held_controls", {throttle = 1.0, select = "D"})
 	await frames(120)
 	var front := car.global_position.x + 1.3 + 0.325
 	expect(car.global_position.x > LANE_X + 0.01 and front < KERB_X + 0.01,
 		"driven at the kerb, the car moves until its tyres meet it, and no further")
 	var r := _end(runner)
+	ground_body.queue_free()
 	expect(_count(r, &"kerb_mounted") == 1, _say("driving into the kerb is one kerb fault", r))
 	await process_frame
 
 
 ## Steered into the kerb while driving along the road, the right-hand tyres stop against it.
 func _test_along(map: PackedScene) -> void:
+	var ground_body := ground()
 	var runner := _runner(map)
 	await process_frame
 	var car: Node3D = runner.car
-	car.set(&"held_controls", {throttle = 0.6, steer = -1.0})
+	car.set(&"held_controls", {throttle = 0.6, steer = -1.0, select = "D"})
 	var furthest := -INF
 	for i in 180:
 		await physics_frame
@@ -140,6 +143,7 @@ func _test_along(map: PackedScene) -> void:
 	expect(furthest > KERB_X - 0.1 and furthest < KERB_X + 0.02,
 		"steered into the kerb, the tyres reach it and stop against it")
 	var r := _end(runner)
+	ground_body.queue_free()
 	expect(_count(r, &"kerb_mounted") >= 1, _say("steering into the kerb is a kerb fault", r))
 	await process_frame
 
@@ -147,16 +151,18 @@ func _test_along(map: PackedScene) -> void:
 ## Driven down the lane, the car crosses the looks-only path and stops against the house, which is
 ## a contact.
 func _test_house(map: PackedScene) -> void:
+	var ground_body := ground()
 	var runner := _runner(map)
 	await process_frame
 	var car: Node3D = runner.car
-	car.set(&"held_controls", {throttle = 1.0})
+	car.set(&"held_controls", {throttle = 1.0, select = "D"})
 	await frames(360)
 	var house_front := HOUSE_Z + KitModels.size_of(HOUSE).z / 2.0
 	expect(car.global_position.z < -15.0, "the looks-only path does not stop the car")
 	expect(car.global_position.z - 2.1 > house_front - 0.05,
 		"the house stops the car: its body goes no further than the house's front")
 	var r := _end(runner)
+	ground_body.queue_free()
 	expect(r.has_fault(&"contact_obstacle"), _say("driving into the house is a contact", r))
 	await process_frame
 
@@ -170,12 +176,12 @@ func _segment() -> RoadSegment:
 	return segment
 
 
-func _asset(model: String, at: Vector3, type: BodyType) -> MapAsset:
+func _asset(model: String, where: Vector3, type: BodyType) -> MapAsset:
 	var asset := MapAsset.new()
 	asset.name = model.get_file().get_basename().to_pascal_case()
 	asset.model = model
 	asset.body_type = type
-	asset.position = at
+	asset.position = where
 	return asset
 
 

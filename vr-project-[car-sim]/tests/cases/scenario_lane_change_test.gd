@@ -8,19 +8,19 @@ func run() -> void:
 	await _test_lane_change()
 
 
-func _overtake(mirror := true, shoulder := true) -> Array:
+func _overtake(mirror := true, shoulder := true, yaw_only := false) -> Array:
 	var left := VehicleProbe.Indicator.LEFT
 	var right := VehicleProbe.Indicator.RIGHT
 	var legs: Array = [{indicator = left}, {to = at(60), speed = 12.0}]
 	if mirror:
-		legs.append({look = 35.0})
+		legs.append({look = 35.0} if yaw_only else {look_at = 1})
 	legs.append({to = at(52), speed = 12.0})
 	if shoulder:
 		legs.append({look = 110.0})
 	legs += [
 		{to = at(50), speed = 12.0}, {look = 0.0},
 		{to = Vector3(-1.75, 0, 38), speed = 12.0}, {to = Vector3(-1.75, 0, 20), speed = 12.0},
-		{indicator = right}, {look = -35.0}, {to = Vector3(-1.75, 0, 14), speed = 12.0},
+		{indicator = right}, {look_at = 2}, {to = Vector3(-1.75, 0, 14), speed = 12.0},
 		{look = -110.0}, {to = Vector3(-1.75, 0, 8), speed = 12.0}, {look = 0.0},
 		{to = at(-6), speed = 12.0}, {indicator = VehicleProbe.Indicator.OFF},
 		{to = at(-195), speed = 12.0}]
@@ -42,6 +42,10 @@ func _test_lane_change() -> void:
 
 	r = await drive(_overtake(false, true), LANE_CHANGE)
 	expect_only(r, &"no_mirror_check", "pulling out without the mirror is one minor fault")
+
+	r = await drive(_overtake(true, true, true), LANE_CHANGE)
+	expect_only(r, &"no_mirror_check",
+		"turning the head 35° without looking into the mirror is no mirror check")
 
 	r = await drive(_overtake(true, false), LANE_CHANGE)
 	expect_only(r, &"no_shoulder_check",

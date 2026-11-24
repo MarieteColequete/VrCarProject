@@ -1,18 +1,11 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://b2s58f1ramyly"]
 
-[ext_resource type="PackedScene" path="res://scenarios/kit/map_base.tscn" id="map_base"]
-
-[ext_resource type="Material" path="res://scenarios/kit/asphalt.tres" id="asphalt"]
-
-[ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="marking"]
-
+[ext_resource type="Script" path="res://scenarios/map/road_sign.gd" id="3_dbwfq"]
+[ext_resource type="Script" path="res://scenarios/map/map_asset.gd" id="4_xpfd8"]
 [ext_resource type="Script" path="res://scenarios/traffic/scripted_agent.gd" id="agent"]
-
-[sub_resource type="BoxMesh" id="Mesh_minor"]
-size = Vector3(7, 0.02, 45)
-
-[sub_resource type="BoxMesh" id="Mesh_main"]
-size = Vector3(160, 0.02, 7)
+[ext_resource type="Material" path="res://scenarios/kit/asphalt.tres" id="asphalt"]
+[ext_resource type="PackedScene" path="res://scenarios/kit/map_base.tscn" id="map_base"]
+[ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="marking"]
 
 [sub_resource type="Curve3D" id="Curve_MinorCentre"]
 _data = {
@@ -77,6 +70,12 @@ _data = {
 }
 point_count = 2
 
+[sub_resource type="BoxMesh" id="Mesh_minor"]
+size = Vector3(7, 0.02, 45)
+
+[sub_resource type="BoxMesh" id="Mesh_main"]
+size = Vector3(160, 0.02, 7)
+
 [sub_resource type="Curve3D" id="Curve_Stream"]
 _data = {
 "points": PackedVector3Array(0, 0, 0, 0, 0, 0, -70, 0, -1.75, 0, 0, 0, 0, 0, 0, 90, 0, -1.75),
@@ -84,95 +83,448 @@ _data = {
 }
 point_count = 2
 
-[node name="GiveWayJunction" instance=ExtResource("map_base")]
+[node name="GiveWayJunction" unique_id=361872164 instance=ExtResource("map_base")]
 id = &"give_way_junction"
 title = "Give way junction"
 description = "A minor road meeting a busy main road at a give way junction."
 
-[node name="Environment" parent="."]
+[node name="Environment" parent="." index="0"]
 ground_size = Vector2(200, 120)
 ground_offset = Vector3(0, 0, 10)
 
-[node name="Spawn" parent="."]
+[node name="Spawn" parent="." index="1"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0, 40)
 
-[node name="MinorRoad" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 22.5)
-mesh = SubResource("Mesh_minor")
-surface_material_override/0 = ExtResource("asphalt")
-
-[node name="MainRoad" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.012, -3.5)
-mesh = SubResource("Mesh_main")
-surface_material_override/0 = ExtResource("asphalt")
-
-[node name="MinorCentre" type="Path3D" parent="Markings"]
+[node name="MinorCentre" type="Path3D" parent="Markings" index="0" unique_id=1166412276]
 curve = SubResource("Curve_MinorCentre")
 script = ExtResource("marking")
 kind = 1
 
-[node name="MinorKerbRight" type="Path3D" parent="Markings"]
+[node name="MinorKerbRight" type="Path3D" parent="Markings" index="1" unique_id=1679254289]
 curve = SubResource("Curve_MinorKerbRight")
 script = ExtResource("marking")
 kind = 8
 
-[node name="MinorKerbLeft" type="Path3D" parent="Markings"]
+[node name="MinorKerbLeft" type="Path3D" parent="Markings" index="2" unique_id=281347026]
 curve = SubResource("Curve_MinorKerbLeft")
 script = ExtResource("marking")
 kind = 8
 
-[node name="GiveWayLine" type="Path3D" parent="Markings"]
+[node name="GiveWayLine" type="Path3D" parent="Markings" index="3" unique_id=1675568133]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.4798241)
 curve = SubResource("Curve_GiveWayLine")
 script = ExtResource("marking")
 kind = 4
 
-[node name="MainCentreWest" type="Path3D" parent="Markings"]
+[node name="GiveWayLine2" type="Path3D" parent="Markings" index="4" unique_id=789754716]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17.827244, 0, 2.2614663)
+curve = SubResource("Curve_GiveWayLine")
+script = ExtResource("marking")
+kind = 4
+
+[node name="GiveWayLine3" type="Path3D" parent="Markings" index="5" unique_id=1794988831]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.612364, 0, 2.2614663)
+curve = SubResource("Curve_GiveWayLine")
+script = ExtResource("marking")
+kind = 4
+
+[node name="MainCentreWest" type="Path3D" parent="Markings" index="6" unique_id=343734138]
 curve = SubResource("Curve_MainCentreWest")
 script = ExtResource("marking")
 kind = 1
 
-[node name="MainCentreEast" type="Path3D" parent="Markings"]
+[node name="MainCentreEast" type="Path3D" parent="Markings" index="7" unique_id=1708144341]
 curve = SubResource("Curve_MainCentreEast")
 script = ExtResource("marking")
 kind = 1
 
-[node name="MainKerbNearWest" type="Path3D" parent="Markings"]
+[node name="MainKerbNearWest" type="Path3D" parent="Markings" index="8" unique_id=1835997125]
 curve = SubResource("Curve_MainKerbNearWest")
 script = ExtResource("marking")
 kind = 8
 
-[node name="MainKerbNearEast" type="Path3D" parent="Markings"]
+[node name="MainKerbNearEast" type="Path3D" parent="Markings" index="9" unique_id=607712210]
 curve = SubResource("Curve_MainKerbNearEast")
 script = ExtResource("marking")
 kind = 8
 
-[node name="MainKerbFar" type="Path3D" parent="Markings"]
+[node name="MainKerbFar" type="Path3D" parent="Markings" index="10" unique_id=1478144160]
 curve = SubResource("Curve_MainKerbFar")
 script = ExtResource("marking")
 kind = 8
 
-[node name="StreamPath" type="Path3D" parent="."]
+[node name="GiveWaySign" type="Node3D" parent="Signs" index="0" unique_id=1944079330]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 3)
+script = ExtResource("3_dbwfq")
+kind = 1
+
+[node name="tree-large2" type="Node3D" parent="Props" index="0" unique_id=2141669271]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.7952118, -3.8146973e-06, -12.545047)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large3" type="Node3D" parent="Props" index="1" unique_id=361929151]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6040769, -3.8146973e-06, -17.546238)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large4" type="Node3D" parent="Props" index="2" unique_id=1529226058]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.051935, -3.8146973e-06, -31.137318)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large5" type="Node3D" parent="Props" index="3" unique_id=486076990]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.323805, -3.8146973e-06, -12.844557)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large6" type="Node3D" parent="Props" index="4" unique_id=2053160247]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.120375, -3.8146973e-06, -24.405884)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large7" type="Node3D" parent="Props" index="5" unique_id=1618988424]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26.48444, -3.8146973e-06, -31.055159)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large8" type="Node3D" parent="Props" index="6" unique_id=568477222]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28.405945, -3.8146973e-06, -17.838259)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large9" type="Node3D" parent="Props" index="7" unique_id=894636824]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 33.805233, -3.8146973e-06, -22.839449)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large10" type="Node3D" parent="Props" index="8" unique_id=1026540854]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.149221, -3.8146973e-06, -36.43053)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large11" type="Node3D" parent="Props" index="9" unique_id=2075632422]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.524963, -3.8146973e-06, -18.137768)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large12" type="Node3D" parent="Props" index="10" unique_id=1003668733]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 46.321533, -3.8146973e-06, -29.699095)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large13" type="Node3D" parent="Props" index="11" unique_id=347045884]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.685596, -3.8146973e-06, -36.34837)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large14" type="Node3D" parent="Props" index="12" unique_id=77579809]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.979095, -3.8146973e-06, -10.107035)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large15" type="Node3D" parent="Props" index="13" unique_id=1613258542]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 62.378384, -3.8146973e-06, -15.108225)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large16" type="Node3D" parent="Props" index="14" unique_id=107132638]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50.722374, -3.8146973e-06, -28.699306)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large17" type="Node3D" parent="Props" index="15" unique_id=2012805153]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 70.098114, -3.8146973e-06, -10.406544)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large18" type="Node3D" parent="Props" index="16" unique_id=930174389]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 74.894684, -3.8146973e-06, -21.96787)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large19" type="Node3D" parent="Props" index="17" unique_id=99352375]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 85.25874, -3.8146973e-06, -28.617146)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large20" type="Node3D" parent="Props" index="18" unique_id=2081417249]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15.355537, -3.8146973e-06, 24.522593)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large21" type="Node3D" parent="Props" index="19" unique_id=697346185]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20.754826, -3.8146973e-06, 19.521402)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large22" type="Node3D" parent="Props" index="20" unique_id=2118141311]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.098816, -3.8146973e-06, 5.9303207)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large23" type="Node3D" parent="Props" index="21" unique_id=1905607530]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28.474556, -3.8146973e-06, 24.223083)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large24" type="Node3D" parent="Props" index="22" unique_id=511953391]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 33.271126, -3.8146973e-06, 12.6617565)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large25" type="Node3D" parent="Props" index="23" unique_id=1320996549]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43.635185, -3.8146973e-06, 6.0124817)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large26" type="Node3D" parent="Props" index="24" unique_id=118307729]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -41.549416, -3.8146973e-06, 31.921713)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large27" type="Node3D" parent="Props" index="25" unique_id=427212403]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36.150127, -3.8146973e-06, 26.920523)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large28" type="Node3D" parent="Props" index="26" unique_id=2126684350]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -47.806137, -3.8146973e-06, 13.329441)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large29" type="Node3D" parent="Props" index="27" unique_id=1716611674]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28.430397, -3.8146973e-06, 31.622204)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large30" type="Node3D" parent="Props" index="28" unique_id=1015517280]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.633827, -3.8146973e-06, 20.060877)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large31" type="Node3D" parent="Props" index="29" unique_id=2017121913]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.269768, -3.8146973e-06, 13.411602)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large38" type="Node3D" parent="Props" index="30" unique_id=1916622581]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 47.5868, -3.8146973e-06, 35.829926)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large39" type="Node3D" parent="Props" index="31" unique_id=811893383]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 52.986088, -3.8146973e-06, 30.828733)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large40" type="Node3D" parent="Props" index="32" unique_id=1683603314]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.33008, -3.8146973e-06, 17.237652)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large41" type="Node3D" parent="Props" index="33" unique_id=1821945596]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 60.70582, -3.8146973e-06, 35.530415)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large42" type="Node3D" parent="Props" index="34" unique_id=85751301]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 65.50239, -3.8146973e-06, 23.969088)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large43" type="Node3D" parent="Props" index="35" unique_id=728426048]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 75.86645, -3.8146973e-06, 17.319813)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large44" type="Node3D" parent="Props" index="36" unique_id=2140292886]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -79.61124, -3.8146973e-06, 35.829926)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large45" type="Node3D" parent="Props" index="37" unique_id=623549353]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -74.211945, -3.8146973e-06, 30.828733)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large46" type="Node3D" parent="Props" index="38" unique_id=1297219385]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -85.86796, -3.8146973e-06, 17.237652)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large47" type="Node3D" parent="Props" index="39" unique_id=1206822498]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -66.49222, -3.8146973e-06, 35.530415)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large48" type="Node3D" parent="Props" index="40" unique_id=1652731476]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61.69565, -3.8146973e-06, 23.969088)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large49" type="Node3D" parent="Props" index="41" unique_id=851891615]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -51.33159, -3.8146973e-06, 17.319813)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large32" type="Node3D" parent="Props" index="42" unique_id=1210330784]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -62.190315, -3.8146973e-06, -17.539164)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large33" type="Node3D" parent="Props" index="43" unique_id=1104997126]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -56.791027, -3.8146973e-06, -22.540354)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large34" type="Node3D" parent="Props" index="44" unique_id=60283060]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -68.44704, -3.8146973e-06, -36.131435)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large35" type="Node3D" parent="Props" index="45" unique_id=1909616788]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -49.071297, -3.8146973e-06, -17.838673)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large36" type="Node3D" parent="Props" index="46" unique_id=104460163]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -44.274727, -3.8146973e-06, -29.399998)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large37" type="Node3D" parent="Props" index="47" unique_id=1975425439]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -33.910667, -3.8146973e-06, -36.049274)
+script = ExtResource("4_xpfd8")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="MinorRoad" type="MeshInstance3D" parent="." index="9" unique_id=1752486210]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 22.5)
+mesh = SubResource("Mesh_minor")
+surface_material_override/0 = ExtResource("asphalt")
+
+[node name="MainRoad" type="MeshInstance3D" parent="." index="10" unique_id=34589749]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.012, -3.5)
+mesh = SubResource("Mesh_main")
+surface_material_override/0 = ExtResource("asphalt")
+
+[node name="StreamPath" type="Path3D" parent="." index="11" unique_id=97594877]
 curve = SubResource("Curve_Stream")
 
-[node name="CarA" type="AnimatableBody3D" parent="." node_paths=PackedStringArray("path")]
+[node name="CarA" type="AnimatableBody3D" parent="." index="12" unique_id=334524816 node_paths=PackedStringArray("path")]
 script = ExtResource("agent")
 path = NodePath("../StreamPath")
 speed = 10.0
-start_delay = 0.0
 
-[node name="CarB" type="AnimatableBody3D" parent="." node_paths=PackedStringArray("path")]
+[node name="CarB" type="AnimatableBody3D" parent="." index="13" unique_id=92450605 node_paths=PackedStringArray("path")]
 script = ExtResource("agent")
 path = NodePath("../StreamPath")
 speed = 10.0
 start_delay = 2.0
 
-[node name="CarC" type="AnimatableBody3D" parent="." node_paths=PackedStringArray("path")]
+[node name="CarC" type="AnimatableBody3D" parent="." index="14" unique_id=445777639 node_paths=PackedStringArray("path")]
 script = ExtResource("agent")
 path = NodePath("../StreamPath")
 speed = 10.0
 start_delay = 4.0
 
-[node name="CarD" type="AnimatableBody3D" parent="." node_paths=PackedStringArray("path")]
+[node name="CarD" type="AnimatableBody3D" parent="." index="15" unique_id=556656440 node_paths=PackedStringArray("path")]
 script = ExtResource("agent")
 path = NodePath("../StreamPath")
 speed = 10.0

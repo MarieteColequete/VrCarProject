@@ -43,7 +43,7 @@ func _test_router() -> void:
 ## A map of a 60 metre two-way road with its lanes, a taxi on the right lane, and a checkpoint
 ## 40 metres ahead.
 func _road_map() -> RoadMap:
-	var road_map: RoadMap = load(MapKitTools.BASE).instantiate()
+	var road_map: RoadMap = load(MapFiles.BASE).instantiate()
 	root.add_child(road_map)
 	var road := RoadSegment.new()
 	road.curve = Curve3D.new()
@@ -51,8 +51,8 @@ func _road_map() -> RoadMap:
 	road.curve.add_point(Vector3(0, 0, -60))
 	road_map.get_node("Roads").add_child(road)
 	MapKitTools.own(road, road_map)
-	MapKitTools.regenerate(road).apply(road_map)
-	var taxi := AssetCatalogue.make(_entry("taxi"))
+	RoadNetwork.regenerate(road).apply(road_map)
+	var taxi := AssetCatalogue.make(catalogue_entry("taxi"))
 	taxi.position = Vector3(1.75, 0, -5)
 	road_map.get_node("Props").add_child(taxi)
 	var checkpoint := Checkpoint.new()
@@ -64,18 +64,11 @@ func _road_map() -> RoadMap:
 	return road_map
 
 
-func _entry(model_name: String) -> AssetCatalogue.Entry:
-	for entry in AssetCatalogue.scan():
-		if entry.model_name == model_name:
-			return entry
-	return null
-
-
 func _test_make_road_user() -> void:
 	var road_map := _road_map()
 	var taxi := road_map.get_node("Props/Taxi") as MapAsset
 	var checkpoint := road_map.get_node("Traffic/Station") as Checkpoint
-	var edit := MapKitTools.drive_to(road_map, [taxi, checkpoint], checkpoint)
+	var edit := RoadNetwork.drive_to(road_map, [taxi, checkpoint], checkpoint)
 	var agent := edit.added()[0] as ScriptedAgent if edit.adds.size() == 1 else null
 	expect(agent != null and edit.removes == [taxi] and agent.path is TrafficLane
 		and agent.path.name == "Lane1" and agent.destination == checkpoint
@@ -83,13 +76,13 @@ func _test_make_road_user() -> void:
 		and agent.position.is_equal_approx(Vector3(1.75, 0, -5)),
 		"a placed car becomes a road user on its lane, driving to the checkpoint, looking the same")
 	edit.apply(road_map)
-	var way := MapKitTools.way_of(road_map, agent)
+	var way := RoadNetwork.way_of(road_map, agent)
 	expect(way.reachable and way.on_lane and is_equal_approx(way.goal_at, 45.0),
 		"the editor finds its way to the checkpoint")
-	expect(not MapKitTools.problems(road_map).any(func(p: Dictionary) -> bool:
+	expect(not MapProblems.problems(road_map).any(func(p: Dictionary) -> bool:
 			return p.node == agent), "a road user that can reach its checkpoint has no problem")
 	checkpoint.position = Vector3(-1.75, 0, -45)
-	expect(MapKitTools.problems(road_map).any(func(p: Dictionary) -> bool:
+	expect(MapProblems.problems(road_map).any(func(p: Dictionary) -> bool:
 			return p.node == agent and p.message.contains("cannot reach")),
 		"a checkpoint only on the other way's lane is flagged")
 	road_map.free()
@@ -99,7 +92,7 @@ func _test_drive() -> void:
 	var road_map := _road_map()
 	var taxi := road_map.get_node("Props/Taxi") as MapAsset
 	var checkpoint := road_map.get_node("Traffic/Station") as Checkpoint
-	MapKitTools.drive_to(road_map, [taxi], checkpoint).apply(road_map)
+	RoadNetwork.drive_to(road_map, [taxi], checkpoint).apply(road_map)
 	(road_map.get_node("Spawn") as Node3D).position = Vector3(-1.75, 0, -55)
 	root.remove_child(road_map)
 	var packed := PackedScene.new()
@@ -119,9 +112,9 @@ func _test_drive() -> void:
 	expect(store.size() == 1 and String(models[0]).ends_with("taxi.glb")
 		and runner._traffic_view.counts().has(models[0]), "it is drawn as the car placed")
 	await frames(60 * 12)
-	var at: Vector3 = store.column(&"position")[0]
+	var where: Vector3 = store.column(&"position")[0]
 	var state: int = store.column(&"state")[0]
-	expect(state == AgentTable.State.DONE and at.distance_to(Vector3(1.75, 0, -45)) < 0.5,
-		"it drives to the checkpoint and stops there %s" % [at])
+	expect(state == AgentTable.State.DONE and where.distance_to(Vector3(1.75, 0, -45)) < 0.5,
+		"it drives to the checkpoint and stops there %s" % [where])
 	runner.queue_free()
 	await process_frame

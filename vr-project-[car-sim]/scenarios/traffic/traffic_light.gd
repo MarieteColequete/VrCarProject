@@ -6,7 +6,9 @@ extends Node3D
 ## waits [member trigger_delay], turns amber, and then runs the phases once until it is green
 ## again, where it holds; scenarios use this to put a change at a chosen distance. The phases run
 ## in [LightLogic]; the node draws a pole and three lamps, lit by the light view through
-## [method show_state]. A [TrafficLightCheck] at the stop line judges the car.
+## [method show_state], and its pole and housing are solid, a static body of the obstacle
+## [BodyType], so the car collides with them, road users see them, and [ContactCheck] judges
+## touching them. A [TrafficLightCheck] at the stop line judges the car.
 
 enum Light { RED, RED_AMBER, GREEN, AMBER }
 enum Mode { CYCLE, ON_APPROACH }
@@ -22,15 +24,26 @@ enum Mode { CYCLE, ON_APPROACH }
 @export var draw_lamps := true
 
 const LAMP_COLOURS := [Color(0.9, 0.1, 0.1), Color(0.95, 0.6, 0.05), Color(0.1, 0.85, 0.3)]
+## The solid box of the pole and the housing on it, metres.
+const POLE_BOX := Vector3(0.35, 3.6, 0.25)
 
 var _lamps: Array[StandardMaterial3D] = []
 var _shown := -1
+var _body: StaticBody3D
 
 
 func _ready() -> void:
 	if draw_lamps:
 		_build()
 	show_state(initial)
+
+
+## The pole's body, for the bake to turn into an obstacle; empty when the lamps are not drawn.
+func bodies() -> Array[StaticBody3D]:
+	var out: Array[StaticBody3D] = []
+	if _body:
+		out.append(_body)
+	return out
 
 
 ## Lights the lamps of [param light_state].
@@ -54,6 +67,8 @@ func _show() -> void:
 
 
 func _build() -> void:
+	_body = PoleBody.make(POLE_BOX)
+	add_child(_body, false, INTERNAL_MODE_BACK)
 	var pole := MeshInstance3D.new()
 	var pole_mesh := CylinderMesh.new()
 	pole_mesh.top_radius = 0.06

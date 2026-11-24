@@ -23,7 +23,9 @@ var placer: MapKitPlacer
 ## Renders the Asset Library's thumbnails.
 var thumbnails: AssetThumbnails
 var overlay: MapKitOverlay
-## The open map's problems, as [method MapKitTools.problems] lists them.
+## The terrain shapes' outlines on the land and their handles.
+var shape_gizmo: TerrainShapeGizmo
+## The open map's problems, as [method MapProblems.problems] lists them.
 var problems: Array[Dictionary] = []
 
 var _check_timer: Timer
@@ -38,6 +40,8 @@ func _enter_tree() -> void:
 	thumbnails = AssetThumbnails.new()
 	add_child(thumbnails)
 	overlay = MapKitOverlay.new()
+	shape_gizmo = TerrainShapeGizmo.new(self)
+	add_node_3d_gizmo_plugin(shape_gizmo)
 	dock = MapKitDock.new()
 	dock.plugin = self
 	add_dock(dock)
@@ -73,6 +77,8 @@ func _exit_tree() -> void:
 	var inspector := EditorInterface.get_inspector()
 	if inspector.property_edited.is_connected(_on_property_edited):
 		inspector.property_edited.disconnect(_on_property_edited)
+	remove_node_3d_gizmo_plugin(shape_gizmo)
+	shape_gizmo = null
 	remove_control_from_container(CONTAINER_SPATIAL_EDITOR_MENU, _overlay_button)
 	_overlay_button.queue_free()
 	remove_dock(library)
@@ -165,27 +171,28 @@ func set_overlay(on: bool) -> void:
 
 
 ## Makes [param edit] on the open map as one undo action named [param action]; the nodes it adds
-## are selected when [param select]. Returns whether anything changed.
-func apply(edit: MapKitTools.Edit, action: String, select := false) -> bool:
+## are selected when [param select]. With [param merge], a run of the same action (a slider
+## dragged) merges into one. Returns whether anything changed.
+func apply(edit: MapKitTools.Edit, action: String, select := false, merge := false) -> bool:
 	var root := EditorInterface.get_edited_scene_root()
 	if edit == null or edit.is_empty() or root == null:
 		return false
 	var undo := get_undo_redo()
-	undo.create_action(action, UndoRedo.MERGE_DISABLE, root)
+	undo.create_action(action, UndoRedo.MERGE_ENDS if merge else UndoRedo.MERGE_DISABLE, root)
 	for node in edit.removes:
 		undo.add_do_method(node.get_parent(), &"remove_child", node)
-	for pair: Array in edit.adds:
-		undo.add_do_method(pair[0], &"add_child", pair[1], true)
-		undo.add_do_method(MapKitTools, &"own", pair[1], root)
-		undo.add_do_reference(pair[1])
-	for triple: Array in edit.sets:
-		undo.add_do_property(triple[0], triple[1], triple[2])
+	for added in edit.adds:
+		undo.add_do_method(added.parent, &"add_child", added.node, true)
+		undo.add_do_method(MapKitTools, &"own", added.node, root)
+		undo.add_do_reference(added.node)
+	for change in edit.sets:
+		undo.add_do_property(change.object, change.property, change.value)
 	# Undone in reverse: what was set, then what was added, then what was removed, so restored
 	# nodes get their own names back.
-	for triple: Array in edit.sets:
-		undo.add_undo_property(triple[0], triple[1], (triple[0] as Object).get(triple[1]))
-	for pair: Array in edit.adds:
-		undo.add_undo_method(pair[0], &"remove_child", pair[1])
+	for change in edit.sets:
+		undo.add_undo_property(change.object, change.property, change.object.get(change.property))
+	for added in edit.adds:
+		undo.add_undo_method(added.parent, &"remove_child", added.node)
 	for node in edit.removes:
 		var parent := node.get_parent()
 		undo.add_undo_method(parent, &"add_child", node, true)
@@ -212,7 +219,7 @@ func check_now() -> void:
 	var road_map := edited_map()
 	problems.clear()
 	if road_map:
-		problems = MapKitTools.problems(road_map)
+		problems = MapProblems.problems(road_map)
 	overlay.refresh(road_map)
 	problems_changed.emit(problems)
 	update_overlays()

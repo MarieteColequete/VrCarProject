@@ -1,5 +1,91 @@
 # Changelog
 
+## v0.6.0-alpha - 2026-11-24
+
+### Changed
+
+- **Breaking:** Drive without the `hill_road` map and its `hill_start` scenario, removed with the roll-back check and fault only it used
+- Bump into the signs, traffic lights, cones, and decoration of the exam maps, now solid map assets the Map Kit can change
+- Drive a Logitech G29 in its native or PS3 mode, pedals, paddles, and shifter included, with the transmission no longer a setting
+
+### Added
+
+- Start the game on a main menu, and pause, set options, pick a scenario, and read its briefing and result on menus that work in VR
+- Follow the way on a GPS tablet held out from the dash: a heading-up map, the route to the goal, the current step, and the distance left
+- Hear the engine start with its key, sputter out when the key is let go too soon, and the key click when a start is refused in gear
+- Turn loose models into map assets, and find solid things standing in the way of lanes and road users, from the Map Kit's Problems and Selection
+
+### Fixed
+
+- Drive on hand-drawn roads that hills no longer bury, the land flattening under them as under the kit's roads
+
+## v0.5.1-alpha - 2026-11-23
+
+### Fixed
+
+- Place terrain shapes, signs, zones, and models with the Map Kit, whose arming failed with an error in the editor for every piece but roads and junctions
+- Move, delete, or undo roads and terrain shapes in the editor without an error about a freed lambda capture in the Output
+- Open the project with no GDScript warnings in the editor's Output
+
+## v0.5.0-alpha - 2026-11-23
+
+### Changed
+
+- **Breaking:** Point scenarios and maps at `scenarios/scenes/player_car.tscn` for the player's car, which replaces `debug_car.tscn`; the main scene is now the scenario sandbox
+- Drive a car with real tyres, weight transfer, suspension, and a powertrain, shared with the road users, forgiving under the exam aids and sharper in the sport and sim presets
+- Feel the car pitch, roll, and follow slopes, the view fixed to the cabin so the world tilts around the driver
+- Steer the front wheels by the rack's geometry alone, so turning the wheel never moves a standing car and no aid turns the wheels on its own
+- Shift an automatic lever from D through N to R, with park on a button of its own, or step through a manual gearbox
+- Start the engine with the key, and stall it by forcing a gear against the car's motion or lugging a manual
+- Ease the throttle open on the keys as a foot would, so the automatic settles in top gear at a steady speed and kicks down only when the pedal is held through
+- Read the speed, revolutions, gear, lamps, and warnings from the car's own sensors, so a car in the air shows what its wheels turn at, not how fast it falls
+- Hear tyres scrub, squeal, and skid only as they slide, with each surface rolling and sounding its own on asphalt, grass, and dirt
+- Orbit and zoom the chase view with the mouse or right stick
+- Turn the car's steering wheel 900 degrees lock to lock, two and a half turns as on a road car and most sim wheels, instead of 300
+- Use one control layout on every device: the gamepad's, matched one to one by the VR controllers and a steering wheel, with the arrow keys and the D-pad tilting the picked mirror and the indicators on the D-pad
+- Set the mirrors while driving, not only parked
+- Go to the next scenario, or in free drive the next map, with one key (N, D-pad down)
+- Free the mouse with Backspace, Escape and Start being kept for a menu to come
+
+### Added
+
+- Build hills, valleys, ramps, and plateaus with a map's terrain, and drape roads onto the land from the Map Kit
+- Shape terrain in the editor with outlines and handles in the 3D view, or sliders in the dock, the land following the mouse
+- Read fuel and coolant gauges and engine, oil, battery, ABS, stability, and low fuel lights on the instrument cluster behind the wheel
+- Be judged on a hill start in the `hill_start` scenario on `hill_road`, with a fault for rolling back
+- Learn to build land in the map guide's new terrain chapter
+- Drive with a steering wheel: its rim turns the car's wheel 1:1 and its pedals calibrate in `user://controls.cfg`, and in VR holding its rim lines the car's wheel up with it
+- Use a Valve Index's controllers with their own bindings
+- Read the new driving guide, with every control on PC, controller, VR, and wheel; the controller, VR, and wheel layouts are not yet tried on the hardware
+
+### Fixed
+
+- Light each outside blinker on its own side of the car
+- Cut the land just under every road on a slope, instead of burying the asphalt
+- Rebuild the land under a road or junction that is moved or deleted in the editor
+- Draw the front wheels at the angles they steer, and release road users' bodies when they leave
+
+## v0.4.0-alpha - 2026-11-22
+
+### Changed
+
+- Drive through a five speed automatic gearbox, with steering that eases with speed and a car that turns along its front wheels
+- Watch the whole car dip under braking, squat under acceleration, and roll out of a turn, cockpit included, while the head stays level
+- Be judged on mirror checks by where the driver looks, eyes or head, held for a moment within the mirror's cone, optionally with the interior mirror and too long a look away from the road
+- Read the engine's revolutions and the gear on the instrument panel, with needles that settle without overshooting
+
+### Added
+
+- Look in an interior mirror and two door mirrors that show what a real mirror there would, on the car's own glass
+- Set each mirror by gripping it in VR, or with the mirror switch, Tab or the gamepad's d-pad up, kept between sessions
+- Steer by gripping the steering wheel's rim with one or both hands in VR
+- Drive with the motion controllers: triggers, buttons, and sticks for the throttle, brake, handbrake, headlights, indicators, and recentring
+- Hear the engine, the indicator's tick, the tyres near their grip, and a thump on the kerbs
+- Feel the controllers buzz on the indicator, a gear change, and a kerb
+- Show an instructor a chase or shoulder view on the desktop while the driver is in the headset
+- Sit in a textured cabin: cloth seats, leather bolsters and steering wheel, carpet, a felt headliner, and grained plastic
+- See dipped beams cast on the road by the headlights
+
 ## v0.3.0-alpha - 2026-11-22
 
 ### Changed

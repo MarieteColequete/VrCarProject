@@ -44,10 +44,6 @@ static func step(p: Dictionary, s: Dictionary, f: RuleFrame, live: bool) -> Rule
 	return r
 
 
-static func finish(_p: Dictionary, s: Dictionary, _f: RuleFrame, _live: bool) -> RuleResult:
-	return RuleResult.new(s)
-
-
 ## Degrees between [param forward] and the way [param bay] requires a car to face.
 static func facing_error(bay: Dictionary, forward: Vector3) -> float:
 	var angles := Geo.facing_angles(-(bay.transform as Transform3D).basis.z, forward)

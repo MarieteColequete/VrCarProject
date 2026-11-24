@@ -22,6 +22,10 @@ var started_moving := -1
 var indicator := VehicleProbe.Indicator.UNKNOWN
 var handbrake := VehicleProbe.Toggle.UNKNOWN
 var look := Vector3.FORWARD
+## Where the driver's eye is, in world space.
+var eye := Vector3.ZERO
+## The car's mirrors in its own space: interior, left, right; empty for a car without them.
+var mirrors := PackedVector3Array()
 var corners := PackedVector3Array()
 var wheels := PackedVector3Array()
 var previous_wheels := PackedVector3Array()
@@ -29,6 +33,7 @@ var body_length := 4.2
 var body_width := 1.8
 var hull_size := Vector3(1.9, 1.5, 4.3)
 var hull_height := 0.75
+var mass := 1250.0
 var clock := 0.0
 var _indicator_seen := VehicleProbe.Indicator.UNKNOWN
 var _indicator_since := 0.0
@@ -65,6 +70,8 @@ static func _read(s: ComponentStore) -> CarState:
 	car.indicator = s.get_value(id, &"indicator")
 	car.handbrake = s.get_value(id, &"handbrake")
 	car.look = s.get_value(id, &"look")
+	car.eye = s.get_value(id, &"eye")
+	car.mirrors = s.get_value(id, &"mirrors")
 	car.corners = s.get_value(id, &"corners")
 	car.wheels = s.get_value(id, &"wheels")
 	car.previous_wheels = s.get_value(id, &"previous_wheels")
@@ -72,6 +79,7 @@ static func _read(s: ComponentStore) -> CarState:
 	car.body_width = s.get_value(id, &"body_width")
 	car.hull_size = s.get_value(id, &"hull_size")
 	car.hull_height = s.get_value(id, &"hull_height")
+	car.mass = s.get_value(id, &"mass")
 	car.clock = s.get_value(id, &"clock")
 	car._indicator_seen = s.get_value(id, &"indicator_seen")
 	car._indicator_since = s.get_value(id, &"indicator_since")
@@ -104,6 +112,17 @@ func side_of(dir: Vector3) -> int:
 func travels_along(dir: Vector3) -> bool:
 	dir.y = 0.0
 	return forward.dot(dir) > 0.0
+
+
+## The angle, degrees, between the driver's look and the direction from the eye to the mirror
+## [param index] (0 interior, 1 left, 2 right); INF for a car without it.
+func look_off_mirror(index: int) -> float:
+	if index >= mirrors.size():
+		return INF
+	var to := transform * mirrors[index] - eye
+	if to.length() < 0.001 or look.length() < 0.001:
+		return INF
+	return rad_to_deg(look.angle_to(to))
 
 
 ## The driver's look as a signed angle from the car's forward direction, degrees, left positive.

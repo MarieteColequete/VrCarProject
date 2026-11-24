@@ -4,11 +4,15 @@ extends CanvasLayer
 ## time against the limit, faults as they are committed, how other road users react, a
 ## performance readout, and the result. It only listens to the [ExamRunner], its [ExamSession], and
 ## the world's events, so it also shows how a UI uses them. Keys: exam_begin
-## starts the attempt after the briefing, exam_restart restarts it, exam_next_scenario moves to
-## the next scenario of the [ScenarioCatalogue], exam_next_map drives the next map of the
-## [MapCatalogue] freely, and toggle_debug_hud hides the overlay; the hints
+## starts the attempt after the briefing, exam_restart restarts it, exam_next moves on from where
+## the driver is (the next scenario of the [ScenarioCatalogue], or in free drive the next map of
+## the [MapCatalogue]), menu asks for the menu ([signal menu_requested]; nothing opens yet), and
+## toggle_debug_hud hides the overlay; the hints
 ## it shows are read from the input map, so they follow any rebinding. It hides itself while a
 ## headset drives the view, where a UI of its own applies.
+
+## The menu button was pressed: the seam a menu attaches to.
+signal menu_requested
 
 const TIER_COLOURS := {&"critical": Color(1.0, 0.35, 0.3), &"serious": Color(1.0, 0.65, 0.2),
 	&"minor": Color(1.0, 0.9, 0.4)}
@@ -69,19 +73,34 @@ func _process(_delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if runner == null:
 		return
+	if DriverInput.taken_by_mirror(event, _mirror_picked()):
+		return
 	if event.is_action_pressed(&"toggle_debug_hud"):
 		visible = not visible
+	elif event.is_action_pressed(&"menu"):
+		menu_requested.emit()
 	elif event.is_action_pressed(&"exam_begin"):
 		runner.session.begin()
 	elif event.is_action_pressed(&"exam_restart"):
 		runner.session.restart()
-	elif event.is_action_pressed(&"exam_next_scenario"):
-		next_scenario()
-	elif event.is_action_pressed(&"exam_next_map"):
-		next_map()
+	elif event.is_action_pressed(&"exam_next"):
+		next()
 	else:
 		return
 	get_viewport().set_input_as_handled()
+
+
+## Moves on from where the driver is: the next map in free drive, else the next scenario.
+func next() -> void:
+	if runner.map_scene:
+		next_map()
+	else:
+		next_scenario()
+
+
+func _mirror_picked() -> bool:
+	var car := runner.car
+	return car != null and &"car_mirrors" in car and car.car_mirrors.adjust.active()
 
 
 ## Loads the scenario after the current one in the catalogue, wrapping round to the first.
@@ -122,11 +141,11 @@ static func binding_text(action: StringName) -> String:
 ## The main thread's process time, the physics process time, and the traffic pipeline's main
 ## thread time (snapshot and committing) and any wait for its threads, in milliseconds; shared
 ## with the [DevHud].
-static func performance_text(runner: ExamRunner) -> String:
+static func performance_text(p_runner: ExamRunner) -> String:
 	var text := "main %.1f ms  physics %.1f ms" % [
 		Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
 		Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0]
-	var traffic := runner.traffic if runner else null
+	var traffic := p_runner.traffic if p_runner else null
 	if traffic and traffic.count > 0:
 		text += "  traffic %.2f ms, waiting %.2f ms, road users %d" % [
 			(traffic.think_usec + traffic.commit_usec - traffic.wait_usec) / 1000.0,
@@ -207,9 +226,8 @@ func _on_finished(result: ScenarioResult) -> void:
 		lines.append("%s: %d (%s)" % [tier.title if not tier.title.is_empty() else tier.id,
 			tier.count, limit])
 	lines.append("")
-	lines.append("%s to restart, %s for the next scenario, %s for the next map" % [
-		binding_text(&"exam_restart"), binding_text(&"exam_next_scenario"),
-		binding_text(&"exam_next_map")])
+	lines.append("%s to restart, %s for the next %s" % [binding_text(&"exam_restart"),
+		binding_text(&"exam_next"), "map" if runner.map_scene else "scenario"])
 	_show_message("\n".join(lines))
 
 
@@ -238,9 +256,9 @@ func _build() -> void:
 	performance_label.modulate = Color(1, 1, 1, 0.6)
 	feed = VBoxContainer.new()
 	keys_label = Label.new()
-	keys_label.text = "%s begin   %s restart   %s next   %s map   %s hide" % [
-		first_key(&"exam_begin"), first_key(&"exam_restart"), first_key(&"exam_next_scenario"),
-		first_key(&"exam_next_map"), first_key(&"toggle_debug_hud")]
+	keys_label.text = "%s begin   %s restart   %s next   %s hide" % [
+		first_key(&"exam_begin"), first_key(&"exam_restart"), first_key(&"exam_next"),
+		first_key(&"toggle_debug_hud")]
 	keys_label.modulate = Color(1, 1, 1, 0.6)
 	for node: Control in [title_label, step_label, time_label, performance_label, feed,
 			keys_label]:

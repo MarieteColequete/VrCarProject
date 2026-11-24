@@ -15,7 +15,7 @@ func run() -> void:
 ## The reactions of the busy junction's clean drive, with where each road user stood, thinking in
 ## parallel or not.
 func _busy_log(parallel: bool) -> Array:
-	var log := []
+	var lines := []
 	var count := [0]
 	var on_spawn := func(runner: ExamRunner) -> void:
 		runner.traffic.parallel = parallel
@@ -24,7 +24,8 @@ func _busy_log(parallel: bool) -> Array:
 			for event in events:
 				if event.kind == &"reacted":
 					var position: Vector3 = world.get_value(Schema.AGENT, event.entity, &"position")
-					log.append("%s %s %.2f" % [world.get_value(Schema.AGENT, event.entity, &"name"),
+					lines.append("%s %s %.2f" % [
+						world.get_value(Schema.AGENT, event.entity, &"name"),
 						event.data.kind, position.z]))
 	var on_end := func(runner: ExamRunner) -> void:
 		count[0] = runner.traffic.count
@@ -32,7 +33,7 @@ func _busy_log(parallel: bool) -> Array:
 		{to = at(-110.0), speed = 8.0}], BUSY, on_spawn, on_end)
 	expect(count[0] >= TrafficPipeline.PARALLEL_FROM,
 		"the busy junction has enough road users to think in parallel (%d)" % count[0])
-	return log
+	return lines
 
 
 func _test_parallel_matches_inline() -> void:
@@ -47,10 +48,11 @@ func _test_added_during_attempt() -> void:
 	var runner := spawn_runner()
 	runner.car.input_enabled = false
 	await process_frame
+	# Across the stop junction's land where none of its houses or trees stands.
 	var lane := Path3D.new()
 	lane.curve = Curve3D.new()
-	lane.curve.add_point(Vector3(30, 0, 60))
-	lane.curve.add_point(Vector3(30, 0, -60))
+	lane.curve.add_point(Vector3(60, 0, 60))
+	lane.curve.add_point(Vector3(60, 0, -60))
 	runner.scenario.add_child(lane)
 	var agent := ScriptedAgent.new()
 	agent.name = "Latecomer"
@@ -62,7 +64,7 @@ func _test_added_during_attempt() -> void:
 		"a road user added during the attempt is baked into the world and drives")
 	var van: StaticBody3D = PARKED_CAR.instantiate()
 	runner.scenario.add_child(van)
-	van.global_position = Vector3(30, 0.75, 0)
+	van.global_position = Vector3(60, 0.75, 0)
 	runner.add_obstacle(van)
 	await frames(900)
 	var a := agent_state(runner, &"Latecomer")

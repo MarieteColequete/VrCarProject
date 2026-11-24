@@ -79,6 +79,7 @@ func _traffic_times(count: int, parallel: bool) -> PackedFloat64Array:
 		var light := s.world.spawn({light = values})
 		var lane := path(s, Vector3(x, 0, 200), Vector3(x, 0, -200),
 			{is_lane = true, light = light, stop_at = 200.0})
+		@warning_ignore("integer_division")
 		for i in count / 10:
 			road_user(s, lane, {speed = 10.0 + (i % 3), loop = true, start_delay = i * 1.6})
 	tick(s, 40 * 60)

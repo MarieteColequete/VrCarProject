@@ -22,13 +22,13 @@ var events: Array[WorldEvent] = []
 var _world: World
 
 
-static func build(world: World, dt: float, elapsed: float, current_step: int) -> RuleFrame:
+static func build(world: World, p_dt: float, p_elapsed: float, p_current_step: int) -> RuleFrame:
 	var f := RuleFrame.new()
 	f._world = world
 	f.car = CarState.read(world)
-	f.dt = dt
-	f.elapsed = elapsed
-	f.current_step = current_step
+	f.dt = p_dt
+	f.elapsed = p_elapsed
+	f.current_step = p_current_step
 	f.markings = world.resources.get(Schema.MARKINGS)
 	f.agents = AgentTable.read(world)
 	f.lanes = world.resources.get(Schema.LANES, {})

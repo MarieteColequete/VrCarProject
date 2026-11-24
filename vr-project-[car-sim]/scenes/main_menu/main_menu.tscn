@@ -1,0 +1,89 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/main_menu/main_menu.gd" id="1_menu"]
+[ext_resource type="Shader" path="res://scenes/main_menu/road.gdshader" id="2_road"]
+[ext_resource type="Script" path="res://scenes/main_menu/scenery.gd" id="3_scenery"]
+[ext_resource type="PackedScene" path="res://scenes/vr/ui_panel_3d.tscn" id="4_panel"]
+[ext_resource type="PackedScene" path="res://scenes/vr/vr_pointer.tscn" id="5_pointer"]
+
+[sub_resource type="ProceduralSkyMaterial" id="sky_material"]
+sky_top_color = Color(0.17, 0.45, 0.8, 1)
+sky_horizon_color = Color(0.66, 0.8, 0.92, 1)
+ground_bottom_color = Color(0.22, 0.32, 0.25, 1)
+ground_horizon_color = Color(0.66, 0.8, 0.92, 1)
+
+[sub_resource type="Sky" id="sky"]
+sky_material = SubResource("sky_material")
+
+[sub_resource type="Environment" id="environment"]
+background_mode = 2
+sky = SubResource("sky")
+ambient_light_source = 3
+tonemap_mode = 2
+fog_enabled = true
+fog_light_color = Color(0.66, 0.8, 0.92, 1)
+fog_density = 0.006
+fog_sky_affect = 0.0
+
+[sub_resource type="StandardMaterial3D" id="ground_material"]
+albedo_color = Color(0.36, 0.56, 0.32, 1)
+roughness = 1.0
+
+[sub_resource type="PlaneMesh" id="ground_mesh"]
+material = SubResource("ground_material")
+size = Vector2(800, 800)
+
+[sub_resource type="ShaderMaterial" id="road_material"]
+render_priority = 0
+shader = ExtResource("2_road")
+shader_parameter/road_width = 8.0
+shader_parameter/road_length = 400.0
+
+[sub_resource type="PlaneMesh" id="road_mesh"]
+material = SubResource("road_material")
+size = Vector2(8, 400)
+
+[node name="MainMenu" type="Node3D" groups=["no_pause"]]
+script = ExtResource("1_menu")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("environment")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+rotation = Vector3(-0.9, 0.5, 0)
+light_energy = 1.1
+shadow_enabled = true
+directional_shadow_max_distance = 80.0
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+mesh = SubResource("ground_mesh")
+
+[node name="Road" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.02, -175)
+mesh = SubResource("road_mesh")
+
+[node name="Scenery" type="Node3D" parent="."]
+script = ExtResource("3_scenery")
+
+[node name="DesktopCamera" type="Camera3D" parent="."]
+position = Vector3(0, 1.8, 3.5)
+rotation = Vector3(-0.06, 0, 0)
+fov = 70.0
+
+[node name="UILayer" type="CanvasLayer" parent="."]
+
+[node name="UIPanel3D" parent="." instance=ExtResource("4_panel")]
+position = Vector3(0, 1.45, -1.8)
+
+[node name="XROrigin3D" type="XROrigin3D" parent="."]
+
+[node name="XRCamera3D" type="XRCamera3D" parent="XROrigin3D"]
+position = Vector3(0, 1.7, 0)
+
+[node name="LeftController" parent="XROrigin3D" instance=ExtResource("5_pointer")]
+position = Vector3(-0.25, 1.2, -0.3)
+tracker = &"left_hand"
+
+[node name="RightController" parent="XROrigin3D" instance=ExtResource("5_pointer")]
+position = Vector3(0.25, 1.2, -0.3)
+tracker = &"right_hand"

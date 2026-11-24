@@ -1,9 +1,12 @@
 [gd_scene format=3 uid="uid://boaqwn6mqs10f"]
 
-[ext_resource type="Script" uid="uid://gvavp4nn6bfy" path="res://scenarios/traffic/scripted_agent.gd" id="agent"]
+[ext_resource type="Script" path="res://scenarios/map/map_asset.gd" id="3_jlhgf"]
+[ext_resource type="Script" path="res://scenarios/map/terrain.gd" id="6_jlhgf"]
+[ext_resource type="Script" path="res://scenarios/map/terrain_shape.gd" id="7_r3i71"]
+[ext_resource type="Script" path="res://scenarios/traffic/scripted_agent.gd" id="agent"]
 [ext_resource type="Material" path="res://scenarios/kit/asphalt.tres" id="asphalt"]
 [ext_resource type="PackedScene" path="res://scenarios/kit/map_base.tscn" id="map_base"]
-[ext_resource type="Script" uid="uid://cn1xe8vcfx6uc" path="res://scenarios/road/road_marking.gd" id="marking"]
+[ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="marking"]
 
 [sub_resource type="Curve3D" id="Curve_CentreDashed"]
 _data = {
@@ -45,7 +48,7 @@ size = Vector3(7, 0.02, 300)
 
 [sub_resource type="Curve3D" id="Curve_Slow"]
 _data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 1.75, 0, 40, 0, 0, 0, 0, 0, 0, 1.75, 0, -260),
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 1.75, 0, 40, 0, 0, 0, 0, 0, 0, 1.75, 0, -207.5),
 "tilts": PackedFloat32Array(0, 0)
 }
 point_count = 2
@@ -57,6 +60,7 @@ description = "A two-lane road with a slow vehicle ahead."
 
 [node name="Environment" parent="." index="0"]
 ground_size = Vector2(100, 320)
+ground = false
 ground_offset = Vector3(0, 0, -60)
 
 [node name="Spawn" parent="." index="1"]
@@ -86,6 +90,570 @@ curve = SubResource("Curve_KerbLeft")
 script = ExtResource("marking")
 kind = 8
 
+[node name="tree-large2" type="Node3D" parent="Props" index="0" unique_id=530186871]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28.803526, 0, 49.175674)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large3" type="Node3D" parent="Props" index="1" unique_id=1991517004]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.844969, 0, 52.279995)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large4" type="Node3D" parent="Props" index="2" unique_id=1100120705]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -42.273872, 0, 57.831547)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large5" type="Node3D" parent="Props" index="3" unique_id=1285454697]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.280415, 0, 35.89416)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large6" type="Node3D" parent="Props" index="4" unique_id=2088803719]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21.391087, 0, 45.51265)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large7" type="Node3D" parent="Props" index="5" unique_id=1550520263]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.14186, 0, 61.776382)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large8" type="Node3D" parent="Props" index="6" unique_id=1726644537]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28.803526, 0, 78.08514)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large9" type="Node3D" parent="Props" index="7" unique_id=166239965]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.844969, 0, 81.18946)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large10" type="Node3D" parent="Props" index="8" unique_id=680300903]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -42.273872, 0, 86.74101)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large11" type="Node3D" parent="Props" index="9" unique_id=1964626715]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.280415, 0, 64.80363)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large12" type="Node3D" parent="Props" index="10" unique_id=1731749977]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21.391087, 0, 74.42211)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large13" type="Node3D" parent="Props" index="11" unique_id=2057551557]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.14186, 0, 90.685844)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large14" type="Node3D" parent="Props" index="12" unique_id=17287499]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27.681433, 0, 74.588524)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large15" type="Node3D" parent="Props" index="13" unique_id=1121311163]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40.63999, 0, 77.69285)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large16" type="Node3D" parent="Props" index="14" unique_id=1412884413]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.211086, 0, 83.2444)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large17" type="Node3D" parent="Props" index="15" unique_id=74562234]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19.204544, 0, 61.307014)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large18" type="Node3D" parent="Props" index="16" unique_id=1993732597]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35.093872, 0, 70.9255)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large19" type="Node3D" parent="Props" index="17" unique_id=698874162]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32.3431, 0, 87.18923)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large20" type="Node3D" parent="Props" index="18" unique_id=1083346193]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27.681433, 0, 35.57392)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large21" type="Node3D" parent="Props" index="19" unique_id=1917675214]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40.63999, 0, 38.678246)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large22" type="Node3D" parent="Props" index="20" unique_id=1843348842]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.211086, 0, 44.229797)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large23" type="Node3D" parent="Props" index="21" unique_id=2004780386]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19.204544, 0, 22.292412)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large24" type="Node3D" parent="Props" index="22" unique_id=656565246]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35.093872, 0, 31.910896)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large25" type="Node3D" parent="Props" index="23" unique_id=307969625]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32.3431, 0, 48.17463)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large26" type="Node3D" parent="Props" index="24" unique_id=2068150958]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27.681433, 0, 1.9616776)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large27" type="Node3D" parent="Props" index="25" unique_id=123301510]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40.63999, 0, 5.066002)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large28" type="Node3D" parent="Props" index="26" unique_id=1803474249]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.211086, 0, 10.617554)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large29" type="Node3D" parent="Props" index="27" unique_id=1958143082]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19.204544, 0, -11.319832)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large30" type="Node3D" parent="Props" index="28" unique_id=800872648]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35.093872, 0, -1.7013474)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large31" type="Node3D" parent="Props" index="29" unique_id=1647554588]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32.3431, 0, 14.562386)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large32" type="Node3D" parent="Props" index="30" unique_id=907518947]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.604158, 0, 9.728264)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large33" type="Node3D" parent="Props" index="31" unique_id=153960208]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.645599, 0, 12.832588)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large34" type="Node3D" parent="Props" index="32" unique_id=1665152281]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -38.074505, 0, 18.38414)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large35" type="Node3D" parent="Props" index="33" unique_id=1202859833]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -33.081047, 0, -3.5532455)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large36" type="Node3D" parent="Props" index="34" unique_id=1508098382]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.19172, 0, 6.065239)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large37" type="Node3D" parent="Props" index="35" unique_id=1978485413]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.94249, 0, 22.328972)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large38" type="Node3D" parent="Props" index="36" unique_id=1184029096]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.604158, 0, -35.356724)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large39" type="Node3D" parent="Props" index="37" unique_id=1724909549]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.645599, 0, -32.2524)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large40" type="Node3D" parent="Props" index="38" unique_id=1683695107]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -38.074505, 0, -26.700848)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large41" type="Node3D" parent="Props" index="39" unique_id=1739836766]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -33.081047, 0, -48.638233)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large42" type="Node3D" parent="Props" index="40" unique_id=1321089881]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.19172, 0, -39.01975)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large43" type="Node3D" parent="Props" index="41" unique_id=331453819]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.94249, 0, -22.756016)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large44" type="Node3D" parent="Props" index="42" unique_id=464699918]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30.225721, 0, -35.356724)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large45" type="Node3D" parent="Props" index="43" unique_id=559604685]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43.18428, 0, -32.2524)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large46" type="Node3D" parent="Props" index="44" unique_id=1334043540]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.755375, 0, -26.700848)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large47" type="Node3D" parent="Props" index="45" unique_id=1182263965]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.748833, 0, -48.638233)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large48" type="Node3D" parent="Props" index="46" unique_id=2118793179]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.63816, 0, -39.01975)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large49" type="Node3D" parent="Props" index="47" unique_id=261482363]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34.88739, 0, -22.756016)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large50" type="Node3D" parent="Props" index="48" unique_id=1028696507]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30.225721, 0, -69.741394)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large51" type="Node3D" parent="Props" index="49" unique_id=1360869280]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43.18428, 0, -66.63707)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large52" type="Node3D" parent="Props" index="50" unique_id=761231579]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.755375, 0, -61.085514)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large53" type="Node3D" parent="Props" index="51" unique_id=474415700]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.748833, 0, -83.0229)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large54" type="Node3D" parent="Props" index="52" unique_id=2054135058]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.63816, 0, -73.40442)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large55" type="Node3D" parent="Props" index="53" unique_id=705082513]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34.88739, 0, -57.140682)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large56" type="Node3D" parent="Props" index="54" unique_id=31740634]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30.225721, 0, -146.7414)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large57" type="Node3D" parent="Props" index="55" unique_id=1223455440]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43.18428, 0, -143.63707)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large58" type="Node3D" parent="Props" index="56" unique_id=238527261]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.755375, 0, -138.08551)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large59" type="Node3D" parent="Props" index="57" unique_id=1425098278]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.748833, 0, -160.0229)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large60" type="Node3D" parent="Props" index="58" unique_id=1834613857]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.63816, 0, -150.40442)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large61" type="Node3D" parent="Props" index="59" unique_id=342266536]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34.88739, 0, -134.14069)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large62" type="Node3D" parent="Props" index="60" unique_id=470980432]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30.225721, 0, -110.93614)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large63" type="Node3D" parent="Props" index="61" unique_id=75086340]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43.18428, 0, -107.83182)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large64" type="Node3D" parent="Props" index="62" unique_id=1311194616]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.755375, 0, -102.28026)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large65" type="Node3D" parent="Props" index="63" unique_id=185602946]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.748833, 0, -124.21765)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large66" type="Node3D" parent="Props" index="64" unique_id=1889753875]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.63816, 0, -114.59917)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large67" type="Node3D" parent="Props" index="65" unique_id=165900075]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34.88739, 0, -98.335434)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large68" type="Node3D" parent="Props" index="66" unique_id=298931503]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22.675596, 0, -110.93614)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large69" type="Node3D" parent="Props" index="67" unique_id=1568806891]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.717037, 0, -107.83182)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large70" type="Node3D" parent="Props" index="68" unique_id=1050132198]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36.145943, 0, -102.28026)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large71" type="Node3D" parent="Props" index="69" unique_id=1787863660]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.152485, 0, -124.21765)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large72" type="Node3D" parent="Props" index="70" unique_id=2006904476]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.263157, 0, -114.59917)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large73" type="Node3D" parent="Props" index="71" unique_id=1178876087]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18.013927, 0, -98.335434)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large74" type="Node3D" parent="Props" index="72" unique_id=612525089]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.77286, 0, -70.85858)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large75" type="Node3D" parent="Props" index="73" unique_id=1010587108]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.8143005, 0, -67.75426)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large76" type="Node3D" parent="Props" index="74" unique_id=165858583]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -33.243206, 0, -62.2027)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large77" type="Node3D" parent="Props" index="75" unique_id=654590441]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28.249748, 0, -84.14009)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large78" type="Node3D" parent="Props" index="76" unique_id=31311414]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.36042, 0, -74.52161)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large79" type="Node3D" parent="Props" index="77" unique_id=1979001803]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.111191, 0, -58.257877)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large80" type="Node3D" parent="Props" index="78" unique_id=1555487152]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.77286, 0, -148.07996)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large81" type="Node3D" parent="Props" index="79" unique_id=1951697993]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.814301, 0, -144.97563)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large82" type="Node3D" parent="Props" index="80" unique_id=1921277674]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40.243206, 0, -139.42407)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large83" type="Node3D" parent="Props" index="81" unique_id=957416948]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35.24975, 0, -161.36147)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large84" type="Node3D" parent="Props" index="82" unique_id=1786117291]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.36042, 0, -151.74298)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large85" type="Node3D" parent="Props" index="83" unique_id=742789903]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22.11119, 0, -135.47925)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large86" type="Node3D" parent="Props" index="84" unique_id=927130778]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.77286, 0, -189.05907)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large87" type="Node3D" parent="Props" index="85" unique_id=1560857985]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.814301, 0, -185.95474)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large88" type="Node3D" parent="Props" index="86" unique_id=1589152193]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40.243206, 0, -180.40318)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large90" type="Node3D" parent="Props" index="87" unique_id=1634893957]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.36042, 0, -192.72209)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large91" type="Node3D" parent="Props" index="88" unique_id=1986180426]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22.11119, 0, -176.45836)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large92" type="Node3D" parent="Props" index="89" unique_id=1185659297]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 33.208977, 0, -189.05907)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large93" type="Node3D" parent="Props" index="90" unique_id=940629223]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 46.167534, 0, -185.95474)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large94" type="Node3D" parent="Props" index="91" unique_id=985782321]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19.738628, 0, -180.40318)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large96" type="Node3D" parent="Props" index="92" unique_id=1376573891]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40.621414, 0, -192.72209)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large97" type="Node3D" parent="Props" index="93" unique_id=866774596]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.870644, 0, -176.45836)
+script = ExtResource("3_jlhgf")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
+
 [node name="Road" type="MeshInstance3D" parent="." index="9" unique_id=1192560862]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -60)
 mesh = SubResource("Mesh_road")
@@ -98,3 +666,76 @@ curve = SubResource("Curve_Slow")
 script = ExtResource("agent")
 path = NodePath("../SlowPath")
 speed = 4.0
+
+[node name="Terrain" type="Node3D" parent="." index="12" unique_id=1115421559]
+transform = Transform3D(1.7651478, 0, 0, 0, 1, 0, 0, 0, 1.1340328, 0, 0, -60)
+script = ExtResource("6_jlhgf")
+size = Vector2(100, 320)
+
+[node name="Hill" type="Node3D" parent="Terrain" index="0" unique_id=166916042]
+transform = Transform3D(0.5665248, 0, 0, 0, 1.2673709, 0, 0, 0, 1, 43.339146, -5.7689613e-06, 137)
+script = ExtResource("7_r3i71")
+height = 13.5
+radius = 13.5
+
+[node name="Hill2" type="Node3D" parent="Terrain" index="1" unique_id=1932314715]
+transform = Transform3D(0.5665248, 0, 0, 0, 1.2673709, 0, 0, 0, 1, 43.339146, -5.7689613e-06, -31.460175)
+script = ExtResource("7_r3i71")
+height = 13.5
+radius = 13.5
+
+[node name="Hill3" type="Node3D" parent="Terrain" index="2" unique_id=1931050896]
+transform = Transform3D(0.5665248, 0, 0, 0, 1.2673709, 0, 0, 0, 1, 43.339146, -5.7689613e-06, -125.66791)
+script = ExtResource("7_r3i71")
+height = 13.5
+radius = 13.5
+
+[node name="Hill4" type="Node3D" parent="Terrain" index="3" unique_id=477731257]
+transform = Transform3D(0.5665248, 0, 0, 0, 1.2673709, 0, 0, 0, 1, -43.919903, -5.7689613e-06, -125.66791)
+script = ExtResource("7_r3i71")
+height = 13.5
+radius = 13.5
+
+[node name="Hill5" type="Node3D" parent="Terrain" index="4" unique_id=43841043]
+transform = Transform3D(0.5665248, 0, 0, 0, 1.2673709, 0, 0, 0, 1, -43.919903, -5.7689613e-06, -18.29596)
+script = ExtResource("7_r3i71")
+height = 13.5
+radius = 13.5
+
+[node name="Hill6" type="Node3D" parent="Terrain" index="5" unique_id=1009556373]
+transform = Transform3D(0.5665248, 0, 0, 0, 1.2673709, 0, 0, 0, 1, -43.919903, -5.7689613e-06, 91.04361)
+script = ExtResource("7_r3i71")
+height = 13.5
+radius = 13.5
+
+[node name="Hill7" type="Node3D" parent="Terrain" index="6" unique_id=59426972]
+transform = Transform3D(0.5665248, 0, 0, 0, 1, 0, 0, 0, 1, 44.4722, -4.311325e-06, 83.5)
+script = ExtResource("7_r3i71")
+
+[node name="Hill8" type="Node3D" parent="Terrain" index="7" unique_id=593986766]
+transform = Transform3D(0.5665248, 0, 0, 0, 1, 0, 0, 0, 1, 44.4722, -4.311325e-06, 21.199345)
+script = ExtResource("7_r3i71")
+
+[node name="Hill9" type="Node3D" parent="Terrain" index="8" unique_id=536486562]
+transform = Transform3D(0.5665248, 0, 0, 0, 1, 0, 0, 0, 1, 44.4722, -4.311325e-06, -74.00774)
+script = ExtResource("7_r3i71")
+
+[node name="Hill10" type="Node3D" parent="Terrain" index="9" unique_id=1176142683]
+transform = Transform3D(0.5665248, 0, 0, 0, 1, 0, 0, 0, 1, -36.875755, -4.311325e-06, -74.00774)
+script = ExtResource("7_r3i71")
+
+[node name="Hill11" type="Node3D" parent="Terrain" index="10" unique_id=1953206980]
+transform = Transform3D(0.5665248, 0, 0, 0, 1, 0, 0, 0, 1, -36.875755, -4.311325e-06, 37.465263)
+script = ExtResource("7_r3i71")
+
+[node name="Hill12" type="Node3D" parent="Terrain" index="11" unique_id=500563091]
+transform = Transform3D(0.5665248, 0, 0, 0, 1, 0, 0, 0, 0.88180864, -17.845531, 1.9278377e-07, -152.11198)
+script = ExtResource("7_r3i71")
+height = 7.5
+radius = 14.0
+
+[node name="Hill13" type="Node3D" parent="Terrain" index="12" unique_id=929771760]
+transform = Transform3D(0.5665248, 0, 0, 0, 1, 0, 0, 0, 0.88180864, 14.16312, 1.5667174e-06, -157.45857)
+script = ExtResource("7_r3i71")
+height = 8.0
+radius = 16.0

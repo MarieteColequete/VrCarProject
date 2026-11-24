@@ -24,12 +24,15 @@ const RULE := &"rule"
 ## The attempt: its state, clock, faults, and result.
 const SESSION := &"session"
 
-## World resources: the marking index, the lanes (entity to [LaneData]), steps, and lookup by name.
+## World resources: the marking index, the lanes (entity to [LaneData]), steps, lookup by name,
+## and the ways the GPS shows ([GpsRoute]): [code]{step, points}[/code] each, the step's index or
+## -1 for the whole attempt, and the points in world space.
 const MARKINGS := &"marking_index"
 const LANES := &"lanes"
 const STEPS := &"steps"
 const DEFINITION := &"definition"
 const NAMES := &"names"
+const ROUTES := &"routes"
 
 
 static func define(world: World) -> void:
@@ -43,13 +46,18 @@ static func define(world: World) -> void:
 		started_moving = -1,
 		indicator = VehicleProbe.Indicator.UNKNOWN, indicator_seen = VehicleProbe.Indicator.UNKNOWN,
 		indicator_since = 0.0, handbrake = VehicleProbe.Toggle.UNKNOWN,
-		look = Vector3.FORWARD, clock = 0.0,
+		look = Vector3.FORWARD, eye = Vector3.ZERO, clock = 0.0,
+		# The car's mirrors in its own space: interior, left, right; empty without them.
+		mirrors = PackedVector3Array(),
 		corners = PackedVector3Array(), wheels = PackedVector3Array(),
 		previous_wheels = PackedVector3Array(),
 		body_length = 4.2, body_width = 1.8, wheelbase = 2.6, track = 1.55,
 		hull_size = Vector3(1.9, 1.5, 4.3), hull_height = 0.75, stop_speed = 0.3,
 		# The entities the contact hull touches now.
 		touching = PackedInt64Array(),
+		# The car's mass, kg, and the impulse the road users it ran into gave it this tick
+		# ([Impacts]), N·s, for the shell to give its body.
+		mass = 1250.0, impulse = Vector3.ZERO,
 	})
 	world.define(ZONE, {
 		transform = Transform3D(), half = Vector3.ONE, name = &"", kind = &"zone",
@@ -83,9 +91,9 @@ static func define(world: World) -> void:
 		rng_state = 0, clock = 0.0, next_at = 0.0, spawned = 0,
 	})
 	world.define(RULE, {
-		name = &"", script = null, params = {}, state = {}, active_steps = PackedInt64Array(),
+		name = &"", params = {}, state = {}, active_steps = PackedInt64Array(),
 		order = 0,
-		# The script's step and finish, bound once.
+		# The script's step and finish, bound once; finish is empty for a rule without one.
 		step = Callable(), finish = Callable(),
 	})
 	world.define(SESSION, {

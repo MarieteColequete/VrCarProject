@@ -21,6 +21,8 @@ const META_KEY := &"vehicle_probe"
 @export var hull_height := 0.75
 ## Below this speed, in metres per second, the car counts as stopped.
 @export var stop_speed := 0.3
+## The car's mass, kilograms; a car with a spec sets its own.
+@export var mass := 1250.0
 
 @export_group("Footprint")
 ## Body length and width, in metres, centred on the probe.
@@ -36,6 +38,9 @@ const META_KEY := &"vehicle_probe"
 var indicator := Indicator.UNKNOWN
 var handbrake := Toggle.UNKNOWN
 var headlights := Toggle.UNKNOWN
+## Where the car's mirrors are, in its own space: the interior mirror, then the left and right
+## door mirrors; empty for a car without them. Set by the car.
+var mirrors := PackedVector3Array()
 
 var _driver_view: DriverView
 
@@ -68,6 +73,14 @@ func look_direction() -> Vector3:
 	return forward()
 
 
+## Where the driver's eye is, in world space: the car's [DriverView]'s camera when it has one,
+## else a seated driver's height above the probe.
+func eye_position() -> Vector3:
+	if _driver_view and is_instance_valid(_driver_view):
+		return _driver_view.eye().global_position
+	return global_position + Vector3.UP * 1.2
+
+
 ## The car's forward direction, horizontal and normalised (Godot's -Z).
 func forward() -> Vector3:
 	var f := -global_basis.z
@@ -79,7 +92,7 @@ func forward() -> Vector3:
 ## driver looks. The shell's vehicle input writes these each tick.
 func reading() -> Dictionary:
 	return {transform = global_transform, indicator = indicator, handbrake = handbrake,
-		look = look_direction()}
+		look = look_direction(), eye = eye_position()}
 
 
 ## The columns of a new vehicle entity for this car.
@@ -87,5 +100,5 @@ func spawn_values() -> Dictionary:
 	var values := reading()
 	values.merge({name = get_parent().name, body_length = body_length, body_width = body_width,
 		wheelbase = wheelbase, track = track, hull_size = hull_size, hull_height = hull_height,
-		stop_speed = stop_speed})
+		stop_speed = stop_speed, mirrors = mirrors, mass = mass})
 	return values

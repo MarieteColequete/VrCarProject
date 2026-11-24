@@ -1,22 +1,14 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://bt4g04r74drat"]
 
-[ext_resource type="PackedScene" path="res://scenarios/kit/map_base.tscn" id="map_base"]
-
+[ext_resource type="Script" uid="uid://ya4qbr4a3pfd" path="res://scenarios/map/road_sign.gd" id="3_m2o5u"]
+[ext_resource type="Script" uid="uid://duq5xgufpm6lf" path="res://scenarios/map/map_asset.gd" id="4_o4tg3"]
+[ext_resource type="Resource" path="res://scenarios/data/body_types/vehicle.tres" id="5_85niq"]
 [ext_resource type="Material" path="res://scenarios/kit/asphalt.tres" id="asphalt"]
-
+[ext_resource type="Script" uid="uid://dlwcmrkap7aew" path="res://scenarios/road/parking_bay.gd" id="bay"]
+[ext_resource type="PackedScene" path="res://scenarios/kit/map_base.tscn" id="map_base"]
+[ext_resource type="Script" uid="uid://cn1xe8vcfx6uc" path="res://scenarios/road/road_marking.gd" id="marking"]
+[ext_resource type="Script" uid="uid://diax4jld6sc0" path="res://scenarios/road/no_parking_zone.gd" id="nopark"]
 [ext_resource type="PackedScene" path="res://scenarios/kit/parked_car.tscn" id="parked"]
-
-[ext_resource type="Script" path="res://scenarios/road/parking_bay.gd" id="bay"]
-
-[ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="marking"]
-
-[ext_resource type="Script" path="res://scenarios/road/no_parking_zone.gd" id="nopark"]
-
-[sub_resource type="BoxMesh" id="Mesh_road"]
-size = Vector3(12, 0.02, 50)
-
-[sub_resource type="BoxShape3D" id="Shape_zone0"]
-size = Vector3(6, 3, 8)
 
 [sub_resource type="Curve3D" id="Curve_AisleNoParking"]
 _data = {
@@ -25,93 +17,502 @@ _data = {
 }
 point_count = 2
 
-[node name="BayParking" instance=ExtResource("map_base")]
+[sub_resource type="BoxMesh" id="Mesh_road"]
+size = Vector3(12, 0.02, 50)
+
+[sub_resource type="BoxShape3D" id="Shape_zone0"]
+size = Vector3(6, 3, 8)
+
+[node name="BayParking" unique_id=1819467060 instance=ExtResource("map_base")]
 id = &"bay_parking"
 title = "Bay parking"
 description = "A car park with marked bays, parked cars, and a no-parking zone."
 
-[node name="Environment" parent="."]
+[node name="Environment" parent="." index="0"]
 ground_size = Vector2(60, 80)
 ground_offset = Vector3(0, 0, -10)
 
-[node name="Spawn" parent="."]
+[node name="Spawn" parent="." index="1"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 10)
 
-[node name="Asphalt" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 0.01, -10)
-mesh = SubResource("Mesh_road")
-surface_material_override/0 = ExtResource("asphalt")
-
-[node name="Bays" type="Node3D" parent="."]
-
-[node name="Bay1" type="Node3D" parent="Bays"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0, -5)
-script = ExtResource("bay")
-size = Vector2(2.5, 5.0)
-facing = 2
-reserved = false
-draw_edges = true
-
-[node name="Bay2" type="Node3D" parent="Bays"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0, -7.5)
-script = ExtResource("bay")
-size = Vector2(2.5, 5.0)
-facing = 2
-reserved = false
-draw_edges = true
-
-[node name="Bay3" type="Node3D" parent="Bays"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0, -10)
-script = ExtResource("bay")
-size = Vector2(2.5, 5.0)
-facing = 2
-reserved = false
-draw_edges = true
-
-[node name="Bay4" type="Node3D" parent="Bays"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0, -12.5)
-script = ExtResource("bay")
-size = Vector2(2.5, 5.0)
-facing = 2
-reserved = true
-draw_edges = true
-
-[node name="Bay5" type="Node3D" parent="Bays"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0, -15)
-script = ExtResource("bay")
-size = Vector2(2.5, 5.0)
-facing = 2
-reserved = false
-draw_edges = true
-
-[node name="Bay6" type="Node3D" parent="Bays"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0, -17.5)
-script = ExtResource("bay")
-size = Vector2(2.5, 5.0)
-facing = 2
-reserved = false
-draw_edges = true
-
-[node name="ParkedCars" type="Node3D" parent="."]
-
-[node name="Parked1" parent="ParkedCars" instance=ExtResource("parked")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0.75, -5)
-
-[node name="Parked2" parent="ParkedCars" instance=ExtResource("parked")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0.75, -10)
-
-[node name="Parked3" parent="ParkedCars" instance=ExtResource("parked")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0.75, -17.5)
-
-[node name="AisleNoParking" type="Path3D" parent="Markings"]
+[node name="AisleNoParking" type="Path3D" parent="Markings" index="0" unique_id=211831544]
 curve = SubResource("Curve_AisleNoParking")
 script = ExtResource("marking")
 kind = 7
 
-[node name="NoParking1" type="Area3D" parent="."]
+[node name="NoParkingSign" type="Node3D" parent="Signs" index="0" unique_id=1833625175]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0, -21)
+script = ExtResource("3_m2o5u")
+kind = 6
+
+[node name="NoEntrySign" type="Node3D" parent="Signs" index="1" unique_id=1660487666]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -3.5, 0, 13)
+script = ExtResource("3_m2o5u")
+kind = 3
+
+[node name="Train Decor" type="Node3D" parent="Props" index="0" unique_id=401860168]
+
+[node name="railroad-straight2" type="Node3D" parent="Props/Train Decor" index="0" unique_id=923739124]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.15, 0, 12.977212)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/train_kit/railroad-straight.glb"
+body_type = null
+extra_scale = 0.8
+
+[node name="railroad-straight10" type="Node3D" parent="Props/Train Decor" index="1" unique_id=2108363756]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.15, 0, 20.887604)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/train_kit/railroad-straight.glb"
+body_type = null
+extra_scale = 0.8
+
+[node name="railroad-straight11" type="Node3D" parent="Props/Train Decor" index="2" unique_id=353806202]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.15, 0, 28.783127)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/train_kit/railroad-straight.glb"
+body_type = null
+extra_scale = 0.8
+
+[node name="railroad-straight3" type="Node3D" parent="Props/Train Decor" index="3" unique_id=9524195]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.15, 0, 5.0118513)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/train_kit/railroad-straight.glb"
+body_type = null
+extra_scale = 0.8
+
+[node name="railroad-straight4" type="Node3D" parent="Props/Train Decor" index="4" unique_id=1399324670]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.15, 0, -2.9438343)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/train_kit/railroad-straight.glb"
+body_type = null
+extra_scale = 0.8
+
+[node name="railroad-straight5" type="Node3D" parent="Props/Train Decor" index="5" unique_id=1858063029]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.15, 0, -10.849876)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/train_kit/railroad-straight.glb"
+body_type = null
+extra_scale = 0.8
+
+[node name="railroad-straight6" type="Node3D" parent="Props/Train Decor" index="6" unique_id=1657540181]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.15, 0, -18.85727)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/train_kit/railroad-straight.glb"
+body_type = null
+extra_scale = 0.8
+
+[node name="railroad-straight7" type="Node3D" parent="Props/Train Decor" index="7" unique_id=2030936888]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.15, 0, -26.845299)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/train_kit/railroad-straight.glb"
+body_type = null
+extra_scale = 0.8
+
+[node name="railroad-straight8" type="Node3D" parent="Props/Train Decor" index="8" unique_id=781531077]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.15, 0, -34.79847)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/train_kit/railroad-straight.glb"
+body_type = null
+extra_scale = 0.8
+
+[node name="railroad-straight9" type="Node3D" parent="Props/Train Decor" index="9" unique_id=934555598]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.15, 0, -42.74844)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/train_kit/railroad-straight.glb"
+body_type = null
+extra_scale = 0.8
+
+[node name="Buildings" type="Node3D" parent="Props" index="1" unique_id=1476789797]
+
+[node name="building-skyscraper-a2" type="Node3D" parent="Props/Buildings" index="0" unique_id=186459033]
+transform = Transform3D(-4.3711392e-08, 0, -1, 0, 1, 0, 1, 0, -4.3711392e-08, -18.51431, -1.9073486e-06, -12.480391)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_commercial/building-skyscraper-a.glb"
+extra_scale = 0.71428573
+
+[node name="building-skyscraper-a3" type="Node3D" parent="Props/Buildings" index="1" unique_id=665512858]
+transform = Transform3D(-4.3711392e-08, 0, -1, 0, 1, 0, 1, 0, -4.3711392e-08, -27.327087, -1.9073486e-06, 18.499994)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_commercial/building-skyscraper-a.glb"
+extra_scale = 0.71428573
+
+[node name="building-skyscraper-a4" type="Node3D" parent="Props/Buildings" index="2" unique_id=1917037300]
+transform = Transform3D(-1, 0, 8.7422784e-08, 0, 1, 0, -8.7422784e-08, 0, -1, 4.209601, -1.9073486e-06, -38.745525)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_commercial/building-skyscraper-a.glb"
+extra_scale = 0.71428573
+
+[node name="building-type-a2" type="Node3D" parent="Props/Buildings" index="3" unique_id=624758580]
+transform = Transform3D(-1, 0, -8.7422784e-08, 0, 1, 0, 8.7422784e-08, 0, -1, -4.5467997, -9.536743e-07, 19.622665)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_suburban/building-type-a.glb"
+extra_scale = 0.71428573
+
+[node name="building-a2" type="Node3D" parent="Props/Buildings" index="4" unique_id=1985987947]
+transform = Transform3D(-4.3711392e-08, 0, -1, 0, 1, 0, 1, 0, -4.3711392e-08, -5.9457026, -1.9073486e-06, 8.325664)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_commercial/building-a.glb"
+extra_scale = 0.71428573
+
+[node name="building-a3" type="Node3D" parent="Props/Buildings" index="5" unique_id=175206053]
+transform = Transform3D(-1, 0, 8.7422784e-08, 0, 1, 0, -8.7422784e-08, 0, -1, -2.1605809, -1.9073486e-06, -37.62969)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_commercial/building-a.glb"
+extra_scale = 0.71428573
+
+[node name="building-b2" type="Node3D" parent="Props/Buildings" index="6" unique_id=595208157]
+transform = Transform3D(-4.3711392e-08, 0, -1, 0, 1, 0, 1, 0, -4.3711392e-08, -6.1333685, -1.9073486e-06, 3.7773507)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_commercial/building-b.glb"
+extra_scale = 0.71428573
+
+[node name="building-c2" type="Node3D" parent="Props/Buildings" index="7" unique_id=79205351]
+transform = Transform3D(-4.3711392e-08, 0, -1, 0, 1, 0, 1, 0, -4.3711392e-08, -6.3257027, -1.9073486e-06, -0.97782594)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_commercial/building-c.glb"
+extra_scale = 0.71428573
+
+[node name="building-type-c2" type="Node3D" parent="Props/Buildings" index="8" unique_id=2011339875]
+transform = Transform3D(-1, 0, -1.509958e-07, 0, 1, 0, 1.509958e-07, 0, -1, -0.85148424, -9.536743e-07, 26.105211)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_suburban/building-type-c.glb"
+extra_scale = 0.71428573
+
+[node name="building-type-e2" type="Node3D" parent="Props/Buildings" index="9" unique_id=1918116073]
+transform = Transform3D(-0.5000001, 0, 0.8660254, 0, 1, 0, -0.8660254, 0, -0.50000006, -11.911724, -9.536743e-07, 14.375656)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_suburban/building-type-e.glb"
+extra_scale = 0.71428573
+
+[node name="building-f2" type="Node3D" parent="Props/Buildings" index="10" unique_id=1748868853]
+transform = Transform3D(-4.3711392e-08, 0, -1, 0, 1, 0, 1, 0, -4.3711392e-08, -8.3189745, -1.9073486e-06, -5.6238604)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_commercial/building-f.glb"
+extra_scale = 0.71428573
+
+[node name="building-k2" type="Node3D" parent="Props/Buildings" index="11" unique_id=360232264]
+transform = Transform3D(-4.3711392e-08, 0, -1, 0, 1, 0, 1, 0, -4.3711392e-08, -8.350821, -1.9073486e-06, -13.014537)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_commercial/building-k.glb"
+extra_scale = 0.71428573
+
+[node name="building-k3" type="Node3D" parent="Props/Buildings" index="12" unique_id=374487786]
+transform = Transform3D(-4.3711392e-08, 0, -1, 0, 1, 0, 1, 0, -4.3711392e-08, -17.842407, -1.9073486e-06, -27.291449)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_commercial/building-k.glb"
+extra_scale = 0.71428573
+
+[node name="building-k4" type="Node3D" parent="Props/Buildings" index="13" unique_id=1798386745]
+transform = Transform3D(-1, 0, 8.7422784e-08, 0, 1, 0, -8.7422784e-08, 0, -1, -2.1447701, -1.9073486e-06, -45.55781)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_commercial/building-k.glb"
+extra_scale = 0.71428573
+
+[node name="building-l2" type="Node3D" parent="Props/Buildings" index="14" unique_id=283808031]
+transform = Transform3D(-4.3711392e-08, 0, -1, 0, 1, 0, 1, 0, -4.3711392e-08, -7.080661, -1.9073486e-06, -32.17793)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_commercial/building-l.glb"
+extra_scale = 0.71428573
+
+[node name="building-l3" type="Node3D" parent="Props/Buildings" index="15" unique_id=1177032045]
+transform = Transform3D(-4.3711392e-08, 0, -1, 0, 1, 0, 1, 0, -4.3711392e-08, -7.0806613, -1.9073486e-06, -23.297764)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_commercial/building-l.glb"
+extra_scale = 0.71428573
+
+[node name="driveway-long2" type="Node3D" parent="Props/Buildings" index="16" unique_id=1105305615]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.2777934, 0, 15.977695)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_suburban/driveway-long.glb"
+body_type = null
+extra_scale = 0.71428573
+
+[node name="driveway-short2" type="Node3D" parent="Props/Buildings" index="17" unique_id=537162103]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.2777934, 0, 17.45041)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_suburban/driveway-short.glb"
+body_type = null
+extra_scale = 0.71428573
+
+[node name="driveway-long3" type="Node3D" parent="Props/Buildings" index="18" unique_id=1707537862]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.412127, 0, 15.977695)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_suburban/driveway-long.glb"
+body_type = null
+extra_scale = 0.71428573
+
+[node name="driveway-long4" type="Node3D" parent="Props/Buildings" index="19" unique_id=253925474]
+transform = Transform3D(-4.3711392e-08, 0, -1, 0, 1, 0, 1, 0, -4.3711392e-08, -4.412127, 0, 14.340633)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_suburban/driveway-long.glb"
+body_type = null
+extra_scale = 0.71428573
+
+[node name="driveway-long5" type="Node3D" parent="Props/Buildings" index="20" unique_id=1369743832]
+transform = Transform3D(-4.3711392e-08, 0, -1, 0, 1, 0, 1, 0, -4.3711392e-08, -6.227617, 0, 14.340633)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_suburban/driveway-long.glb"
+body_type = null
+extra_scale = 0.71428573
+
+[node name="driveway-long6" type="Node3D" parent="Props/Buildings" index="21" unique_id=354465239]
+transform = Transform3D(-4.3711392e-08, 0, -1, 0, 1, 0, 1, 0, -4.3711392e-08, -7.7519526, 0, 14.340633)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_suburban/driveway-long.glb"
+body_type = null
+extra_scale = 0.71428573
+
+[node name="driveway-short3" type="Node3D" parent="Props/Buildings" index="22" unique_id=997753008]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.412127, 0, 17.45041)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_suburban/driveway-short.glb"
+body_type = null
+extra_scale = 0.71428573
+
+[node name="building-a4" type="Node3D" parent="Props/Buildings" index="23" unique_id=194867711]
+transform = Transform3D(-4.3711392e-08, 0, 1, 0, 1, 0, -1, 0, -4.3711392e-08, 17.57693, -1.9073486e-06, 9.220411)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_industrial/building-a.glb"
+extra_scale = 0.71428573
+
+[node name="building-a5" type="Node3D" parent="Props/Buildings" index="24" unique_id=2025197487]
+transform = Transform3D(-4.3711392e-08, 0, 1, 0, 1, 0, -1, 0, -4.3711392e-08, 17.576927, -1.9073486e-06, -41.316227)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_industrial/building-a.glb"
+extra_scale = 0.71428573
+
+[node name="building-d2" type="Node3D" parent="Props/Buildings" index="25" unique_id=1122453124]
+transform = Transform3D(-4.3711392e-08, 0, 1, 0, 1, 0, -1, 0, -4.3711392e-08, 17.12693, -1.9073486e-06, 16.617355)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_industrial/building-d.glb"
+extra_scale = 0.71428573
+
+[node name="building-s2" type="Node3D" parent="Props/Buildings" index="26" unique_id=1089150975]
+transform = Transform3D(-4.3711392e-08, 0, 1, 0, 1, 0, -1, 0, -4.3711392e-08, 16.589071, -1.9073486e-06, 24.211071)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_industrial/building-s.glb"
+extra_scale = 0.71428573
+
+[node name="building-s4" type="Node3D" parent="Props/Buildings" index="27" unique_id=1740000684]
+transform = Transform3D(-4.3711392e-08, 0, 1, 0, 1, 0, -1, 0, -4.3711392e-08, 24.550707, -1.9073486e-06, -18.288776)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_industrial/building-s.glb"
+extra_scale = 0.71428573
+
+[node name="building-s3" type="Node3D" parent="Props/Buildings" index="28" unique_id=162883070]
+transform = Transform3D(-4.3711392e-08, 0, 1, 0, 1, 0, -1, 0, -4.3711392e-08, 16.58907, -1.9073486e-06, -30.328056)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_industrial/building-s.glb"
+extra_scale = 0.71428573
+
+[node name="building-b3" type="Node3D" parent="Props/Buildings" index="29" unique_id=1178117402]
+transform = Transform3D(-4.3711392e-08, 0, 1, 0, 1, 0, -1, 0, -4.3711392e-08, 17.53693, -1.9073486e-06, -1.3115213)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_industrial/building-b.glb"
+extra_scale = 0.71428573
+
+[node name="building-b4" type="Node3D" parent="Props/Buildings" index="30" unique_id=1679853606]
+transform = Transform3D(-1, 0, -8.7422784e-08, 0, 1, 0, 8.7422784e-08, 0, -1, 12.046751, -1.9073486e-06, -50.570244)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_industrial/building-b.glb"
+extra_scale = 0.71428573
+
+[node name="building-c3" type="Node3D" parent="Props/Buildings" index="31" unique_id=1907551324]
+transform = Transform3D(-4.3711392e-08, 0, 1, 0, 1, 0, -1, 0, -4.3711392e-08, 18.291983, -1.9073486e-06, -10.758784)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_industrial/building-c.glb"
+extra_scale = 0.71428573
+
+[node name="building-d3" type="Node3D" parent="Props/Buildings" index="32" unique_id=520283779]
+transform = Transform3D(-4.3711392e-08, 0, 1, 0, 1, 0, -1, 0, -4.3711392e-08, 17.126928, -1.9073486e-06, -21.971756)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_industrial/building-d.glb"
+extra_scale = 0.71428573
+
+[node name="building-type-b2" type="Node3D" parent="Props/Buildings" index="33" unique_id=211823017]
+transform = Transform3D(-1, 0, -1.509958e-07, 0, 1, 0, 1.509958e-07, 0, -1, 4.520738, -9.536743e-07, 19.622663)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_suburban/building-type-b.glb"
+extra_scale = 0.71428573
+
+[node name="detail-parasol-b2" type="Node3D" parent="Props/Buildings" index="34" unique_id=1346626449]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.3112936, 0, -7.18511)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_commercial/detail-parasol-b.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.15, 1, 0.15)
+
+[node name="detail-parasol-b3" type="Node3D" parent="Props/Buildings" index="35" unique_id=411166409]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.3112936, 0, -14.856901)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_commercial/detail-parasol-b.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.15, 1, 0.15)
+
+[node name="detail-parasol-a2" type="Node3D" parent="Props/Buildings" index="36" unique_id=2035989642]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.4234114, -9.536743e-07, -10.339337)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_commercial/detail-parasol-a.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.15, 1, 0.15)
+
+[node name="chimney-large2" type="Node3D" parent="Props/Buildings" index="37" unique_id=749800439]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27.515802, 0, -8.306243)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_industrial/chimney-large.glb"
+extra_scale = 0.71428573
+
+[node name="shipping-container-a2" type="Node3D" parent="Props/Buildings" index="38" unique_id=1804208445]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.655334, 3.428652e-09, 24.644913)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_industrial/shipping-container-a.glb"
+extra_scale = 0.71428573
+
+[node name="Train" type="Node3D" parent="Props" index="2" unique_id=50722207]
+
+[node name="train-diesel-a2" type="Node3D" parent="Props/Train" index="0" unique_id=28538374]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.131617, 0.1493001, -26.073282)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/train_kit/train-diesel-a.glb"
+body_type = ExtResource("5_85niq")
+extra_scale = 0.8
+
+[node name="train-carriage-tank2" type="Node3D" parent="Props/Train" index="1" unique_id=1763669022]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.131617, 0.1493001, -20.971022)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/train_kit/train-carriage-tank.glb"
+body_type = ExtResource("5_85niq")
+extra_scale = 0.8
+
+[node name="train-carriage-tank3" type="Node3D" parent="Props/Train" index="2" unique_id=622632391]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.131617, 0.1493001, -15.604075)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/train_kit/train-carriage-tank.glb"
+body_type = ExtResource("5_85niq")
+extra_scale = 0.8
+
+[node name="train-carriage-box2" type="Node3D" parent="Props/Train" index="3" unique_id=1320915982]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.131617, 0.1493001, -10.165465)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/train_kit/train-carriage-box.glb"
+body_type = ExtResource("5_85niq")
+extra_scale = 0.8
+
+[node name="train-carriage-box3" type="Node3D" parent="Props/Train" index="4" unique_id=1995126282]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.131617, 0.1493001, -4.7753973)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/train_kit/train-carriage-box.glb"
+body_type = ExtResource("5_85niq")
+extra_scale = 0.8
+
+[node name="Trees" type="Node3D" parent="Props" index="3" unique_id=1564854448]
+
+[node name="tree-large2" type="Node3D" parent="Props/Trees" index="0" unique_id=657933838]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.023581, -1.1920929e-07, 11.944708)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large3" type="Node3D" parent="Props/Trees" index="1" unique_id=1059476673]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.4034095, -1.1920929e-07, 16.200294)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="tree-large4" type="Node3D" parent="Props/Trees" index="2" unique_id=1947424079]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.0554905, -1.1920929e-07, -38.657207)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+extra_scale = 0.71428573
+solid_part = Vector3(0.45, 1, 0.45)
+
+[node name="path-long2" type="Node3D" parent="Props" index="4" unique_id=350326443]
+transform = Transform3D(-4.3711392e-08, 0, -1, 0, 1, 0, 1, 0, -4.3711392e-08, -4.4920983, -9.536743e-07, -18.828384)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_suburban/path-long.glb"
+body_type = null
+extra_scale = 0.71428573
+
+[node name="path-long3" type="Node3D" parent="Props" index="5" unique_id=435169963]
+transform = Transform3D(-4.3711392e-08, 0, -1, 0, 1, 0, 1, 0, -4.3711392e-08, -6.395107, -9.536743e-07, -18.828384)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_suburban/path-long.glb"
+body_type = null
+extra_scale = 0.71428573
+
+[node name="path-long4" type="Node3D" parent="Props" index="6" unique_id=1322323874]
+transform = Transform3D(-4.3711392e-08, 0, -1, 0, 1, 0, 1, 0, -4.3711392e-08, -8.277332, -9.536743e-07, -18.828384)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_suburban/path-long.glb"
+body_type = null
+extra_scale = 0.71428573
+
+[node name="path-long5" type="Node3D" parent="Props" index="7" unique_id=1285643193]
+transform = Transform3D(-4.3711392e-08, 0, -1, 0, 1, 0, 1, 0, -4.3711392e-08, -10.077236, -9.536743e-07, -18.828384)
+script = ExtResource("4_o4tg3")
+model = "res://assets/kenney/city_kit_suburban/path-long.glb"
+body_type = null
+extra_scale = 0.71428573
+
+[node name="Asphalt" type="MeshInstance3D" parent="." index="9" unique_id=1186130715]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 0.01, -10)
+mesh = SubResource("Mesh_road")
+surface_material_override/0 = ExtResource("asphalt")
+
+[node name="Bays" type="Node3D" parent="." index="10" unique_id=684679532]
+
+[node name="Bay1" type="Node3D" parent="Bays" index="0" unique_id=1002080419]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0, -5)
+script = ExtResource("bay")
+facing = 2
+
+[node name="Bay2" type="Node3D" parent="Bays" index="1" unique_id=2074001211]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0, -7.5)
+script = ExtResource("bay")
+facing = 2
+
+[node name="Bay3" type="Node3D" parent="Bays" index="2" unique_id=940384674]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0, -10)
+script = ExtResource("bay")
+facing = 2
+
+[node name="Bay4" type="Node3D" parent="Bays" index="3" unique_id=1922737169]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0, -12.5)
+script = ExtResource("bay")
+facing = 2
+reserved = true
+
+[node name="Bay5" type="Node3D" parent="Bays" index="4" unique_id=1192196837]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0, -15)
+script = ExtResource("bay")
+facing = 2
+
+[node name="Bay6" type="Node3D" parent="Bays" index="5" unique_id=468442399]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0, -17.5)
+script = ExtResource("bay")
+facing = 2
+
+[node name="ParkedCars" type="Node3D" parent="." index="11" unique_id=1639520175]
+
+[node name="Parked1" parent="ParkedCars" index="0" unique_id=619385720 instance=ExtResource("parked")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0.75, -5)
+
+[node name="Parked2" parent="ParkedCars" index="1" unique_id=76740180 instance=ExtResource("parked")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0.75, -10)
+
+[node name="Parked3" parent="ParkedCars" index="2" unique_id=891861488 instance=ExtResource("parked")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.5, 0.75, -17.5)
+
+[node name="NoParking1" type="Area3D" parent="." index="12" unique_id=604756980]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -26)
+collision_layer = 0
+collision_mask = 0
+monitoring = false
+monitorable = false
 script = ExtResource("nopark")
 reason = "Fire lane"
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="NoParking1"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="NoParking1" index="0" unique_id=1890526873]
 shape = SubResource("Shape_zone0")

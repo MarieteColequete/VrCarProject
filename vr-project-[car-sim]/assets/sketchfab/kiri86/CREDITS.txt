@@ -5,6 +5,9 @@ https://sketchfab.com/3d-models/5c17c582ef9549798f694b660feea42a
 Licensed under Creative Commons Attribution 4.0 International (CC BY 4.0):
 https://creativecommons.org/licenses/by/4.0/
 
-Changes: the game builds the model's materials from these textures, splits the blinkers into
+Changes: the game builds the model's materials from these textures, cuts the mirrors' glass out
+of their housings as screens for their pictures, cuts the cabin into parts dressed in CC0
+materials from ambientCG (assets/ambientcg/), splits the blinkers into
 left and right, and scales the model to the player car's wheelbase. The files here are as
-downloaded.
+downloaded, except the three textures/*_normal.png, made from the model's height maps by
+tools/kiri86_normals.gd.

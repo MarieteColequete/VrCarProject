@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scenarios/checks/speed_limit_check.gd" id="7_speed"]
 [ext_resource type="Script" path="res://scenarios/checks/route_check.gd" id="8_route"]
 [ext_resource type="Script" path="res://scenarios/checks/goal_check.gd" id="10_goal"]
+[ext_resource type="Script" path="res://scenarios/core/gps_route.gd" id="gps_route"]
 
 [sub_resource type="Curve3D" id="Curve_lane"]
 _data = {
@@ -27,6 +28,13 @@ size = Vector3(4, 3, 26)
 
 [sub_resource type="BoxShape3D" id="Shape_goal"]
 size = Vector3(8, 3, 6)
+
+[sub_resource type="Curve3D" id="Curve_gps"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 1.75, 0.1, 46, 0, 0, 0, 0, 0, 0, 1.75, 0.1, -23),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
 
 [node name="StopJunction" node_paths=PackedStringArray("map") instance=ExtResource("base")]
 definition = ExtResource("definition")
@@ -83,3 +91,7 @@ script = ExtResource("6_zone")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/GoalCheck/Zone"]
 shape = SubResource("Shape_goal")
+
+[node name="GpsRoute" type="Path3D" parent="."]
+curve = SubResource("Curve_gps")
+script = ExtResource("gps_route")

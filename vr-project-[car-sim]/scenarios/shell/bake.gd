@@ -1,8 +1,8 @@
 class_name Bake
 extends RefCounted
 ## Reads a scenario scene, the authoring side, into the [World]: markings, zones, bays, obstacles,
-## lights, lanes, road users, sources, the rules of its checks, its steps, the session, and the
-## player's car. Every node reference becomes an entity id, so nothing in the simulation holds a
+## lights, lanes, road users, sources, the rules of its checks, its steps, the ways its GPS shows,
+## the session, and the player's car. Every node reference becomes an entity id, so nothing in the simulation holds a
 ## node. Once baked, the authoring nodes do nothing at runtime; the ones whose only role was to be
 ## simulated (road users) are listed in [member to_free] for the shell to remove.
 
@@ -95,7 +95,7 @@ func _run(probe: VehicleProbe) -> void:
 			_bay(node)
 		elif node is TrafficLight:
 			_light(node)
-	add_obstacles(all)
+	world.apply(obstacles(all))
 	for node in all:
 		if node is AgentSpawner:
 			_spawner(node)
@@ -110,6 +110,7 @@ func _run(probe: VehicleProbe) -> void:
 			world.spawn({source = node.values(self)})
 	_fill_lanes()
 	_rules()
+	_routes(all)
 	world.spawn({session = {state = ExamSession.State.BRIEFING, definition = scenario.definition,
 		step_count = _steps.size()}})
 
@@ -125,6 +126,15 @@ func _markings(all: Array[Node]) -> void:
 			points = points, name = marking.name}})
 		index.add(id, marking.kind, marking.half_width(), points)
 	world.resources[Schema.MARKINGS] = index
+
+
+func _routes(all: Array[Node]) -> void:
+	var routes: Array[Dictionary] = []
+	for node in all:
+		var route := node as GpsRoute
+		if route:
+			routes.append({step = step_index(route.step), points = route.world_points()})
+	world.resources[Schema.ROUTES] = routes
 
 
 func _zone(zone: TriggerZone) -> void:
@@ -156,25 +166,29 @@ func _light(light: TrafficLight) -> void:
 
 
 ## Every box shape of a static body on a judged layer ([constant Layers.JUDGED]) among
-## [param list], such as a parked van, and of the bodies of each [Prop] and [MapAsset] among it.
-## Kerbs and pavements are not obstacles: the kerb lines judge them.
-func add_obstacles(list: Array) -> void:
+## [param list], such as a parked van, and of the bodies of each node among it that keeps its own
+## as internal children ([method Prop.bodies]): props, map assets, road signs, and traffic lights.
+## Kerbs and pavements are not obstacles: the kerb lines judge them. Returns them as a delta
+## spawning one obstacle a box.
+static func obstacles(list: Array) -> Delta:
+	var out := Delta.new()
 	for node: Node in list:
-		if node is Prop or node is MapAsset:
-			for body in node.bodies():
-				_body_obstacles(body, node.name)
+		if node.has_method(&"bodies"):
+			for body: StaticBody3D in node.call(&"bodies"):
+				_body_obstacles(out, body, node.name)
 			continue
 		if node is StaticBody3D:
-			_body_obstacles(node, node.name)
+			_body_obstacles(out, node, node.name)
+	return out
 
 
-func _body_obstacles(body: StaticBody3D, obstacle_name: StringName) -> void:
+static func _body_obstacles(out: Delta, body: StaticBody3D, obstacle_name: StringName) -> void:
 	if (body.collision_layer & Layers.JUDGED) == 0:
 		return
 	for child in body.get_children():
 		var shape := child as CollisionShape3D
 		if shape and shape.shape is BoxShape3D and not shape.disabled:
-			world.spawn({obstacle = {transform = shape.global_transform,
+			out.spawn({obstacle = {transform = shape.global_transform,
 				size = shape.shape.size, name = obstacle_name,
 				pedestrian = (body.collision_layer & Layers.PEDESTRIAN) != 0}})
 
@@ -227,14 +241,15 @@ func _fill_lanes() -> void:
 					stop = maxf(centre - maxf(box[1].x, box[1].z) - 1.0, 0.0)})
 
 
-## Bakes a road user authored after the scene was baked, and returns its entity.
-func add_agent(agent: ScriptedAgent) -> int:
+## Bakes a road user authored after the scene was baked, its lanes as well: a delta spawning it
+## as entity [method id_of], empty when it has no path.
+func agent_delta(agent: ScriptedAgent) -> Delta:
 	if not _ids.has(agent):
 		_ids[agent] = world.create()
 	lane_of(agent.path)
 	_fill_lanes()
-	_agent(agent)
-	return _ids[agent]
+	var values := _agent_values(agent)
+	return Delta.new().spawn({agent = values}, _ids[agent]) if values else Delta.new()
 
 
 ## What a road user driving to its [member ScriptedAgent.destination] needs: where it starts on
@@ -258,13 +273,27 @@ func drive_to(agent: ScriptedAgent) -> Dictionary:
 
 
 func _agent(agent: ScriptedAgent) -> void:
+	var values := _agent_values(agent)
+	if values:
+		world.store(Schema.AGENT).add(_ids[agent], values)
+		to_free.append(agent)
+
+
+## A road user's columns, standing on its lane; none, with a warning, when it has no path.
+func _agent_values(agent: ScriptedAgent) -> Dictionary:
 	var lane: LaneData = _lanes.get(lane_of(agent.path))
 	if lane == null:
 		push_warning("%s has no path; it is left out" % agent.get_path())
-		return
-	world.store(Schema.AGENT).add(_ids[agent], AgentTable.spawn_values(agent.config(self), lane,
-		_lanes))
-	to_free.append(agent)
+		return {}
+	return AgentTable.spawn_values(agent.config(self), lane)
+
+
+## [param script]'s static function [param method], or an empty [Callable] when it defines none.
+static func _bound(script: Script, method: StringName) -> Callable:
+	for info in script.get_script_method_list():
+		if info.name == method:
+			return Callable(script, method)
+	return Callable()
 
 
 func _rules() -> void:
@@ -281,7 +310,7 @@ func _rules() -> void:
 		for step in check.active_steps:
 			if step_index(step) >= 0:
 				active.append(step_index(step))
-		world.spawn({rule = {name = check.name, script = script, params = params,
+		world.spawn({rule = {name = check.name, params = params,
 			state = script.call(&"initial", params), active_steps = active, order = order,
-			step = Callable(script, &"step"), finish = Callable(script, &"finish")}})
+			step = Callable(script, &"step"), finish = _bound(script, &"finish")}})
 		order += 1

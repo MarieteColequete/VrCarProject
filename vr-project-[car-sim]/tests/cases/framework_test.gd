@@ -117,12 +117,16 @@ func _test_bake() -> void:
 	expect(in_order and rules.size() > 0,
 		"every check of the scene becomes a rule entity, in tree order (%d)" % rules.size())
 	var complete := true
-	for check in checks:
+	var finishes_bound := true
+	for row in rules.size():
+		var check: Check = checks[rules.column(&"order")[row]]
 		var script := check.rule_script()
-		for method in [&"initial", &"step", &"finish"]:
-			complete = complete and script.get_script_method_list().any(
-				func(m: Dictionary) -> bool: return m.name == method)
-	expect(complete, "every rule script has its initial, step, and finish functions")
+		for method in [&"initial", &"step"]:
+			complete = complete and _defines(script, method)
+		var finish: Callable = rules.column(&"finish")[row]
+		finishes_bound = finishes_bound and finish.is_valid() == _defines(script, &"finish")
+	expect(complete, "every rule script has its initial and step functions")
+	expect(finishes_bound, "a rule's finish is bound only where its script defines one")
 	runner.queue_free()
 	await process_frame
 	runner = spawn_runner(load("res://scenarios/scenes/traffic_lights/traffic_lights.tscn"))
@@ -135,3 +139,8 @@ func _test_bake() -> void:
 		"the scene's markings are baked and indexed (%d)" % world.store(Schema.MARKING).size())
 	runner.queue_free()
 	await process_frame
+
+
+func _defines(script: Script, method: StringName) -> bool:
+	return script.get_script_method_list().any(
+		func(m: Dictionary) -> bool: return m.name == method)

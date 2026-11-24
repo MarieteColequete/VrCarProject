@@ -1,0 +1,7 @@
+Plastic012A
+from ambientCG, https://ambientcg.com/view?id=Plastic012A
+
+Licensed under Creative Commons CC0 1.0 Universal (public domain):
+https://creativecommons.org/publicdomain/zero/1.0/
+
+The files are the 1K JPG set's colour, normal (OpenGL) and roughness maps, as downloaded.

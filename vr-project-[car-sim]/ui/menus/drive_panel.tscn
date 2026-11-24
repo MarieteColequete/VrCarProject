@@ -1,0 +1,161 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/menus/drive_panel.gd" id="1_panel"]
+
+[node name="DrivePanel" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_panel")
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="BriefingPage" type="PanelContainer" parent="Center"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(900, 0)
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="Center/BriefingPage"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="BriefingCategory" type="Label" parent="Center/BriefingPage/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"SectionLabel"
+theme_override_font_sizes/font_size = 24
+text = "Category"
+horizontal_alignment = 1
+
+[node name="BriefingTitle" type="Label" parent="Center/BriefingPage/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "Scenario"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="HSeparator" type="HSeparator" parent="Center/BriefingPage/VBox"]
+layout_mode = 2
+
+[node name="BriefingText" type="Label" parent="Center/BriefingPage/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(820, 120)
+layout_mode = 2
+text = "Briefing"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="HSeparator2" type="HSeparator" parent="Center/BriefingPage/VBox"]
+layout_mode = 2
+
+[node name="Footer" type="HBoxContainer" parent="Center/BriefingPage/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 24
+alignment = 1
+
+[node name="BriefingMenuButton" type="Button" parent="Center/BriefingPage/VBox/Footer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 68)
+layout_mode = 2
+text = "Main menu"
+
+[node name="BeginButton" type="Button" parent="Center/BriefingPage/VBox/Footer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 68)
+layout_mode = 2
+theme_type_variation = &"PrimaryButton"
+text = "Begin"
+
+[node name="BriefingHint" type="Label" parent="Center/BriefingPage/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.45, 0.55, 1)
+theme_override_font_sizes/font_size = 20
+text = "Hint"
+horizontal_alignment = 1
+
+[node name="ResultPage" type="PanelContainer" parent="Center"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(900, 0)
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="Center/ResultPage"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="ResultScenario" type="Label" parent="Center/ResultPage/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"SectionLabel"
+theme_override_font_sizes/font_size = 24
+text = "Scenario"
+horizontal_alignment = 1
+
+[node name="ResultTitle" type="Label" parent="Center/ResultPage/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+theme_override_font_sizes/font_size = 56
+text = "Passed"
+horizontal_alignment = 1
+
+[node name="ResultStats" type="Label" parent="Center/ResultPage/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Stats"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="HSeparator" type="HSeparator" parent="Center/ResultPage/VBox"]
+layout_mode = 2
+
+[node name="FaultScroll" type="ScrollContainer" parent="Center/ResultPage/VBox"]
+custom_minimum_size = Vector2(820, 180)
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="FaultList" type="VBoxContainer" parent="Center/ResultPage/VBox/FaultScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="HSeparator2" type="HSeparator" parent="Center/ResultPage/VBox"]
+layout_mode = 2
+
+[node name="Footer" type="HBoxContainer" parent="Center/ResultPage/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="ResultMenuButton" type="Button" parent="Center/ResultPage/VBox/Footer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(250, 68)
+layout_mode = 2
+text = "Main menu"
+
+[node name="ScenariosButton" type="Button" parent="Center/ResultPage/VBox/Footer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(250, 68)
+layout_mode = 2
+text = "Scenarios"
+
+[node name="RetryButton" type="Button" parent="Center/ResultPage/VBox/Footer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(250, 68)
+layout_mode = 2
+theme_type_variation = &"PrimaryButton"
+text = "Retry"

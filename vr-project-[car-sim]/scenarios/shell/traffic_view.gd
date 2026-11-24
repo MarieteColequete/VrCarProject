@@ -5,9 +5,9 @@ extends RefCounted
 ## [MultiMesh] per model, interpolated between physics ticks; an animated [PedestrianModel] per
 ## pedestrian, a survivor of the retro characters kit standing idle or walking, its node
 ## interpolated by the engine; and a kinematic box per road user in the physics server, on the
-## traffic or pedestrian layer,
-## so the player's car collides with them as with any car or walker. Neither takes part in the
-## simulation; with no view at all, traffic runs the same.
+## traffic or pedestrian layer. The player's car meets walkers there as any body; its own body
+## ([member ignore]) is exempt from road users' cars, which it meets through [Impacts]. Neither
+## takes part in the simulation; with no view at all, traffic runs the same.
 
 ## Floats per instance in the buffer: a 3x4 transform and a colour.
 const STRIDE := 16
@@ -20,6 +20,9 @@ const WALKER := "walker"
 var _parent: Node3D
 var _capacity: int
 var _space: RID
+## The player's car's body, which road users' cars do not meet in the physics engine: their
+## crashes are [Impacts]'.
+var ignore := RID()
 ## Model path (or [constant WALKER]) to its group: [code]{multimesh, instance, slots, drawn,
 ## current, previous}[/code], slots mapping a road user to its instance.
 var _groups := {}
@@ -28,6 +31,8 @@ var _group_of := {}
 # Pedestrian entity to its model.
 var _walkers := {}
 var _bodies := {}
+## The agent store's removals when the view last let go of the road users gone.
+var _removals := -1
 
 
 ## A view under [param parent], with room for [param capacity] road users per model to start with.
@@ -56,7 +61,8 @@ func draw(world: World) -> void:
 	var store := world.store(Schema.AGENT)
 	if store == null:
 		return
-	if _group_of.size() + _walkers.size() > store.size():
+	if store.removals != _removals:
+		_removals = store.removals
 		_release(store)
 	if store.size() == 0:
 		return
@@ -65,6 +71,7 @@ func draw(world: World) -> void:
 	var colours: PackedColorArray = store.column(&"colour")
 	var positions: PackedVector3Array = store.column(&"position")
 	var facings: PackedVector3Array = store.column(&"facing")
+	var grades: PackedFloat64Array = store.column(&"grade")
 	var jumps: PackedByteArray = store.column(&"jumped")
 	var walkers: PackedByteArray = store.column(&"pedestrian")
 	var models: Array = store.column(&"model")
@@ -103,26 +110,21 @@ func draw(world: World) -> void:
 			var slot: int = slots[id]
 			var size := sizes[i]
 			var at := positions[i]
-			var f := facings[i]
-			# Facing on the ground, as Basis.looking_at would give it: z behind, x to the right.
-			var z := Vector3(-f.x, 0.0, -f.z)
-			var x := Vector3(-f.z, 0.0, f.x)
-			if f.length_squared() < 0.000001:
-				z = Vector3.BACK
-				x = Vector3.RIGHT
+			var place := pitched(facings[i], grades[i], at)
 			var k := slot * STRIDE
-			var cx := x * size.x
-			var cz := z * size.z
+			var cx := place.basis.x * size.x
+			var cy := place.basis.y * size.y
+			var cz := place.basis.z * size.z
 			current[k] = cx.x
-			current[k + 1] = 0.0
+			current[k + 1] = cy.x
 			current[k + 2] = cz.x
 			current[k + 3] = at.x
-			current[k + 4] = 0.0
-			current[k + 5] = size.y
-			current[k + 6] = 0.0
+			current[k + 4] = cx.y
+			current[k + 5] = cy.y
+			current[k + 6] = cz.y
 			current[k + 7] = at.y
 			current[k + 8] = cx.z
-			current[k + 9] = 0.0
+			current[k + 9] = cy.z
 			current[k + 10] = cz.z
 			current[k + 11] = at.z
 			if not drawn.has(id):
@@ -133,7 +135,6 @@ func draw(world: World) -> void:
 				for c in 12:
 					previous[k + c] = current[k + c]
 				drawn[id] = true
-			var place := Transform3D(Basis(x, Vector3.UP, z), at)
 			var pair: Array = _bodies[id]
 			if pair[2] != place:
 				pair[2] = place
@@ -144,6 +145,23 @@ func draw(world: World) -> void:
 		multimesh.visible_instance_count = slots.size()
 		group.current = previous
 		group.previous = current
+
+
+## A car's place at [param at], facing [param facing] on the ground and pitched up by
+## [param grade] (the sine of its slope) about its own right axis, as [method Basis.looking_at]
+## would give it: z behind, x to the right, y up off the road.
+static func pitched(facing: Vector3, grade: float, at: Vector3) -> Transform3D:
+	var flat := Vector2(facing.x, facing.z)
+	if flat.length_squared() < 0.000001:
+		return Transform3D(Basis.IDENTITY, at)
+	# Normalised, so the grade's share never shortens the car along the ground.
+	flat = flat.normalized()
+	var s := clampf(grade, -1.0, 1.0)
+	var c := sqrt(1.0 - s * s)
+	var x := Vector3(-flat.y, 0.0, flat.x)
+	var z := Vector3(-flat.x * c, -s, -flat.y * c)
+	var y := Vector3(-flat.x * s, c, -flat.y * s)
+	return Transform3D(Basis(x, y, z), at)
 
 
 ## How many road users each model draws, by model path, and the pedestrians under
@@ -289,6 +307,8 @@ func _body(id: int, size: Vector3, is_pedestrian: bool) -> void:
 	PhysicsServer3D.shape_set_data(shape, size * 0.5)
 	PhysicsServer3D.body_add_shape(body, shape, Transform3D(Basis(), Vector3(0, size.y * 0.5, 0)))
 	BodyType.of(&"pedestrian" if is_pedestrian else &"vehicle").apply_rid(body)
+	if not is_pedestrian and ignore.is_valid():
+		PhysicsServer3D.body_add_collision_exception(body, ignore)
 	PhysicsServer3D.body_set_space(body, _space)
 	_bodies[id] = [body, shape, Transform3D()]
 

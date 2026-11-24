@@ -6,6 +6,7 @@ extends RefCounted
 ## failures for the runner.
 
 const RUNNER := preload("res://scenarios/scenes/exam_runner.tscn")
+const PLAYER_CAR := preload("res://scenarios/scenes/player_car.tscn")
 const STOP_JUNCTION := preload("res://scenarios/scenes/stop_junction/stop_junction.tscn")
 const FAULTS := "res://scenarios/data/faults/%s.tres"
 ## The centre of the right-hand lane; scenarios are built with the car driving towards -Z in it.
@@ -63,9 +64,59 @@ func at(z: float, x := LANE_X) -> Vector3:
 	return Vector3(x, 0.0, z)
 
 
+## A flat road under [member root] for a car driven without a map, its top at y = 0, of the
+## asphalt's [BodyType], or [param type]'s. The caller frees it.
+func ground(size := 400.0, type := &"asphalt") -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = "TestGround"
+	BodyType.of(type).apply(body)
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(size, 0.2, size)
+	shape.shape = box
+	shape.position.y = -0.1
+	body.add_child(shape)
+	root.add_child(body)
+	return body
+
+
 func frames(n: int) -> void:
 	for i in n:
 		await physics_frame
+
+
+## The player's car, with [param settings] (property to value) set before it enters the tree,
+## added under [member root]. The caller frees it.
+func spawn_car(settings := {}) -> Node3D:
+	var car: Node3D = PLAYER_CAR.instantiate()
+	for key: StringName in settings:
+		car.set(key, settings[key])
+	root.add_child(car)
+	return car
+
+
+## Whether input action [param action] has a binding of the class [param type].
+static func has_event(action: StringName, type: String) -> bool:
+	for event in InputMap.action_get_events(action):
+		if event.is_class(type):
+			return true
+	return false
+
+
+## The Asset Library's entry for the model [param model_name]; null when there is none.
+static func catalogue_entry(model_name: String) -> AssetCatalogue.Entry:
+	for entry in AssetCatalogue.scan():
+		if entry.model_name == model_name:
+			return entry
+	return null
+
+
+## A straight curve [param length] metres long along -Z, centred on the origin.
+static func straight(length: float) -> Curve3D:
+	var curve := Curve3D.new()
+	curve.add_point(Vector3(0, 0, length / 2.0))
+	curve.add_point(Vector3(0, 0, -length / 2.0))
+	return curve
 
 
 ## Drives a scenario's car along [param legs] and returns the result.
@@ -95,6 +146,9 @@ func drive(legs: Array, scenario: PackedScene = null, on_spawn := Callable(),
 		if leg.has("look"):
 			car.driver_view.reset_look()
 			car.driver_view.turn(deg_to_rad(leg.look), 0.0)
+			continue
+		if leg.has("look_at"):
+			look_at_mirror(car, leg.look_at)
 			continue
 		if leg.has("turn"):
 			car.rotate_y(deg_to_rad(leg.turn))
@@ -165,9 +219,9 @@ func end_sim(runner: WorldRunner) -> void:
 
 
 ## Moves the car of a hand-stepped simulation, as the shell would read it from a car node.
-func place_car(runner: WorldRunner, at: Vector3, facing := Vector3.FORWARD) -> void:
+func place_car(runner: WorldRunner, where: Vector3, facing := Vector3.FORWARD) -> void:
 	var world := runner.world
-	var t := Transform3D(Basis.looking_at(facing, Vector3.UP), at)
+	var t := Transform3D(Basis.looking_at(facing, Vector3.UP), where)
 	world.store(Schema.VEHICLE).set_value(Schema.single(world, Schema.VEHICLE), &"transform", t)
 
 
@@ -245,3 +299,15 @@ func car_state(runner: ExamRunner) -> CarState:
 
 func _with(what: String, r: ScenarioResult) -> String:
 	return "%s: %s" % [what, r.summary() if r else "no result"]
+
+
+## Turns the car's flat view from its eye to its mirror [param index] (0 interior, 1 left,
+## 2 right), as a driver checking it would.
+func look_at_mirror(car: Node3D, index: int) -> void:
+	var probe := VehicleProbe.of(car)
+	var view: DriverView = car.driver_view
+	view.reset_look()
+	var to := probe.global_transform * probe.mirrors[index] - probe.eye_position()
+	var local := car.global_basis.inverse() * to
+	var flat := Vector2(local.x, local.z).length()
+	view.turn(atan2(-local.x, -local.z), atan2(local.y, flat))
