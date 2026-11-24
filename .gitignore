@@ -6,3 +6,6 @@
 .claude/bin/*.preset-old-*
 *.preset-new-*
 CLAUDE.local.md
+
+# Exported builds (export_presets.cfg)
+/builds/

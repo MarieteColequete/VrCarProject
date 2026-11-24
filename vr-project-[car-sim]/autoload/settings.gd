@@ -9,9 +9,12 @@ extends Node
 ## - Quality (3D resolution and anti-aliasing) is set on the root viewport, which stays the same
 ##   across scene changes and is also what the headset renders through.
 ## - Display settings (window mode, resolution, V-Sync) apply on a monitor only; in VR the
-##   headset controls the display.
+##   headset controls the display. They are also written to [constant BOOT_PATH], which the
+##   project reads before the window opens ([code]application/config/project_settings_override[/code]),
+##   so the game starts in its window as it will stay rather than resizing once this autoload runs.
 
 const SAVE_PATH := "user://settings.cfg"
+const BOOT_PATH := "user://boot_display.cfg"
 
 ## Audio buses that get a volume slider.
 const AUDIO_BUSES: Array[StringName] = [&"Master", &"Music", &"SFX"]
@@ -39,7 +42,9 @@ const DEFAULT_VOLUME := 0.8
 
 ## Linear volume (0 to 1) for each bus in AUDIO_BUSES.
 var volumes: Dictionary = {}
-var fullscreen := false
+## Full screen is Godot's borderless window over the whole screen, not exclusive full screen; the
+## game starts in it until the player picks a window.
+var fullscreen := true
 var resolution := Vector2i(1280, 720)
 var vsync := true
 var render_scale := 1.0
@@ -52,12 +57,13 @@ func _ready() -> void:
 	reset_to_defaults(false)
 	load_settings()
 	apply_all()
+	save_boot_display()
 
 
 func reset_to_defaults(apply := true) -> void:
 	for bus in AUDIO_BUSES:
 		volumes[bus] = DEFAULT_VOLUME
-	fullscreen = false
+	fullscreen = true
 	resolution = RESOLUTIONS[0]
 	vsync = true
 	render_scale = 1.0
@@ -187,6 +193,24 @@ func save_settings() -> void:
 	var error := config.save(SAVE_PATH)
 	if error != OK:
 		push_warning("Settings: could not save settings (error %d)." % error)
+	save_boot_display()
+
+
+## Writes the window as the settings have it to [constant BOOT_PATH], as project settings, for the
+## next start to open it so. Nothing is written without a monitor (headless).
+func save_boot_display() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var config := ConfigFile.new()
+	config.set_value("display", "window/size/mode",
+		Window.MODE_FULLSCREEN if fullscreen else Window.MODE_WINDOWED)
+	config.set_value("display", "window/size/window_width_override", resolution.x)
+	config.set_value("display", "window/size/window_height_override", resolution.y)
+	config.set_value("display", "window/vsync/vsync_mode",
+		DisplayServer.VSYNC_ENABLED if vsync else DisplayServer.VSYNC_DISABLED)
+	var error := config.save(BOOT_PATH)
+	if error != OK:
+		push_warning("Settings: could not save the boot display (error %d)." % error)
 
 
 func load_settings() -> void:

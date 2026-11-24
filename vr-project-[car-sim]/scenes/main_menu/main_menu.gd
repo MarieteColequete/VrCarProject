@@ -10,6 +10,9 @@ extends Node3D
 @export var vr_panel_distance := 1.8
 
 const MENU_UI := preload("res://ui/menus/main_menu_ui.tscn")
+## Seconds the menu takes to fade in from black on a monitor, as the game starts and each time it
+## comes back to the menu.
+const FADE_IN := 0.5
 const VRPointer := preload("res://scenes/vr/vr_pointer.gd")
 
 var _ui  # main_menu_ui.gd
@@ -47,6 +50,23 @@ func _setup_desktop() -> void:
 	_ui_panel.queue_free()
 	_desktop_camera.make_current()
 	_ui_layer.add_child(_ui)
+	_fade_in()
+
+
+## Fades the menu in from the black the game starts on (the boot colour,
+## [code]application/boot_splash/bg_color[/code]), over [constant FADE_IN] seconds.
+func _fade_in() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 128
+	var black := ColorRect.new()
+	black.color = Color.BLACK
+	black.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	black.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(black)
+	add_child(layer)
+	var tween := create_tween()
+	tween.tween_property(black, "modulate:a", 0.0, FADE_IN)
+	tween.tween_callback(layer.queue_free)
 
 
 func _setup_vr() -> void:
