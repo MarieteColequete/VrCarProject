@@ -92,7 +92,6 @@ The scenarios, in the catalogue's order:
 | Bay parking | Reverse into a free bay, not a taken one, the reserved one, or the fire lane | 120 s |
 | Parallel parking | Park close to the kerb in the gap between two parked cars, not on the no-parking line | 120 s |
 | Busy junction | Through lights and a crossing in traffic that reacts to you, forcing no one to brake hard | 150 s |
-| Hill start | Stop on the hill and pull away without rolling back | 120 s |
 
 Free drive is a map with no checks but the contact, line, and conflict ones: drive where you like,
 and restart at any time. Maps are made with the Map Kit ([Making maps](map-guide.md)).
@@ -242,11 +241,7 @@ F1 (the left stick click) hides the debug HUD. In a headset it hides itself.
 ## Hills
 
 Maps need not be flat. The car pitches and rolls on its springs, and holds still on a slope in P or
-with the brake. The hill start scenario on `hill_road` stops the car at a line halfway up a 12%
-climb: pull away again without rolling back more than half a metre, using the handbrake or a quick
-move from the brake to the throttle.
-
-![The car on the hill road, from the side: the road climbing to the right past a 50 km/h sign, a hill and a house beyond](images/driving-guide/09-hill-start.png)
+with the brake.
 
 ## Settings
 

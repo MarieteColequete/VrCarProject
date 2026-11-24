@@ -268,9 +268,9 @@ The overlay button on the 3D view's toolbar also shows or hides it.
 
 A new map is flat. Hills, valleys, slopes, and raised ground come from a `Terrain`, the map's land
 as a grid of heights, shaped by terrain shapes placed from the palette. The roads are then laid
-onto that land. `maps/hill_road/` is built this way, and the pictures here are taken from it.
+onto that land. The pictures here show a crossroads raised onto a plateau, with hills around it.
 
-![hill_road from above: a crossroads on a plateau, two hills and a valley around it, each shape's outline drawn on the land](images/map-guide/24-terrain-overview.png)
+![A terrain map from above: a crossroads on a plateau, two hills and a valley around it, each shape's outline drawn on the land](images/map-guide/24-terrain-overview.png)
 
 1. **Add the land.** Under **Selection**, press **Add terrain**. The map gets a `Terrain` node the
    size of its ground, and the flat ground is turned off; both are one undo step. Select the
@@ -338,8 +338,7 @@ onto that land. `maps/hill_road/` is built this way, and the pictures here are t
    ![A side road draped on the land, falling away from the crossroads on the plateau](images/map-guide/31-draped-road.png)
 
 6. **Check and drive.** Clear **Problems**, then **Play**. The car climbs and descends the land,
-   and road users keep to the roads' heights. The `hill_start` scenario on `hill_road` stops the
-   car halfway up the main road and judges a hill start.
+   and road users keep to the roads' heights.
 
 Roads never pass over one another: traffic and the exam's checks work on the ground plan, with
 heights from the roads, so a bridge or an underpass cannot be built.
@@ -521,9 +520,7 @@ is not.
 
 `maps/sample_town/` is built with the Map Kit alone: a main road crossed by two side roads that
 give way, oncoming traffic, signs, parked cars, buildings, and trees, so it shows the kit's
-roads, junctions, and generated lanes together. `maps/hill_road/` is the same town on a
-`Terrain`: a plateau the main road climbs onto at about 12%, two hills and a valley, with every
-road draped on the land.
+roads, junctions, and generated lanes together.
 
 The other maps were drawn by hand, lane by lane, before the kit:
 
