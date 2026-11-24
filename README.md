@@ -168,6 +168,23 @@ It prints `XR CHECK PASS` or `XR CHECK FAIL` and exits 1 on failure.
 `Research/scenario-detection/performance.md` describes running it against Monado's simulated
 headset.
 
+## Builds
+
+`export_presets.cfg` has a Linux and a Windows preset, both x86_64, which export the game without
+its tests and tools to `builds/linux/` and `builds/windows/` (ignored by git), a program and its
+`.pck` beside it. They need Godot 4.7's export templates (Editor > Manage Export Templates):
+
+```
+godot --headless --path 'vr-project-[car-sim]' --export-release "Linux" ../builds/linux/VrCarSim.x86_64
+godot --headless --path 'vr-project-[car-sim]' --export-release "Windows" ../builds/windows/VrCarSim.exe
+```
+
+The game starts with no splash image, on black, in borderless full screen until the player picks a
+window in the options; the main menu fades in from the black. The window opens as the options left
+it, never resizing once the game runs: the options write the window to
+`user://boot_display.cfg`, which the project reads before the window opens
+(`application/config/project_settings_override`).
+
 ## Simulation
 
 The simulation is data and pure functions, detached from what is drawn. Its state lives in a
