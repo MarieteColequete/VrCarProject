@@ -1,6 +1,8 @@
 [gd_scene format=3 uid="uid://boaqwn6mqs10f"]
 
 [ext_resource type="PackedScene" uid="uid://db3ljqytc25mh" path="res://assets/kenney/city_kit_suburban/tree-large.glb" id="3_gbro2"]
+[ext_resource type="Script" uid="uid://c3vscrj4ijk8m" path="res://scenarios/map/terrain.gd" id="6_jlhgf"]
+[ext_resource type="Script" uid="uid://fumw7s4qiy7q" path="res://scenarios/map/terrain_shape.gd" id="7_r3i71"]
 [ext_resource type="Script" uid="uid://gvavp4nn6bfy" path="res://scenarios/traffic/scripted_agent.gd" id="agent"]
 [ext_resource type="Material" path="res://scenarios/kit/asphalt.tres" id="asphalt"]
 [ext_resource type="PackedScene" path="res://scenarios/kit/map_base.tscn" id="map_base"]
@@ -58,6 +60,7 @@ description = "A two-lane road with a slow vehicle ahead."
 
 [node name="Environment" parent="." index="0"]
 ground_size = Vector2(100, 320)
+ground = false
 ground_offset = Vector3(0, 0, -60)
 
 [node name="Spawn" parent="." index="1"]
@@ -348,31 +351,25 @@ transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, -13.814301, 0, -185.95474)
 [node name="tree-large88" parent="Props" index="86" unique_id=1979869112 instance=ExtResource("3_gbro2")]
 transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, -40.243206, 0, -180.40318)
 
-[node name="tree-large89" parent="Props" index="87" unique_id=1904614627 instance=ExtResource("3_gbro2")]
-transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, -35.24975, 0, -202.34058)
-
-[node name="tree-large90" parent="Props" index="88" unique_id=240989463 instance=ExtResource("3_gbro2")]
+[node name="tree-large90" parent="Props" index="87" unique_id=240989463 instance=ExtResource("3_gbro2")]
 transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, -19.36042, 0, -192.72209)
 
-[node name="tree-large91" parent="Props" index="89" unique_id=201253293 instance=ExtResource("3_gbro2")]
+[node name="tree-large91" parent="Props" index="88" unique_id=201253293 instance=ExtResource("3_gbro2")]
 transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, -22.11119, 0, -176.45836)
 
-[node name="tree-large92" parent="Props" index="90" unique_id=42790775 instance=ExtResource("3_gbro2")]
+[node name="tree-large92" parent="Props" index="89" unique_id=42790775 instance=ExtResource("3_gbro2")]
 transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, 33.208977, 0, -189.05907)
 
-[node name="tree-large93" parent="Props" index="91" unique_id=509651856 instance=ExtResource("3_gbro2")]
+[node name="tree-large93" parent="Props" index="90" unique_id=509651856 instance=ExtResource("3_gbro2")]
 transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, 46.167534, 0, -185.95474)
 
-[node name="tree-large94" parent="Props" index="92" unique_id=1755857777 instance=ExtResource("3_gbro2")]
+[node name="tree-large94" parent="Props" index="91" unique_id=1755857777 instance=ExtResource("3_gbro2")]
 transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, 19.738628, 0, -180.40318)
 
-[node name="tree-large95" parent="Props" index="93" unique_id=1618375397 instance=ExtResource("3_gbro2")]
-transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, 24.732086, 0, -202.34058)
-
-[node name="tree-large96" parent="Props" index="94" unique_id=936083000 instance=ExtResource("3_gbro2")]
+[node name="tree-large96" parent="Props" index="92" unique_id=936083000 instance=ExtResource("3_gbro2")]
 transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, 40.621414, 0, -192.72209)
 
-[node name="tree-large97" parent="Props" index="95" unique_id=2079735647 instance=ExtResource("3_gbro2")]
+[node name="tree-large97" parent="Props" index="93" unique_id=2079735647 instance=ExtResource("3_gbro2")]
 transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, 37.870644, 0, -176.45836)
 
 [node name="Road" type="MeshInstance3D" parent="." index="9" unique_id=1192560862]
@@ -387,3 +384,76 @@ curve = SubResource("Curve_Slow")
 script = ExtResource("agent")
 path = NodePath("../SlowPath")
 speed = 4.0
+
+[node name="Terrain" type="Node3D" parent="." index="12" unique_id=1115421559]
+transform = Transform3D(1.7651478, 0, 0, 0, 1, 0, 0, 0, 1.1340328, 0, 0, -60)
+script = ExtResource("6_jlhgf")
+size = Vector2(100, 320)
+
+[node name="Hill" type="Node3D" parent="Terrain" index="0" unique_id=166916042]
+transform = Transform3D(0.5665248, 0, 0, 0, 1.2673709, 0, 0, 0, 1, 43.339146, -5.7689613e-06, 137)
+script = ExtResource("7_r3i71")
+height = 13.5
+radius = 13.5
+
+[node name="Hill2" type="Node3D" parent="Terrain" index="1" unique_id=1932314715]
+transform = Transform3D(0.5665248, 0, 0, 0, 1.2673709, 0, 0, 0, 1, 43.339146, -5.7689613e-06, -31.460175)
+script = ExtResource("7_r3i71")
+height = 13.5
+radius = 13.5
+
+[node name="Hill3" type="Node3D" parent="Terrain" index="2" unique_id=1931050896]
+transform = Transform3D(0.5665248, 0, 0, 0, 1.2673709, 0, 0, 0, 1, 43.339146, -5.7689613e-06, -125.66791)
+script = ExtResource("7_r3i71")
+height = 13.5
+radius = 13.5
+
+[node name="Hill4" type="Node3D" parent="Terrain" index="3" unique_id=477731257]
+transform = Transform3D(0.5665248, 0, 0, 0, 1.2673709, 0, 0, 0, 1, -43.919903, -5.7689613e-06, -125.66791)
+script = ExtResource("7_r3i71")
+height = 13.5
+radius = 13.5
+
+[node name="Hill5" type="Node3D" parent="Terrain" index="4" unique_id=43841043]
+transform = Transform3D(0.5665248, 0, 0, 0, 1.2673709, 0, 0, 0, 1, -43.919903, -5.7689613e-06, -18.29596)
+script = ExtResource("7_r3i71")
+height = 13.5
+radius = 13.5
+
+[node name="Hill6" type="Node3D" parent="Terrain" index="5" unique_id=1009556373]
+transform = Transform3D(0.5665248, 0, 0, 0, 1.2673709, 0, 0, 0, 1, -43.919903, -5.7689613e-06, 91.04361)
+script = ExtResource("7_r3i71")
+height = 13.5
+radius = 13.5
+
+[node name="Hill7" type="Node3D" parent="Terrain" index="6" unique_id=59426972]
+transform = Transform3D(0.5665248, 0, 0, 0, 1, 0, 0, 0, 1, 44.4722, -4.311325e-06, 83.5)
+script = ExtResource("7_r3i71")
+
+[node name="Hill8" type="Node3D" parent="Terrain" index="7" unique_id=593986766]
+transform = Transform3D(0.5665248, 0, 0, 0, 1, 0, 0, 0, 1, 44.4722, -4.311325e-06, 21.199345)
+script = ExtResource("7_r3i71")
+
+[node name="Hill9" type="Node3D" parent="Terrain" index="8" unique_id=536486562]
+transform = Transform3D(0.5665248, 0, 0, 0, 1, 0, 0, 0, 1, 44.4722, -4.311325e-06, -74.00774)
+script = ExtResource("7_r3i71")
+
+[node name="Hill10" type="Node3D" parent="Terrain" index="9" unique_id=1176142683]
+transform = Transform3D(0.5665248, 0, 0, 0, 1, 0, 0, 0, 1, -36.875755, -4.311325e-06, -74.00774)
+script = ExtResource("7_r3i71")
+
+[node name="Hill11" type="Node3D" parent="Terrain" index="10" unique_id=1953206980]
+transform = Transform3D(0.5665248, 0, 0, 0, 1, 0, 0, 0, 1, -36.875755, -4.311325e-06, 37.465263)
+script = ExtResource("7_r3i71")
+
+[node name="Hill12" type="Node3D" parent="Terrain" index="11" unique_id=500563091]
+transform = Transform3D(0.5665248, 0, 0, 0, 1, 0, 0, 0, 0.88180864, -17.845531, 1.9278377e-07, -152.11198)
+script = ExtResource("7_r3i71")
+height = 7.5
+radius = 14.0
+
+[node name="Hill13" type="Node3D" parent="Terrain" index="12" unique_id=929771760]
+transform = Transform3D(0.5665248, 0, 0, 0, 1, 0, 0, 0, 0.88180864, 14.16312, 1.5667174e-06, -157.45857)
+script = ExtResource("7_r3i71")
+height = 8.0
+radius = 16.0
