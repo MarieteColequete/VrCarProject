@@ -42,6 +42,7 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
 	session.restart_requested.connect(_reload)
+	session.step_changed.connect(_show_gps_step)
 	session.finished.connect(func(result: ScenarioResult) -> void:
 		if print_results:
 			print("[%s] %s" % [scenario.definition.title, result.summary()]))
@@ -111,6 +112,11 @@ func _start(loaded: Scenario) -> void:
 		node.queue_free()
 	_wire(probe, _bake)
 	session.attach(world_runner)
+	var tablet := _tablet()
+	if tablet:
+		tablet.load_map(GpsReader.read(scenario, world_runner.world))
+		var steps := scenario.get_steps()
+		_show_gps_step(steps[0] if not steps.is_empty() else null)
 	scenario_loaded.emit(scenario, car)
 	# The session starts on the next idle step, so a listener connected right after the runner
 	# entered the tree still gets briefing_started, started, and the first step_changed.
@@ -161,6 +167,27 @@ func add_road_user(agent: ScriptedAgent) -> int:
 ## during the attempt, as obstacles road users see and the car touches.
 func add_obstacle(body: StaticBody3D) -> void:
 	world_runner.apply_now(Bake.obstacles([body]))
+
+
+## The car's dashboard tablet, if it has one.
+func _tablet() -> CarTablet:
+	return car.get(&"tablet") as CarTablet if is_instance_valid(car) and &"tablet" in car else null
+
+
+## Puts [param step] on the car's GPS: its title and instruction, or with no step the scenario's
+## title and its briefing's first sentence.
+func _show_gps_step(step: ScenarioStep) -> void:
+	var tablet := _tablet()
+	if tablet == null or scenario == null:
+		return
+	var definition := scenario.definition
+	if step:
+		tablet.show_step(scenario.get_steps().find(step), step.title, step.instruction)
+	else:
+		var briefing := definition.briefing if definition else ""
+		var end := briefing.find(". ")
+		tablet.show_step(-1, definition.title if definition else "",
+			briefing.substr(0, end + 1) if end >= 0 else briefing)
 
 
 func _start_session(runner: WorldRunner) -> void:

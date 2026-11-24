@@ -24,12 +24,15 @@ const RULE := &"rule"
 ## The attempt: its state, clock, faults, and result.
 const SESSION := &"session"
 
-## World resources: the marking index, the lanes (entity to [LaneData]), steps, and lookup by name.
+## World resources: the marking index, the lanes (entity to [LaneData]), steps, lookup by name,
+## and the ways the GPS shows ([GpsRoute]): [code]{step, points}[/code] each, the step's index or
+## -1 for the whole attempt, and the points in world space.
 const MARKINGS := &"marking_index"
 const LANES := &"lanes"
 const STEPS := &"steps"
 const DEFINITION := &"definition"
 const NAMES := &"names"
+const ROUTES := &"routes"
 
 
 static func define(world: World) -> void:
