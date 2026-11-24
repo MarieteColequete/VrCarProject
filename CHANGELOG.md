@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.6.0-alpha - 2026-11-24
+
+### Changed
+
+- **Breaking:** Drive without the `hill_road` map and its `hill_start` scenario, removed with the roll-back check and fault only it used
+- Bump into the signs, traffic lights, cones, and decoration of the exam maps, now solid map assets the Map Kit can change
+- Drive a Logitech G29 in its native or PS3 mode, pedals, paddles, and shifter included, with the transmission no longer a setting
+
+### Added
+
+- Start the game on a main menu, and pause, set options, pick a scenario, and read its briefing and result on menus that work in VR
+- Follow the way on a GPS tablet held out from the dash: a heading-up map, the route to the goal, the current step, and the distance left
+- Hear the engine start with its key, sputter out when the key is let go too soon, and the key click when a start is refused in gear
+- Turn loose models into map assets, and find solid things standing in the way of lanes and road users, from the Map Kit's Problems and Selection
+
+### Fixed
+
+- Drive on hand-drawn roads that hills no longer bury, the land flattening under them as under the kit's roads
+
 ## v0.5.1-alpha - 2026-11-23
 
 ### Fixed
