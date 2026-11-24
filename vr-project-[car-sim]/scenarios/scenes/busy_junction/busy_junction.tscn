@@ -13,12 +13,20 @@
 [ext_resource type="Script" path="res://scenarios/checks/crossing_check.gd" id="crossing"]
 
 [ext_resource type="Script" path="res://scenarios/checks/goal_check.gd" id="goal"]
+[ext_resource type="Script" path="res://scenarios/core/gps_route.gd" id="gps_route"]
 
 [sub_resource type="BoxShape3D" id="Shape_Checks_LightCheck_LineZone"]
 size = Vector3(7, 3, 2)
 
 [sub_resource type="BoxShape3D" id="Shape_Checks_GoalCheck_Zone"]
 size = Vector3(7, 3, 4)
+
+[sub_resource type="Curve3D" id="Curve_gps"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 1.75, 0.1, 100, 0, 0, 0, 0, 0, 0, 1.75, 0.1, -105),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
 
 [node name="BusyJunction" node_paths=PackedStringArray("map") instance=ExtResource("base")]
 definition = ExtResource("definition")
@@ -53,5 +61,9 @@ script = ExtResource("zone")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Checks/GoalCheck/Zone"]
 shape = SubResource("Shape_Checks_GoalCheck_Zone")
+
+[node name="GpsRoute" type="Path3D" parent="."]
+curve = SubResource("Curve_gps")
+script = ExtResource("gps_route")
 
 [editable path="Map"]

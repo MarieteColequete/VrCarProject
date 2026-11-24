@@ -111,6 +111,8 @@ var wheel_contacts := WheelContacts.new()
 ## The car as drawn; null when its model does not load.
 var model: PlayerCarModel
 var instruments: InstrumentCluster
+## The tablet on the dash, running the GPS; the scenario's runner gives it its map.
+var tablet: CarTablet
 ## The engine, the indicator's tick, the tyres, and the kerbs, heard in the cabin.
 var sound: CarSound
 ## The car's mirrors ([CarMirrors]): the glass, the switch, the hands, and the tilts kept.
@@ -182,6 +184,10 @@ func _ready() -> void:
 			# In the binnacle, facing the driver, leaning back.
 			instruments.rotation = Vector3(deg_to_rad(-20.0), 0.0, 0.0)
 		_mount_mirrors()
+		tablet = CarTablet.new()
+		model.cabin.add_child(tablet)
+		tablet.place(PlayerCarModel.TABLET_MOUNT * model.fit, PlayerCarModel.TABLET * model.fit,
+			driver_view.position)
 	sound = CarSound.new()
 	add_child(sound)
 	probe.indicator = VehicleProbe.Indicator.OFF
@@ -247,6 +253,8 @@ func save_mirror_tilts() -> void:
 func _process(delta: float) -> void:
 	car_mirrors.step_switch(delta)
 	car_mirrors.draw()
+	if tablet:
+		tablet.follow(delta, global_position, -global_basis.z, linear_velocity.length())
 
 
 func _physics_process(delta: float) -> void:

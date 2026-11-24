@@ -57,6 +57,12 @@ const MIRRORS := {
 const CLUSTER := {part = "Interior", box = AABB(Vector3(-0.545, 0.8, -0.55), Vector3(0.475, 0.155,
 	0.015)), facing = 0.95}
 
+## Where the dashboard's tablet ([CarTablet]) is held, in the car's space for a 2.6 m wheelbase:
+## its arm's mount on the dash right of the instruments, above the glovebox, and its screen's
+## centre, held straight back from there toward the cabin and a little up.
+const TABLET_MOUNT := Vector3(0.08, 0.86, -0.5)
+const TABLET := TABLET_MOUNT + Vector3(0.0, 0.1, 0.18)
+
 ## The cabin's parts, each its own mesh and material, cut out of the model's one interior mesh by
 ## where each triangle is in the car's space for a 2.6 m wheelbase and which way it faces (see
 ## [method cabin_zone]): each zone's material set, its tint, how many metres one repeat of the

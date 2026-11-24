@@ -1,8 +1,8 @@
 class_name Bake
 extends RefCounted
 ## Reads a scenario scene, the authoring side, into the [World]: markings, zones, bays, obstacles,
-## lights, lanes, road users, sources, the rules of its checks, its steps, the session, and the
-## player's car. Every node reference becomes an entity id, so nothing in the simulation holds a
+## lights, lanes, road users, sources, the rules of its checks, its steps, the ways its GPS shows,
+## the session, and the player's car. Every node reference becomes an entity id, so nothing in the simulation holds a
 ## node. Once baked, the authoring nodes do nothing at runtime; the ones whose only role was to be
 ## simulated (road users) are listed in [member to_free] for the shell to remove.
 
@@ -110,6 +110,7 @@ func _run(probe: VehicleProbe) -> void:
 			world.spawn({source = node.values(self)})
 	_fill_lanes()
 	_rules()
+	_routes(all)
 	world.spawn({session = {state = ExamSession.State.BRIEFING, definition = scenario.definition,
 		step_count = _steps.size()}})
 
@@ -125,6 +126,15 @@ func _markings(all: Array[Node]) -> void:
 			points = points, name = marking.name}})
 		index.add(id, marking.kind, marking.half_width(), points)
 	world.resources[Schema.MARKINGS] = index
+
+
+func _routes(all: Array[Node]) -> void:
+	var routes: Array[Dictionary] = []
+	for node in all:
+		var route := node as GpsRoute
+		if route:
+			routes.append({step = step_index(route.step), points = route.world_points()})
+	world.resources[Schema.ROUTES] = routes
 
 
 func _zone(zone: TriggerZone) -> void:

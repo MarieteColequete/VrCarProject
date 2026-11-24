@@ -257,7 +257,13 @@ are for show (`DashState`): with the key on and the engine not running the engin
 and ABS lights are lit, going out once it runs (the engine and ABS lights after their self-test),
 the stability light flashes while stability or traction control acts, the fuel drains with the
 engine's work (about 1% a minute in town) with a low-fuel light under 12%, and the coolant warms
-to 90 C over a few minutes and cools when the engine is off. The paint has a
+to 90 C over a few minutes and cools when the engine is off. A tablet is held out on an arm
+straight back from the dash right of the instruments, turned to the driver, running a GPS (`CarTablet`): a map of the roads, read
+from the scenario's asphalt and painted lines when it loads (`GpsReader`), turns and slides under
+the car heading up and zooms out with speed; the way the scenario wants the car to go runs as a
+blue line from the car to the goal's pin, and the bar across the top names the step (or the
+scenario) with its instruction and the metres left to go. In free drive it shows the map alone.
+The screen is drawn at most 15 times a second, and only when what it shows changed. The paint has a
 clear coat, and the number plates' letters, the badges, and the tyre walls stand out through normal
 maps made from the model's height maps by `tools/kiri86_normals.gd`.
 
@@ -483,7 +489,9 @@ car's wheels rather than its centre. A `ParkingBay` is a parking space, nose-in,
 either, that may be reserved or occupied; a kerbside space for parallel parking is a bay along the
 road. The car counts as parked once it stops with the handbrake on, or stays stopped for a few
 seconds. A scenario can run as ordered `ScenarioStep`s, each ended by
-its own `GoalCheck`, and a check can be limited to some steps. Each fault a check reports
+its own `GoalCheck`, and a check can be limited to some steps. The way the GPS shows is a
+`GpsRoute`, a path drawn along the road from the spawn to the goal zone, for the whole attempt or
+for one step; it judges nothing. Each fault a check reports
 is a `FaultDef` resource in `scenarios/data/faults/`, naming a severity tier. A `ScoringPolicy`
 resource defines the tiers, which of them eliminate at once, and how many faults of each an
 attempt may collect and still pass; `default_policy.tres` is a generic policy, and a particular
