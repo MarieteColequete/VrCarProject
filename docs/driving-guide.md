@@ -47,6 +47,7 @@ one, so a button does the same job on each.
     <tr><td>Restart the attempt</td><td><kbd>R</kbd></td><td>D-pad up</td><td>Flick the left stick up</td><td>D-pad up</td></tr>
     <tr><td>Next scenario, or in free drive the next map</td><td><kbd>N</kbd></td><td>D-pad down</td><td>Flick the left stick down</td><td>D-pad down</td></tr>
     <tr><td>Pause menu: open and close</td><td><kbd>Esc</kbd></td><td>Start (Menu)</td><td>Left menu button</td><td>Start (Menu)</td></tr>
+    <tr><td>In a menu: choose, go back</td><td><kbd>Enter</kbd> or <kbd>Space</kbd>, <kbd>Esc</kbd></td><td>A, B</td><td>Point and pull the trigger</td><td></td></tr>
     <tr><td>Show or hide the debug HUD</td><td><kbd>F1</kbd></td><td>Left stick click</td><td>Left stick click</td><td>Left stick button</td></tr>
     <tr><td>Free the mouse, recapture it</td><td><kbd>Backspace</kbd>, click</td><td></td><td></td><td></td></tr>
   </tbody>
@@ -255,7 +256,6 @@ Project settings, set in the editor's Project Settings or in `override.cfg` besi
 
 ## Known limits
 
-- The menu button does nothing yet: a menu is to come.
 - The VR controllers, the gamepad, and a steering wheel are laid out but not yet tried on the
   hardware; the controls are tested in the game's headless tests.
 - A wheel's force feedback is not driven, only rumble; a clutch pedal and an H-shifter are not
