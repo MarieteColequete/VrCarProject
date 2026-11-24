@@ -22,6 +22,10 @@ func _test_bindings() -> void:
 	expect(_keys(&"release_mouse") == [KEY_BACKSPACE] and _keys(&"menu") == [KEY_ESCAPE],
 		"Backspace frees the mouse and Escape is the menu: %s, %s" % [_keys(&"release_mouse"),
 			_keys(&"menu")])
+	expect(_pad_buttons(&"ui_accept") == [JOY_BUTTON_A]
+		and _pad_buttons(&"ui_cancel") == [JOY_BUTTON_B],
+		"in the menus A chooses and B goes back: %s, %s" % [_pad_buttons(&"ui_accept"),
+			_pad_buttons(&"ui_cancel")])
 	var driving: Array = []
 	for action in DriverInput.CAR_ACTIONS:
 		driving.append_array(_keys(action))
@@ -251,3 +255,11 @@ func _tap(action: StringName) -> void:
 	event.action = action
 	event.pressed = false
 	Input.parse_input_event(event)
+
+
+func _pad_buttons(action: StringName) -> Array:
+	var out := []
+	for event in InputMap.action_get_events(action):
+		if event is InputEventJoypadButton:
+			out.append((event as InputEventJoypadButton).button_index)
+	return out
