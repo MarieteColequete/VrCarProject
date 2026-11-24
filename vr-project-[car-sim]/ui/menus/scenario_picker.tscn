@@ -1,0 +1,96 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/menus/scenario_picker.gd" id="1_picker"]
+
+[node name="ScenarioPicker" type="PanelContainer"]
+custom_minimum_size = Vector2(1160, 0)
+offset_right = 1160.0
+offset_bottom = 600.0
+script = ExtResource("1_picker")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Header" type="Label" parent="VBox"]
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "Choose a scenario"
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="VBox"]
+layout_mode = 2
+
+[node name="Columns" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 28
+
+[node name="ListScroll" type="ScrollContainer" parent="VBox/Columns"]
+custom_minimum_size = Vector2(520, 380)
+layout_mode = 2
+follow_focus = true
+horizontal_scroll_mode = 0
+
+[node name="List" type="VBoxContainer" parent="VBox/Columns/ListScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="ColumnSeparator" type="VSeparator" parent="VBox/Columns"]
+modulate = Color(1, 1, 1, 0.5)
+layout_mode = 2
+
+[node name="Details" type="VBoxContainer" parent="VBox/Columns"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="DetailTitle" type="Label" parent="VBox/Columns/Details"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+theme_override_font_sizes/font_size = 32
+text = "Scenario"
+autowrap_mode = 3
+
+[node name="DetailCategory" type="Label" parent="VBox/Columns/Details"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"SectionLabel"
+theme_override_font_sizes/font_size = 24
+text = "Category"
+
+[node name="Stars" type="HBoxContainer" parent="VBox/Columns/Details"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="DetailTime" type="Label" parent="VBox/Columns/Details"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.45, 0.55, 1)
+theme_override_font_sizes/font_size = 22
+text = "No time limit"
+
+[node name="DetailBriefing" type="Label" parent="VBox/Columns/Details"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(400, 0)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_font_sizes/font_size = 23
+text = "Briefing"
+autowrap_mode = 3
+
+[node name="HSeparator2" type="HSeparator" parent="VBox"]
+layout_mode = 2
+
+[node name="Footer" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+alignment = 1
+
+[node name="BackButton" type="Button" parent="VBox/Footer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 64)
+layout_mode = 2
+text = "Back"

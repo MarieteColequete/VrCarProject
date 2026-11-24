@@ -1,0 +1,14 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/vr/ui_panel_3d.gd" id="1_panel"]
+
+[node name="UIPanel3D" type="Node3D"]
+script = ExtResource("1_panel")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+
+[node name="SubViewport" type="SubViewport" parent="."]
+transparent_bg = true
+size = Vector2i(1280, 720)
+render_target_update_mode = 4

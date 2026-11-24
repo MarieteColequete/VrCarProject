@@ -23,7 +23,7 @@ through driving with all of them.
 | Mirror switch: interior, left, right, then none; then tilt the mirror | Tab, then the arrow keys | B (Circle), then the right stick or the D-pad |
 | Headlights on or off | L | X (Square) |
 | Engine: hold to start, press to switch off; begin the attempt after the briefing | Enter | Y (Triangle) |
-| Menu (a hook for a menu to come; nothing opens yet) | Escape | Start (Menu) |
+| Pause menu: open and close | Escape | Start (Menu) |
 | Driver or chase view; in VR, the spectator's chase or shoulder view | V | Select (View) |
 | Gear lever up, down (the automatic's D, N, R; from P, up is D and down is R; the manual's 6 to 1, N, R) | Shift, Ctrl | RB, LB (a wheel's right and left paddles) |
 | Park (the automatic) | P | Hold LB |
@@ -55,9 +55,40 @@ With the Dev HUD on (see Maps), F3 to F9 drive its tools, as input actions; its 
 with the mouse, W, A, S, and D, Q and E for down and up, and Shift to go faster, keys that are
 fixed, not input actions.
 
+Pausing frees the mouse, and resuming restores the mouse mode from before the pause. The pause menu
+stays closed during the drive scene's briefing and result.
+
 `DriverView` is the driver's head in a car scene. With an OpenXR headset running, the headset turns
 the view; otherwise the mouse and the right stick turn a flat camera within a seated driver's
 range, and its `look_direction()` is the same in both modes.
+
+## Menus
+
+The game starts in the main menu (`scenes/main_menu/`), which offers Play, Options, and Quit. Play
+lists the scenarios of `scenarios/catalogue.tres` with each one's category, difficulty, time limit,
+and briefing. Choosing one opens the drive scene (`scenes/drive/`), which runs it on an
+`ExamRunner`, shows the briefing before the attempt and the result after it, and offers Retry, the
+scenario list, and the main menu. The drive scene reaches the attempt only through the
+`ExamSession` signals and commands, and changes no scenario or car scene.
+
+The pause menu (`autoload/pause_menu.gd`) pauses any scene whose root is not in the `no_pause`
+group: the scene tree stops, freezing the car, the traffic, and the exam clock, and a menu offers
+Resume, Options, and Main menu. The `menu` action opens and closes it; in VR that is the left
+controller's menu button, which `DriverView` turns into the action while driving and
+`VRControllerInput` while the tree is paused. It stays closed during the briefing and the result.
+
+Options apply game wide and are saved to `user://settings.cfg`. They set the volume of the Master,
+Music, and SFX buses, the player car's gearbox (automatic or manual, the `car/gearbox` setting, read
+when a car is spawned), the 3D resolution scale and multisample anti-aliasing of the root
+viewport, and, on a monitor, the window mode, resolution, and V-Sync. A sound follows the volume options when
+it plays on one of those buses.
+
+In a headset each menu is a panel in front of the player, used with a laser pointer on each
+controller and the trigger. The panel and the pointers are added under the scene's current
+`XROrigin3D`, so they follow the car, and are removed when the menu closes; pointers find panels by
+geometry, so they work while the tree is paused. In the main menu the monitor shows one eye of the
+headset, which Godot mirrors to the window on PC VR; while driving it shows the instructor's view
+(see Virtual reality). A standalone headset has no such window.
 
 ## Virtual reality
 
@@ -481,7 +512,7 @@ fault. Its `to_dict()` gives
 the same as plain data: the scenario, the outcome, each fault with its description, and each tier's
 count against the policy's limit.
 
-`scenarios/debug/scenario_sandbox.tscn`, the project's main scene, runs any catalogued scenario,
+`scenarios/debug/scenario_sandbox.tscn` runs any catalogued scenario,
 and any map in free drive, with the `DebugHud`, a flat
 overlay showing the briefing, the current step, the time against the limit, faults as they are
 committed, how other road users react, the frame and physics times with the traffic pipeline's

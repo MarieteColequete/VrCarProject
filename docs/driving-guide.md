@@ -46,7 +46,7 @@ one, so a button does the same job on each.
     <tr><td>Begin the attempt after the briefing</td><td><kbd>Enter</kbd></td><td>Y</td><td>Left Y</td><td>Y</td></tr>
     <tr><td>Restart the attempt</td><td><kbd>R</kbd></td><td>D-pad up</td><td>Flick the left stick up</td><td>D-pad up</td></tr>
     <tr><td>Next scenario, or in free drive the next map</td><td><kbd>N</kbd></td><td>D-pad down</td><td>Flick the left stick down</td><td>D-pad down</td></tr>
-    <tr><td>Menu (nothing opens yet)</td><td><kbd>Esc</kbd></td><td>Start (Menu)</td><td>Left menu button</td><td>Start (Menu)</td></tr>
+    <tr><td>Pause menu: open and close</td><td><kbd>Esc</kbd></td><td>Start (Menu)</td><td>Left menu button</td><td>Start (Menu)</td></tr>
     <tr><td>Show or hide the debug HUD</td><td><kbd>F1</kbd></td><td>Left stick click</td><td>Left stick click</td><td>Left stick button</td></tr>
     <tr><td>Free the mouse, recapture it</td><td><kbd>Backspace</kbd>, click</td><td></td><td></td><td></td></tr>
   </tbody>

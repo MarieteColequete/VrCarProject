@@ -109,6 +109,13 @@ func _ready() -> void:
 	set_active(active)
 
 
+## Gives the headset back to the window, where the menus render it, after a split
+## ([method _split_headset]).
+func _exit_tree() -> void:
+	if headset and is_instance_valid(headset):
+		get_viewport().use_xr = true
+
+
 func _on_instance_exiting() -> void:
 	get_tree().quit()
 
@@ -255,6 +262,9 @@ func pulse(strength: float, seconds: float) -> void:
 ## window stops listening to 3D sound, which the headset's camera hears.
 func _split_headset(xr: XRInterface) -> void:
 	var window := get_viewport()
+	# The window renders the instructor's view now; the menus' own XR on it comes back when the
+	# driver's view leaves ([method _exit_tree]).
+	window.use_xr = false
 	headset = SubViewport.new()
 	headset.name = "Headset"
 	headset.use_xr = true

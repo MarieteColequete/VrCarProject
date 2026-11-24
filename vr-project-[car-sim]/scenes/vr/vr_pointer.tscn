@@ -1,0 +1,55 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/vr/vr_pointer.gd" id="1_pointer"]
+
+[sub_resource type="StandardMaterial3D" id="hand_material"]
+albedo_color = Color(0.15, 0.17, 0.22, 1)
+roughness = 0.5
+
+[sub_resource type="BoxMesh" id="hand_mesh"]
+material = SubResource("hand_material")
+size = Vector3(0.035, 0.035, 0.11)
+
+[sub_resource type="StandardMaterial3D" id="laser_material"]
+render_priority = 11
+transparency = 1
+no_depth_test = true
+shading_mode = 0
+albedo_color = Color(0.45, 0.85, 1, 0.75)
+
+[sub_resource type="BoxMesh" id="laser_mesh"]
+material = SubResource("laser_material")
+size = Vector3(0.004, 0.004, 1)
+
+[sub_resource type="StandardMaterial3D" id="dot_material"]
+render_priority = 12
+transparency = 1
+no_depth_test = true
+shading_mode = 0
+albedo_color = Color(1, 0.85, 0.2, 1)
+
+[sub_resource type="SphereMesh" id="dot_mesh"]
+material = SubResource("dot_material")
+radius = 0.01
+height = 0.02
+radial_segments = 12
+rings = 6
+
+[node name="VRPointer" type="XRController3D"]
+tracker = &"right_hand"
+pose = &"aim"
+script = ExtResource("1_pointer")
+
+[node name="Hand" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.06)
+cast_shadow = 0
+mesh = SubResource("hand_mesh")
+
+[node name="Laser" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+mesh = SubResource("laser_mesh")
+
+[node name="Dot" type="MeshInstance3D" parent="."]
+visible = false
+cast_shadow = 0
+mesh = SubResource("dot_mesh")

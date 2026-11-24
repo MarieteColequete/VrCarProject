@@ -1,0 +1,261 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/menus/options_menu.gd" id="1_options"]
+[ext_resource type="Script" path="res://ui/components/option_stepper.gd" id="2_stepper"]
+
+[node name="OptionsMenu" type="PanelContainer"]
+custom_minimum_size = Vector2(1160, 0)
+offset_right = 1160.0
+offset_bottom = 560.0
+script = ExtResource("1_options")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="Header" type="Label" parent="VBox"]
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "Options"
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="VBox"]
+layout_mode = 2
+
+[node name="Columns" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 36
+
+[node name="AudioSection" type="VBoxContainer" parent="VBox/Columns"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 18
+
+[node name="AudioTitle" type="Label" parent="VBox/Columns/AudioSection"]
+layout_mode = 2
+theme_type_variation = &"SectionLabel"
+text = "Audio"
+
+[node name="MasterRow" type="HBoxContainer" parent="VBox/Columns/AudioSection"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Label" type="Label" parent="VBox/Columns/AudioSection/MasterRow"]
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+text = "Master"
+
+[node name="MasterSlider" type="HSlider" parent="VBox/Columns/AudioSection/MasterRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+step = 1.0
+value = 80.0
+
+[node name="MasterValue" type="Label" parent="VBox/Columns/AudioSection/MasterRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+text = "80%"
+horizontal_alignment = 2
+
+[node name="MusicRow" type="HBoxContainer" parent="VBox/Columns/AudioSection"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Label" type="Label" parent="VBox/Columns/AudioSection/MusicRow"]
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+text = "Music"
+
+[node name="MusicSlider" type="HSlider" parent="VBox/Columns/AudioSection/MusicRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+step = 1.0
+value = 80.0
+
+[node name="MusicValue" type="Label" parent="VBox/Columns/AudioSection/MusicRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+text = "80%"
+horizontal_alignment = 2
+
+[node name="SfxRow" type="HBoxContainer" parent="VBox/Columns/AudioSection"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Label" type="Label" parent="VBox/Columns/AudioSection/SfxRow"]
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+text = "Effects"
+
+[node name="SfxSlider" type="HSlider" parent="VBox/Columns/AudioSection/SfxRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+step = 1.0
+value = 80.0
+
+[node name="SfxValue" type="Label" parent="VBox/Columns/AudioSection/SfxRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+text = "80%"
+horizontal_alignment = 2
+
+[node name="DrivingTitle" type="Label" parent="VBox/Columns/AudioSection"]
+layout_mode = 2
+theme_type_variation = &"SectionLabel"
+text = "Driving"
+
+[node name="TransmissionRow" type="HBoxContainer" parent="VBox/Columns/AudioSection"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="VBox/Columns/AudioSection/TransmissionRow"]
+custom_minimum_size = Vector2(205, 0)
+layout_mode = 2
+tooltip_text = "Manual: you change gear yourself with the gear lever (Shift and Ctrl, RB and LB), through R, N, and the gears. Applies from the next drive."
+mouse_filter = 1
+text = "Transmission"
+
+[node name="TransmissionStepper" type="HBoxContainer" parent="VBox/Columns/AudioSection/TransmissionRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("2_stepper")
+wrap_around = true
+
+[node name="ColumnSeparator" type="VSeparator" parent="VBox/Columns"]
+modulate = Color(1, 1, 1, 0.5)
+layout_mode = 2
+
+[node name="VideoSection" type="VBoxContainer" parent="VBox/Columns"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="VideoTitle" type="Label" parent="VBox/Columns/VideoSection"]
+layout_mode = 2
+theme_type_variation = &"SectionLabel"
+text = "Video"
+
+[node name="DisplayRow" type="HBoxContainer" parent="VBox/Columns/VideoSection"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="VBox/Columns/VideoSection/DisplayRow"]
+custom_minimum_size = Vector2(205, 0)
+layout_mode = 2
+text = "Display"
+
+[node name="DisplayStepper" type="HBoxContainer" parent="VBox/Columns/VideoSection/DisplayRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("2_stepper")
+wrap_around = true
+
+[node name="ResolutionRow" type="HBoxContainer" parent="VBox/Columns/VideoSection"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="VBox/Columns/VideoSection/ResolutionRow"]
+custom_minimum_size = Vector2(205, 0)
+layout_mode = 2
+text = "Resolution"
+
+[node name="ResolutionStepper" type="HBoxContainer" parent="VBox/Columns/VideoSection/ResolutionRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("2_stepper")
+
+[node name="VSyncRow" type="HBoxContainer" parent="VBox/Columns/VideoSection"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="VBox/Columns/VideoSection/VSyncRow"]
+custom_minimum_size = Vector2(205, 0)
+layout_mode = 2
+text = "V-Sync"
+
+[node name="VSyncCheck" type="CheckBox" parent="VBox/Columns/VideoSection/VSyncRow"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+
+[node name="ScaleRow" type="HBoxContainer" parent="VBox/Columns/VideoSection"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="VBox/Columns/VideoSection/ScaleRow"]
+custom_minimum_size = Vector2(205, 0)
+layout_mode = 2
+tooltip_text = "Lower values render the 3D world at a lower resolution for better performance."
+mouse_filter = 1
+text = "3D Quality"
+
+[node name="ScaleStepper" type="HBoxContainer" parent="VBox/Columns/VideoSection/ScaleRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("2_stepper")
+
+[node name="MsaaRow" type="HBoxContainer" parent="VBox/Columns/VideoSection"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="VBox/Columns/VideoSection/MsaaRow"]
+custom_minimum_size = Vector2(205, 0)
+layout_mode = 2
+tooltip_text = "Smooths jagged edges. Higher values cost more performance."
+mouse_filter = 1
+text = "Anti-aliasing"
+
+[node name="MsaaStepper" type="HBoxContainer" parent="VBox/Columns/VideoSection/MsaaRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("2_stepper")
+
+[node name="VRNote" type="Label" parent="VBox/Columns/VideoSection"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.45, 0.55, 1)
+theme_override_font_sizes/font_size = 22
+text = "Window and V-Sync settings are controlled by your VR headset."
+autowrap_mode = 3
+
+[node name="HSeparator2" type="HSeparator" parent="VBox"]
+layout_mode = 2
+
+[node name="Footer" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 24
+alignment = 1
+
+[node name="DefaultsButton" type="Button" parent="VBox/Footer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 64)
+layout_mode = 2
+text = "Defaults"
+
+[node name="BackButton" type="Button" parent="VBox/Footer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 64)
+layout_mode = 2
+theme_type_variation = &"PrimaryButton"
+text = "Back"
