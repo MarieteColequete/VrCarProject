@@ -30,7 +30,7 @@ const RESOLUTIONS: Array[Vector2i] = [
 const RENDER_SCALES: Array[float] = [0.5, 0.67, 0.75, 0.85, 1.0]
 
 ## Anti-aliasing steps, as multisample levels of the root viewport.
-const MSAA_LEVELS: Array[int] = [
+const MSAA_LEVELS: Array[Viewport.MSAA] = [
 	Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X,
 ]
 const MSAA_NAMES: PackedStringArray = ["Off", "2x", "4x"]

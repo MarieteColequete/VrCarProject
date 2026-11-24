@@ -25,6 +25,9 @@ var _time := 0.0
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	# The sway moves the camera every drawn frame ([method _process]), so it is not interpolated
+	# between physics steps.
+	_desktop_camera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	_ui = MENU_UI.instantiate()
 	_ui.scenario_chosen.connect(_on_scenario_chosen)
 	_ui.quit_requested.connect(_on_quit_requested)
