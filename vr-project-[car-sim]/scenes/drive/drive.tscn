@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/drive/drive.gd" id="1_drive"]
+[ext_resource type="PackedScene" path="res://scenarios/scenes/exam_runner.tscn" id="2_runner"]
+
+[node name="Drive" type="Node"]
+script = ExtResource("1_drive")
+
+[node name="Runner" parent="." instance=ExtResource("2_runner")]
+scenario_scene = null
+autostart = false
