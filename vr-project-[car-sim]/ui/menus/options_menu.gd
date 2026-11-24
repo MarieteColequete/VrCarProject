@@ -1,6 +1,5 @@
 extends PanelContainer
-## Options panel: audio volumes, the transmission, 3D quality, and (on a monitor only) display
-## settings.
+## Options panel: audio volumes, 3D quality, and (on a monitor only) display settings.
 ## Changes apply immediately and are saved when the panel is closed.
 
 signal closed
@@ -25,7 +24,6 @@ var _resolutions: Array[Vector2i] = []
 @onready var _scale_stepper = %ScaleStepper
 @onready var _msaa_stepper = %MsaaStepper
 @onready var _vsync_check: CheckBox = %VSyncCheck
-@onready var _transmission_stepper = %TransmissionStepper
 
 
 func _ready() -> void:
@@ -39,14 +37,12 @@ func _ready() -> void:
 	_scale_stepper.set_items(scale_names)
 	_msaa_stepper.set_items(Settings.MSAA_NAMES)
 	_display_stepper.set_items(DISPLAY_MODES)
-	_transmission_stepper.set_items(Settings.TRANSMISSION_NAMES)
 
 	_display_stepper.item_selected.connect(_on_display_selected)
 	_resolution_stepper.item_selected.connect(_on_resolution_selected)
 	_scale_stepper.item_selected.connect(_on_scale_selected)
 	_msaa_stepper.item_selected.connect(Settings.set_msaa)
 	_vsync_check.toggled.connect(Settings.set_vsync)
-	_transmission_stepper.item_selected.connect(Settings.set_transmission)
 	%BackButton.pressed.connect(close)
 	%DefaultsButton.pressed.connect(_on_defaults_pressed)
 
@@ -94,7 +90,6 @@ func refresh() -> void:
 	_scale_stepper.select(_closest_scale_index(Settings.render_scale))
 	_msaa_stepper.select(Settings.msaa)
 	_vsync_check.set_pressed_no_signal(Settings.vsync)
-	_transmission_stepper.select(Settings.transmission)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -133,7 +128,7 @@ func _on_defaults_pressed() -> void:
 ## Sliders and steppers use left and right to change their value, so up and down (and Tab) walk
 ## through every option in one list, top to bottom, then the buttons.
 func _setup_focus_chain(include_display: bool) -> void:
-	var chain: Array[Control] = [%MasterSlider, %MusicSlider, %SfxSlider, _transmission_stepper]
+	var chain: Array[Control] = [%MasterSlider, %MusicSlider, %SfxSlider]
 	if include_display:
 		chain.append_array([_display_stepper, _resolution_stepper, _vsync_check])
 	chain.append_array([_scale_stepper, _msaa_stepper, %DefaultsButton, %BackButton])

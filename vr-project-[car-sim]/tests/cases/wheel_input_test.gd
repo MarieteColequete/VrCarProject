@@ -65,6 +65,56 @@ func _test_settings() -> void:
 	expect(is_equal_approx(defaults.rotation, 900.0) and defaults.throttle_axis == -1,
 		"without a file the rim is a 900 degree wheel, the car's own")
 
+	var g29 := {"vendor_id": "1133", "product_id": "49812"}
+	expect(defaults.pedal_settings("throttle", g29) == Vector3(1, 0, -1)
+		and defaults.pedal_settings("brake", g29) == Vector3(1, 0, 1),
+		"a G29 in PS3 mode reads both pedals from axis 1 with no file: throttle to -1, brake to 1")
+	expect(is_equal_approx(WheelInput.pedal(-1.0, 0.0, -1.0), 1.0)
+		and is_zero_approx(WheelInput.pedal(1.0, 0.0, -1.0)),
+		"on that combined axis the brake's half does not press the throttle")
+	var native := {"vendor_id": "1133", "product_id": "49743"}
+	expect(defaults.pedal_settings("throttle", native) == Vector3(1, 1, -1)
+		and defaults.pedal_settings("brake", native) == Vector3(2, 1, -1),
+		"a G29 in native mode reads the throttle on axis 1 and the brake on axis 2, resting at 1")
+	expect(defaults.paddle_of(4, native) == 1 and defaults.paddle_of(5, native) == -1
+		and defaults.paddle_of(0, native) == 0,
+		"a G29 in native mode shifts up with its right paddle (button 4), down with its left (5)")
+	var held := func(buttons: Array) -> Callable:
+		return func(button: int) -> bool: return buttons.has(button)
+	expect(defaults.shifter_position(held.call([14]), native) == "D"
+		and defaults.shifter_position(held.call([15]), native) == "P"
+		and defaults.shifter_position(held.call([18]), native) == "R",
+		"a G29's shifter in third is D, in fourth P, and in reverse R")
+	expect(defaults.shifter_position(held.call([]), native) == "N"
+		and defaults.shifter_position(held.call([12]), native) == "N",
+		"the shifter in neutral, or in a gear with no lever position, is N")
+	expect(defaults.shifter_position(held.call([14]), {"vendor_id": "1", "product_id": "2"}) == "",
+		"a joypad with no shifter set has no shifter position")
+	var shifter := WheelInput.new()
+	expect(shifter.shifter_step("N") == "", "a shifter first seen in neutral leaves the lever")
+	expect(shifter.shifter_step("D") == "D" and shifter.shifter_step("D") == "",
+		"moving the shifter puts the lever there once, not every step")
+	expect(shifter.shifter_step("N") == "N" and shifter.shifter_step("P") == "P",
+		"back through neutral to park puts the lever in N, then P")
+	expect(WheelInput.new().shifter_step("D") == "D",
+		"a shifter first seen in a set position puts the lever there at once")
+	expect(defaults.paddle_of(4, {"vendor_id": "1", "product_id": "2"}) == 0,
+		"a joypad with no profile leaves its paddles to the gamepad's shoulders")
+	expect(is_zero_approx(WheelInput.pedal_reading(0.0, 1.0, -1.0, false))
+		and is_equal_approx(WheelInput.pedal_reading(0.0, 1.0, -1.0, true), 0.5),
+		"a pedal resting at 1 reads released until its axis reports, then half pressed at 0")
+	expect(is_equal_approx(WheelInput.pedal_reading(-1.0, 0.0, -1.0, false), 1.0),
+		"a pedal resting at 0 needs no report to read")
+	expect(defaults.pedal_settings("throttle", {"vendor_id": "1", "product_id": "2"}).x == -1.0,
+		"a joypad with no profile leaves its pedals to the input actions")
+	config = ConfigFile.new()
+	config.set_value(WheelInput.SECTION, "throttle_axis", 2)
+	config.save(file_path)
+	var overridden := WheelInput.load_from(file_path)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(file_path))
+	expect(overridden.pedal_settings("throttle", g29) == Vector3(2, 0, -1),
+		"a setting in the file wins over the profile, which still gives the rest")
+
 
 func _test_on_car() -> void:
 	var before := DriverInput.wheel

@@ -48,7 +48,21 @@ limit, up to the car's lock. `user://controls.cfg`, section `wheel`, sets the re
 turn lock to lock in degrees, as the wheel's own software sets it; 900 by default, the car's own
 wheel's, which turns two and a half turns lock to lock as a road car's does), and for pedals on axes of their own `throttle_axis` and `brake_axis` with where each rests
 and is fully pressed (`throttle_rest`, `throttle_pressed`, and the same for the brake), so inverted
-and combined pedals read right. A wheel's force feedback is not driven; only rumble reaches a
+and combined pedals read right, `shift_up_button` and `shift_down_button` for paddles on buttons
+of their own, and `shifter_d_button`, `shifter_p_button` and `shifter_r_button` for a gear
+shifter. A wheel Godot sees as an unknown joypad has these set by a profile in
+`WheelInput.PROFILES` for any setting the file leaves out. Its paddles then move the lever as a
+gamepad's shoulders do, the down paddle held parking, and its shifter puts the automatic's lever
+where the shifter is when it moves: D, P or R in their set positions and N in any other, while a
+shifter resting in neutral when a drive starts leaves the car as the scenario starts it. A
+Logitech G29 is set for its native mode, which Logitech G HUB switches it to (the throttle on
+axis 1 and the brake on axis 2, each resting at 1 and fully pressed at -1, the right paddle on
+button 4 and the left on button 5, the shifter's third gear as D, fourth as P and reverse as R,
+and the rim turning 900 degrees as G HUB's default operating range), and for its PS3
+compatibility mode without G HUB (both pedals on axis 1, the throttle towards -1 and the brake
+towards 1, no paddles, and a rim range much shorter than its turn, so G HUB should be running). A
+pedal resting anywhere but 0 reads released until its axis first reports, as Godot gives a wheel's
+axes as 0 before its first report. A wheel's force feedback is not driven; only rumble reaches a
 joypad.
 
 With the Dev HUD on (see Maps), F3 to F9 drive its tools, as input actions; its free camera flies
@@ -78,9 +92,8 @@ controller's menu button, which `DriverView` turns into the action while driving
 `VRControllerInput` while the tree is paused. It stays closed during the briefing and the result.
 
 Options apply game wide and are saved to `user://settings.cfg`. They set the volume of the Master,
-Music, and SFX buses, the player car's gearbox (automatic or manual, the `car/gearbox` setting, read
-when a car is spawned), the 3D resolution scale and multisample anti-aliasing of the root
-viewport, and, on a monitor, the window mode, resolution, and V-Sync. A sound follows the volume options when
+Music, and SFX buses, the 3D resolution scale and multisample anti-aliasing of the root viewport,
+and, on a monitor, the window mode, resolution, and V-Sync. A sound follows the volume options when
 it plays on one of those buses.
 
 In a headset each menu is a panel in front of the player, used with a laser pointer on each

@@ -111,29 +111,6 @@ layout_mode = 2
 text = "80%"
 horizontal_alignment = 2
 
-[node name="DrivingTitle" type="Label" parent="VBox/Columns/AudioSection"]
-layout_mode = 2
-theme_type_variation = &"SectionLabel"
-text = "Driving"
-
-[node name="TransmissionRow" type="HBoxContainer" parent="VBox/Columns/AudioSection"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="Label" type="Label" parent="VBox/Columns/AudioSection/TransmissionRow"]
-custom_minimum_size = Vector2(205, 0)
-layout_mode = 2
-tooltip_text = "Manual: you change gear yourself with the gear lever (Shift and Ctrl, RB and LB), through R, N, and the gears. Applies from the next drive."
-mouse_filter = 1
-text = "Transmission"
-
-[node name="TransmissionStepper" type="HBoxContainer" parent="VBox/Columns/AudioSection/TransmissionRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-script = ExtResource("2_stepper")
-wrap_around = true
-
 [node name="ColumnSeparator" type="VSeparator" parent="VBox/Columns"]
 modulate = Color(1, 1, 1, 0.5)
 layout_mode = 2
