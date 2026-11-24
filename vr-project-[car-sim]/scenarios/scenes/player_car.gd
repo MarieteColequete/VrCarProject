@@ -367,7 +367,7 @@ func _show(delta: float) -> void:
 		var tyres := CarSound.tyre_voices(_packed, dynamics.ratio, dynamics.angle, dynamics.force,
 			grounded, _patch_speed, on_loose)
 		sound.follow(signals.rpm, signals.throttle_position, signals.shifting, blinking and lit,
-			tyres, tread, signals.engine_state, signals.abs_active, delta)
+			tyres, tread, signals.engine_state, signals.abs_active, delta, signals.start_refused)
 	if instruments:
 		var parked := probe.handbrake == VehicleProbe.Toggle.ON
 		instruments.dash.step(delta, signals.engine_state, signals.rpm, signals.throttle_position,

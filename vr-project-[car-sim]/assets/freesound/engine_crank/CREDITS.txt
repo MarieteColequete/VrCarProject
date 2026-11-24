@@ -1,0 +1,18 @@
+engine_fail_long.wav, engine_fail_short.wav: "Car Ignition" by iainmccurdy, from Freesound,
+https://freesound.org/people/iainmccurdy/sounds/433772/
+
+Licensed under Creative Commons Attribution 4.0 International (CC BY 4.0):
+https://creativecommons.org/licenses/by/4.0/
+
+engine_start.wav: "Car Ignition Key - Engine Starting Running Idle 2.wav" by RutgerMuller, from
+Freesound, https://freesound.org/people/RutgerMuller/sounds/50898/
+
+Licensed under Creative Commons CC0 1.0 Universal (public domain):
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Changes: source/ holds Freesound's high-quality OGG preview of each recording, as downloaded.
+engine_start.wav is the first 1.6 s of RutgerMuller's recording, a whole start, in mono, faded out
+over its last 0.3 s and brought to a peak of 0.95. engine_fail_long.wav is 5.8 to 7.0 s of
+iainmccurdy's, and engine_fail_short.wav 12.45 to 13.3 s, two attempts that do not catch, in
+mono, faded out over their last 0.2 s and leveled to engine_start.wav's cranking. None is pitched
+or otherwise changed. All are cut by tools/car_recordings.gd.

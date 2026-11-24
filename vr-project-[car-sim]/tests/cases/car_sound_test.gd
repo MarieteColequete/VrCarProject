@@ -2,7 +2,8 @@ extends TestCase
 ## The car's sounds ([CarSound]): the recordings in place, the engine's loops crossfading and
 ## pitching with the revolutions, the tyres rolling louder with speed, their three voices (scrub,
 ## squeal, skid) each from its own slip and quiet in ordinary driving, the indicator ticking with
-## its blink, and the car playing them as it drives.
+## its blink, the engine turned over while the starter turns it, its catching as it starts, and the
+## key's click when the starter is refused; and the car playing them as it drives.
 
 
 
@@ -10,6 +11,7 @@ func run() -> void:
 	_test_mix()
 	_test_voices()
 	_test_streams()
+	await _test_starter()
 	await _test_on_car()
 	await _test_drives()
 
@@ -103,6 +105,50 @@ func _test_streams() -> void:
 			% [seam, step])
 
 
+func _test_starter() -> void:
+	const OFF := CarDynamics.EngineState.OFF
+	const CRANKING := CarDynamics.EngineState.CRANKING
+	const RUNNING := CarDynamics.EngineState.RUNNING
+	var sound := CarSound.new()
+	root.add_child(sound)
+	var quiet := {}
+	sound.follow(0.0, 0.0, false, false, quiet, 0.0, OFF)
+	expect(not sound.starter.playing and not sound.failing.playing,
+		"with the engine off, the starter is silent")
+	for i in 30:
+		sound.follow(250.0, 0.0, false, false, quiet, 0.0, CRANKING)
+	expect(sound.starter.playing and is_equal_approx(sound.starter.volume_db, CarSound.STARTER_DB)
+		and is_equal_approx(sound.starter.pitch_scale, 1.0)
+		and sound.engine_low.volume_db <= -80.0 and sound.engine_high.volume_db <= -80.0,
+		"the starter plays the start as recorded, the running loops silent")
+	var idle := CarSound.engine_mix(800.0, 0.0)
+	sound.follow(800.0, 0.0, false, false, quiet, 0.0, RUNNING)
+	expect(sound.starter.playing and is_equal_approx(sound.starter.volume_db, CarSound.STARTER_DB)
+		and sound.caught > 0.9 and sound.engine_low.volume_db < idle.low_db - 10.0,
+		"as it catches, the start plays on, the running loops held under it")
+	for i in 90:
+		sound.follow(800.0, 0.0, false, false, quiet, 0.0, RUNNING)
+	expect(sound.caught < 0.02 and absf(sound.engine_low.volume_db - idle.low_db) < 0.5
+		and not sound.failing.playing,
+		"and settles to idle within a second and a half")
+	sound.follow(0.0, 0.0, false, false, quiet, 0.0, OFF, false, 1.0 / 60.0, true)
+	expect(sound.key_click.playing and not sound.failing.playing,
+		"a refused start is a click of the key, no attempt")
+	for held: int in [12, 45]:
+		for i in held:
+			sound.follow(250.0, 0.0, false, false, quiet, 0.0, CRANKING)
+		sound.follow(0.0, 0.0, false, false, quiet, 0.0, OFF)
+		var fail := CarSound.ENGINE_FAIL_LONG if held * 1.0 / 60.0 >= CarSound.FAIL_LONG_AFTER \
+			else CarSound.ENGINE_FAIL_SHORT
+		expect(sound.failing.playing and sound.failing.stream.resource_path == fail,
+			"let go after %.1f s, an attempt that fails plays: %s" % [held / 60.0, fail.get_file()])
+		for i in 20:
+			sound.follow(0.0, 0.0, false, false, quiet, 0.0, OFF)
+		expect(not sound.starter.playing, "and the start dies away")
+	sound.queue_free()
+	await process_frame
+
+
 func _test_on_car() -> void:
 	var ground_body := ground()
 	var car: Node3D = spawn_car()
@@ -111,6 +157,8 @@ func _test_on_car() -> void:
 	expect(sound != null and sound.engine_low.playing and sound.engine_high.playing,
 		"the engine runs")
 	expect(sound.engine_low.stream.resource_path == CarSound.ENGINE_IDLE
+		and sound.starter.stream.resource_path == CarSound.ENGINE_START
+		and sound.failing.stream.resource_path == CarSound.ENGINE_FAIL_LONG
 		and sound.roll.stream.resource_path == CarSound.ROAD
 		and sound.tick.stream.resource_path == CarSound.TICK_ON
 		and sound.scrub.stream.resource_path == CarSound.SCRUB_ROAD
@@ -123,6 +171,11 @@ func _test_on_car() -> void:
 		var wav := player.stream as AudioStreamWAV
 		expect(wav != null and wav.loop_mode == AudioStreamWAV.LOOP_FORWARD
 			and wav.get_length() >= 4.9, "%s loops over %.1f s" % [player.name, wav.get_length()])
+	for path: String in [CarSound.ENGINE_START, CarSound.ENGINE_FAIL_LONG,
+			CarSound.ENGINE_FAIL_SHORT]:
+		var once := load(path) as AudioStreamWAV
+		expect(once != null and once.loop_mode == AudioStreamWAV.LOOP_DISABLED,
+			"%s plays once" % path.get_file())
 	expect(AudioServer.get_bus_index(CarSound.BUS) != -1 and sound.engine_low.bus == CarSound.BUS,
 		"on the car's audio bus")
 	car.held_controls = {throttle = 1.0, select = "D"}

@@ -391,7 +391,12 @@ a glance with the eyes counts as well as a turn of the head; a car without mirro
 on the head's turn.
 
 The car sounds from its cabin (`CarSound`), on an audio bus of its own, `Car`. The engine pitches
-and swells with the revolutions and the throttle and dips as a gear changes, the indicator ticks as
+and swells with the revolutions and the throttle and dips as a gear changes. Starting it plays one
+recording of a whole start, as recorded: the key, the starter, and the engine catching near the
+end of the second the key is held and settling toward idle, the running sound coming in under it.
+Let go before it catches, the start dies away into a recording of an attempt that fails, a short
+one or a long one by how long the key was held; and a start refused in gear is a dry click of the
+key. The indicator ticks as
 it blinks, the tyres rumble on the road louder with speed, and a tyre thumps when it meets a kerb. The tyres
 have three voices, each driven by its own slip and smoothed so one step's spike passes unheard
 (`CarSound.tyre_voices`): a soft scrub that grows as they work toward their grip, there through
@@ -411,7 +416,11 @@ by MPierluissi; the tyres on asphalt, [Car rolling on asphalt](https://freesound
 by orlandorizo; and the loose ground's, a [truck on a dirt road](https://freesound.org/people/kyles/sounds/637192/)
 by kyles, a [tyre on gravel](https://freesound.org/people/TRP/sounds/577504/) by TRP, and
 [tyres on a gravel shoulder](https://freesound.org/people/UnplugTheFridge/sounds/529225/) by
-UnplugTheFridge. The rest is made by the game when the car is built, and so is each recording's
+UnplugTheFridge; and the engine's start, [Car Ignition Key - Engine Starting Running Idle 2](https://freesound.org/people/RutgerMuller/sounds/50898/)
+by RutgerMuller. The attempts that fail are cut from
+[Car Ignition](https://freesound.org/people/iainmccurdy/sounds/433772/) by iainmccurdy, licensed
+under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), so they are credited wherever the
+game is. The rest is made by the game when the car is built, and so is each recording's
 stand-in when its file is missing: the engine's fast loop is a four-cylinder's firing pulses and
 their harmonics, crossfaded with the idle as the revolutions rise, the squeal is noise rung
 through a few of the tread's resonances, so it rasps like rubber rather than whistling, and the

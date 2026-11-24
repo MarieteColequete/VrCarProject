@@ -1,6 +1,7 @@
 class_name CarSound
 extends Node3D
-## The car's sounds, heard in the cabin: the engine, the indicator's tick, the tyres rolling on the
+## The car's sounds, heard in the cabin: the engine, started with its key or failing to, the
+## key's dry click when the starter is refused, the indicator's tick, the tyres rolling on the
 ## road, and the tyres' three voices ([method tyre_voices]): a scrub that grows as they work
 ## toward their grip, a squeal when they slide sideways past it, and a skid, lower and rougher,
 ## when they lock or spin, pulsing while the anti-lock brakes work; and a thump when a tyre meets a
@@ -8,7 +9,8 @@ extends Node3D
 ## its tyres' roar; on the loose ground (grass and dirt) the rolling is a car on a dirt road, the
 ## scrub tyres crunching gravel, and any slide, sideways or locked, gravel spraying, never a
 ## squeal. The two crossfade by the share of wheels on each. The engine at
-## idle, the road and the indicator's relay are recordings (assets/freesound/, CC0), each with a
+## idle, its start and its failed starts, the road and the indicator's relay are recordings
+## (assets/freesound/, CC0 but for the failed starts, CC BY 4.0), each with a
 ## sound made by code ([SoundSynth]) in its place when its file is missing; the rest is made by
 ## code, once for every car. The engine is two loops, one slow and one fast, crossfaded and
 ## pitched with the revolutions, louder on the throttle; the fast one is made by code, a
@@ -18,6 +20,9 @@ extends Node3D
 const BUS := &"Car"
 ## The recordings, each cut by tools/car_recordings.gd to the loudness of the sound it replaces.
 const ENGINE_IDLE := "res://assets/freesound/engine_idle/engine_idle.wav"
+const ENGINE_START := "res://assets/freesound/engine_crank/engine_start.wav"
+const ENGINE_FAIL_LONG := "res://assets/freesound/engine_crank/engine_fail_long.wav"
+const ENGINE_FAIL_SHORT := "res://assets/freesound/engine_crank/engine_fail_short.wav"
 const ROAD := "res://assets/freesound/road_interior/road_interior.wav"
 const ROAD_LOOSE := "res://assets/freesound/road_dirt/road_dirt.wav"
 const SCRUB_ROAD := "res://assets/freesound/tyres_asphalt/tyres_asphalt.wav"
@@ -33,8 +38,19 @@ const HIGH_RPM := 4000.0
 const ENGINE_COAST_DB := -14.0
 const ENGINE_FULL_DB := -4.0
 const SHIFT_DIP_DB := -6.0
-## How much quieter the engine is while the starter turns it over, dB.
-const CRANK_DB := -12.0
+## A start is one recording, played whole and as recorded, never pitched: the key, the starter
+## turning the engine over, and the engine firing near the end of the car's crank time
+## ([member CarSpec.crank_time]), flaring and settling toward idle. It begins as the starter
+## does; the running loops stay silent until the engine catches and come in under the rest of it
+## from [constant CATCH_DUCK_DB] quieter over [constant CATCH_TIME] seconds. Let go before the
+## engine catches, the start dies away over [constant STARTER_RELEASE] seconds and a failed
+## attempt plays from its starter's bite: the short one before [constant FAIL_LONG_AFTER] seconds
+## of cranking, the long one after. All play at [constant STARTER_DB].
+const STARTER_DB := 0.0
+const STARTER_RELEASE := 0.06
+const FAIL_LONG_AFTER := 0.5
+const CATCH_DUCK_DB := -18.0
+const CATCH_TIME := 0.3
 ## The tyres' voices, each a share from 0 to 1 of the slip that drives it, measured in scripted
 ## drives (Research/car-audio/README.md). The scrub follows the combined slip
 ## ([method TyreModel.usage]) from [constant SCRUB_FROM] to [constant SCRUB_FULL]. The squeal
@@ -102,6 +118,17 @@ var scrub_loose: AudioStreamPlayer3D
 var slide_loose: AudioStreamPlayer3D
 var tick: AudioStreamPlayer3D
 var thump: AudioStreamPlayer3D
+## The start, and a failed attempt, each played once.
+var starter: AudioStreamPlayer3D
+var failing: AudioStreamPlayer3D
+## The key's click when the starter is refused.
+var key_click: AudioStreamPlayer3D
+## The start's level as heard, 0 to 1, dying away when the key is let go before the engine
+## catches; how far the running loops are still held under the start, 1 as the engine catches,
+## dying to 0; and the seconds the starter has turned the engine over.
+var starting := 0.0
+var caught := 0.0
+var cranked := 0.0
 
 ## How many times the indicator has ticked, on and off.
 var ticks := 0
@@ -116,6 +143,9 @@ var _lit := false
 var _clock := 0.0
 ## The anti-lock brakes' smoothed activity, 0 to 1.
 var abs_activity := 0.0
+var _engine_was := CarDynamics.EngineState.RUNNING
+var _fail_long: AudioStream
+var _fail_short: AudioStream
 
 
 ## The sounds made by code, by name ([method _made]).
@@ -140,9 +170,18 @@ func _init() -> void:
 	_tick_off = _recording(TICK_OFF, SoundSynth.click.bind(1700.0, 0.010))
 	tick = _player("Tick", _tick_on)
 	thump = _player("Thump", _made(&"knock", SoundSynth.knock))
+	starter = _player("Starter", _recording(ENGINE_START, SoundSynth.knock))
+	_fail_long = _recording(ENGINE_FAIL_LONG, SoundSynth.knock)
+	_fail_short = _recording(ENGINE_FAIL_SHORT, SoundSynth.knock)
+	failing = _player("Failing", _fail_long)
+	key_click = _player("KeyClick", _made(&"key_click", SoundSynth.click.bind(900.0, 0.018)))
 	# The indicator relay sits behind the dashboard, the engine ahead of it.
 	engine_low.position = Vector3(0.0, 0.6, -1.6)
 	engine_high.position = engine_low.position
+	starter.position = engine_low.position
+	failing.position = engine_low.position
+	# The key is on the steering column, by the driver's right knee.
+	key_click.position = Vector3(0.25, 0.7, -0.45)
 	tick.position = Vector3(-0.3, 0.9, -0.5)
 	# The tyres are below and around the driver.
 	for player: AudioStreamPlayer3D in _tyre_players():
@@ -165,18 +204,49 @@ func _tyre_players() -> Array[AudioStreamPlayer3D]:
 ## while [param shifting]; the indicator ticking as [param blink_lit] turns on and off; the tyres
 ## rolling at [param speed] metres per second with the voices [param tyres] asks, on the share of
 ## loose ground it gives ([method tyre_voices]), the skid pulsing while [param abs_working], each smoothed over
-## [param delta] seconds. The [param engine] ([enum CarDynamics.EngineState]) off is silent, and
-## turned over by the starter it chugs low and quiet.
+## [param delta] seconds. The [param engine] ([enum CarDynamics.EngineState]) off is silent;
+## started by the starter it plays the start, the running loops coming in under it as it catches,
+## and let go before then a failed attempt ([constant STARTER_DB]). The key clicks on the step the
+## starter is [param start_refused].
 func follow(rpm: float, throttle: float, shifting: bool, blink_lit: bool, tyres: Dictionary,
 		speed: float, engine := CarDynamics.EngineState.RUNNING, abs_working := false,
-		delta := 1.0 / 60.0) -> void:
+		delta := 1.0 / 60.0, start_refused := false) -> void:
+	const CRANKING := CarDynamics.EngineState.CRANKING
+	const RUNNING := CarDynamics.EngineState.RUNNING
+	if engine == CRANKING and _engine_was != CRANKING:
+		starting = 1.0
+		cranked = 0.0
+		failing.stop()
+		starter.volume_db = STARTER_DB
+		starter.play()
+	elif _engine_was == CRANKING and engine == RUNNING:
+		caught = 1.0
+	elif _engine_was == CRANKING and engine != CRANKING:
+		# Just under 1, so it dies away from here.
+		starting = 0.99
+		failing.stream = _fail_long if cranked >= FAIL_LONG_AFTER else _fail_short
+		failing.volume_db = STARTER_DB
+		failing.play()
+	if engine == CRANKING:
+		cranked += delta
+	elif engine != RUNNING:
+		caught = 0.0
+	_engine_was = engine
+	if starting < 1.0:
+		starting = Damped.follow(starting, 0.0, delta, STARTER_RELEASE)
+		if starting < 0.01:
+			starter.stop()
+		starter.volume_db = STARTER_DB + _db(starting)
+	caught = Damped.follow(caught, 0.0, delta, CATCH_TIME)
+	if start_refused:
+		key_click.play()
 	var mix := engine_mix(rpm, throttle)
-	var dip := SHIFT_DIP_DB if shifting else 0.0
+	var dip := (SHIFT_DIP_DB if shifting else 0.0) + CATCH_DUCK_DB * caught
 	match engine:
 		CarDynamics.EngineState.OFF:
 			dip = -80.0
 		CarDynamics.EngineState.CRANKING:
-			dip = CRANK_DB
+			dip = -80.0
 	engine_low.volume_db = mix.low_db + dip
 	engine_high.volume_db = mix.high_db + dip
 	engine_low.pitch_scale = mix.low_pitch
