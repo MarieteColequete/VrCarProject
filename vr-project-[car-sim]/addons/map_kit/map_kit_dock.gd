@@ -7,8 +7,8 @@ extends EditorDock
 ## delete one (also from its right-click menu).
 ## [br]- Problems: the open map's problems, kept current as it is edited, each with its fix where
 ## one is known; selecting one selects its node.
-## [br]- Selection: set meshes as road, give them a solid body, link lanes, snap to the grid, add
-## terrain, and drape roads and places on it.
+## [br]- Selection: set meshes as road, give them a solid body, make loose models map assets, link
+## lanes, snap to the grid, add terrain, and drape roads and places on it.
 ## [br]- Terrain shape: shown while one [TerrainShape] is selected; its kind, height, size and
 ## falloff with sliders (a drag is one undo action), and standing its base on the land.
 ## [br]- Road users: the selected cars made road users driving along the lanes to a checkpoint.
@@ -312,6 +312,10 @@ func _build_selection(column: VBoxContainer) -> void:
 	flow.add_child(_button("Set as obstacle", _set_as_obstacle,
 		"Gives the selected nodes a solid box on the obstacle layer: the car hits them, road "
 		+ "users see them, and touching them is a fault."))
+	flow.add_child(_button("Make map assets", _make_map_assets,
+		"Makes the loose models dragged in from the FileSystem dock (the selected ones, or the "
+		+ "whole map's) into map assets that look the same, solid as their category says, and "
+		+ "with Next look."))
 	flow.add_child(_button("Connect lanes", _connect_lanes,
 		"Links each lane to the lanes starting where it ends: the selected ones, or all the "
 		+ "map's."))
@@ -711,6 +715,18 @@ func _set_as_obstacle() -> void:
 		_say("Gave %d nodes a solid body." % edit.adds.size())
 	else:
 		_say("Select meshes without a solid body.")
+
+
+func _make_map_assets() -> void:
+	var road_map := _need_map()
+	if road_map == null:
+		return
+	var chosen := _selected()
+	var edit := AssetTools.make_map_assets(chosen if not chosen.is_empty() else [road_map])
+	if plugin.apply(edit, "Make map assets"):
+		_say("Made %d loose models into map assets." % edit.adds.size())
+	else:
+		_say("No loose models to make into map assets.")
 
 
 func _connect_lanes() -> void:

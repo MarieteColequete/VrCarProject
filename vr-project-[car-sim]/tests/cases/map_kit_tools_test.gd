@@ -1,7 +1,8 @@
 extends TestCase
 ## The Map Kit's helpers: creating, renaming, duplicating, and deleting maps, the palette,
-## linking lanes, road ends, extending roads, generating a whole map, solid bodies, snapping, and a
-## map's problems and their fixes.
+## linking lanes, road ends, extending roads, generating a whole map, solid bodies, loose models
+## made into map assets, solid things in road users' way, snapping, and a map's problems and their
+## fixes.
 
 const ROOT := "user://map_kit_test/"
 
@@ -11,6 +12,8 @@ func run() -> void:
 	_test_palette()
 	_test_lane_links()
 	_test_obstacle_body()
+	_test_loose_models()
+	_test_in_the_way()
 	_test_problems()
 	_test_map_files()
 	_test_road_ends()
@@ -65,9 +68,12 @@ func _test_palette() -> void:
 			problems.append("%s is not in sentence case" % piece.label)
 		if piece.icon.is_empty() or piece.tip.is_empty():
 			problems.append("%s has no icon or tooltip" % piece.label)
+	# Every piece stands at the origin, where the palette's own lanes run, so solid pieces are in
+	# their way there.
 	for problem in MapProblems.problems(road_map):
 		if problem.node is TrafficLight or problem.node is TrafficSource \
-				or problem.severity == MapProblems.NOTICE or problem.fix != null:
+				or problem.severity == MapProblems.NOTICE or problem.fix != null \
+				or problem.message.contains("in the way"):
 			continue
 		problems.append("%s: %s" % [problem.node.name, problem.message])
 	expect(problems.is_empty(), "every palette piece builds, ready to use %s" % [problems])
@@ -143,6 +149,105 @@ func _test_obstacle_body() -> void:
 	if body:
 		body.free()
 	holder.free()
+
+
+func _test_loose_models() -> void:
+	var road_map := RoadMap.new()
+	var group := Node3D.new()
+	group.name = "Props"
+	road_map.add_child(group)
+	var house_path := KitModels.building(0)
+	var tree_path := KitModels.suburban("tree-large")
+	var house := (load(house_path) as PackedScene).instantiate() as Node3D
+	house.name = "House"
+	house.transform = Transform3D(Basis(Vector3.UP, 0.7).scaled(Vector3.ONE * 2.5), Vector3(12, 0, -5))
+	group.add_child(house)
+	var tree := (load(tree_path) as PackedScene).instantiate() as Node3D
+	tree.name = "Tree"
+	tree.transform = Transform3D(Basis.from_scale(Vector3(3, 5, 3)), Vector3(-8, 0, 4))
+	group.add_child(tree)
+	var empty := MeshInstance3D.new()
+	empty.name = "Empty"
+	group.add_child(empty)
+	root.add_child(road_map)
+	var models: Array[Node3D] = [house, tree]
+	expect(AssetTools.loose_models([road_map]) == models,
+		"the loose models are found, their own parts left out")
+	var found := MapProblems.problems(road_map)
+	var loose := found.filter(func(p: Dictionary) -> bool: return p.fix_label == "Make map asset")
+	var nothing := found.filter(func(p: Dictionary) -> bool: return p.node == empty)
+	expect(loose.size() == 2 and nothing.size() == 1 and nothing[0].severity == MapProblems.NOTICE
+		and nothing[0].fix_label == "Delete",
+		"each loose model is a problem with its fix, and an empty mesh a notice to delete")
+	var was := {house = house.transform, tree = tree.transform}
+	var edit := AssetTools.make_map_assets([road_map])
+	edit.apply(road_map)
+	var made_house := group.get_node_or_null("House") as MapAsset
+	var made_tree := group.get_node_or_null("Tree") as MapAsset
+	expect(made_house != null and made_tree != null and made_house.model == house_path
+		and made_tree.model == tree_path, "each becomes a map asset of its model, keeping its name")
+	if made_house and made_tree:
+		for pair: Array in [[made_house, was.house], [made_tree, was.tree]]:
+			var asset: MapAsset = pair[0]
+			var drawn := asset.transform * Transform3D(Basis.from_scale(asset.model_scale()),
+				Vector3.ZERO) * KitModels.fitting(asset.model)
+			expect(drawn.is_equal_approx(pair[1]),
+				"%s is drawn where, as turned, and as big as it was" % asset.name)
+		# The pack's own scale is in the fitting, so the asset's scale is the model's over it.
+		var house_pack := KitModels.fitting(house_path).basis.get_scale().x
+		var tree_pack := KitModels.fitting(tree_path).basis.get_scale().x
+		expect(made_house.fit == Vector3.ZERO
+			and is_equal_approx(made_house.extra_scale, 2.5 / house_pack)
+			and made_tree.fit.is_equal_approx(Vector3(3, 5, 3) / tree_pack
+				* KitModels.size_of(tree_path)),
+			"an even scale stays a scale, an uneven one a fit")
+		expect(not made_house.bodies().is_empty(),
+			"and it is solid as its category says, so the car hits it")
+	found = MapProblems.problems(road_map)
+	expect(not found.any(func(p: Dictionary) -> bool: return p.fix_label == "Make map asset"),
+		"no loose model is left")
+	(found.filter(func(p: Dictionary) -> bool: return p.node == empty)[0].fix as Callable) \
+		.call().apply(road_map)
+	expect(not is_instance_valid(empty), "the empty mesh's fix deletes it")
+	road_map.free()
+
+
+func _test_in_the_way() -> void:
+	var road_map := RoadMap.new()
+	var lane := TrafficLane.new()
+	lane.name = "Lane"
+	lane.curve = MapKitTools.straight_from(40.0)
+	road_map.add_child(lane)
+	var entry := catalogue_entry("cone")
+	var on_lane := AssetCatalogue.make(entry)
+	on_lane.name = "OnLane"
+	on_lane.position = Vector3(0.6, 0, -20)
+	var past_end := AssetCatalogue.make(entry)
+	past_end.name = "PastEnd"
+	past_end.position = Vector3(0, 0, -41.5)
+	var beside := AssetCatalogue.make(entry)
+	beside.name = "Beside"
+	beside.position = Vector3(2.5, 0, -10)
+	var looks := AssetCatalogue.make(entry)
+	looks.name = "Looks"
+	looks.position = Vector3(0, 0, -30)
+	looks.body_type = null
+	for asset in [on_lane, past_end, beside, looks]:
+		road_map.add_child(asset)
+	root.add_child(road_map)
+	var in_way := MapProblems.problems(road_map).filter(func(p: Dictionary) -> bool:
+		return p.message.contains("in the way"))
+	var named := in_way.map(func(p: Dictionary) -> String: return p.node.name)
+	expect(named == ["OnLane", "PastEnd"] and in_way.all(func(p: Dictionary) -> bool:
+			return p.message.contains("Lane") and p.fix_label == "Make look only"),
+		"a solid model on a lane or just past its end is in road users' way, one beside it or "
+		+ "looks only is not: %s" % [named])
+	if not in_way.is_empty():
+		(in_way[0].fix as Callable).call().apply(road_map)
+	on_lane.rebuild()
+	expect(on_lane.body_type == null and on_lane.bodies().is_empty(),
+		"the fix makes it looks only, so road users pass")
+	road_map.free()
 
 
 func _test_problems() -> void:

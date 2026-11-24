@@ -1,14 +1,14 @@
 [gd_scene format=3 uid="uid://bolvgll5tkhkd"]
 
-[ext_resource type="PackedScene" uid="uid://db3ljqytc25mh" path="res://assets/kenney/city_kit_suburban/tree-large.glb" id="3_cnfek"]
-[ext_resource type="Script" uid="uid://ya4qbr4a3pfd" path="res://scenarios/map/road_sign.gd" id="3_mgsyj"]
-[ext_resource type="Script" uid="uid://c3vscrj4ijk8m" path="res://scenarios/map/terrain.gd" id="7_mgsyj"]
-[ext_resource type="Script" uid="uid://fumw7s4qiy7q" path="res://scenarios/map/terrain_shape.gd" id="8_dgjav"]
-[ext_resource type="Script" uid="uid://gvavp4nn6bfy" path="res://scenarios/traffic/scripted_agent.gd" id="agent"]
+[ext_resource type="Script" path="res://scenarios/map/road_sign.gd" id="3_mgsyj"]
+[ext_resource type="Script" path="res://scenarios/map/map_asset.gd" id="4_mgsyj"]
+[ext_resource type="Script" path="res://scenarios/map/terrain.gd" id="7_mgsyj"]
+[ext_resource type="Script" path="res://scenarios/map/terrain_shape.gd" id="8_dgjav"]
+[ext_resource type="Script" path="res://scenarios/traffic/scripted_agent.gd" id="agent"]
 [ext_resource type="Material" path="res://scenarios/kit/asphalt.tres" id="asphalt"]
 [ext_resource type="Material" path="res://scenarios/kit/grass.tres" id="grass"]
 [ext_resource type="PackedScene" path="res://scenarios/kit/map_base.tscn" id="map_base"]
-[ext_resource type="Script" uid="uid://cn1xe8vcfx6uc" path="res://scenarios/road/road_marking.gd" id="marking"]
+[ext_resource type="Script" path="res://scenarios/road/road_marking.gd" id="marking"]
 
 [sub_resource type="Curve3D" id="Curve_SouthCentre"]
 _data = {
@@ -291,29 +291,53 @@ transform = Transform3D(1.1924881e-08, 0, -1, 0, 1, 0, 1, 0, 1.1924881e-08, -15.
 script = ExtResource("3_mgsyj")
 kind = 1
 
-[node name="tree-large2" parent="Props" index="0" unique_id=49238585 instance=ExtResource("3_cnfek")]
-transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, -0.23252296, 0, -0.014847279)
+[node name="tree-large2" type="Node3D" parent="Props" index="0" unique_id=407014411]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.23252296, 0, -0.014847279)
+script = ExtResource("4_mgsyj")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
 
-[node name="tree-large3" parent="Props" index="1" unique_id=1830658692 instance=ExtResource("3_cnfek")]
-transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, 20.568542, 0, -10.094404)
+[node name="tree-large3" type="Node3D" parent="Props" index="1" unique_id=151759614]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20.568542, 0, -10.094404)
+script = ExtResource("4_mgsyj")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
 
-[node name="tree-large4" parent="Props" index="2" unique_id=166572659 instance=ExtResource("3_cnfek")]
-transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, 38.31636, 0, -9.593531)
+[node name="tree-large4" type="Node3D" parent="Props" index="2" unique_id=600643672]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 38.31636, 0, -9.593531)
+script = ExtResource("4_mgsyj")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
 
-[node name="tree-large5" parent="Props" index="3" unique_id=1548099938 instance=ExtResource("3_cnfek")]
-transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, 59.117424, 0, -19.673088)
+[node name="tree-large5" type="Node3D" parent="Props" index="3" unique_id=1587867664]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 59.117424, 0, -19.673088)
+script = ExtResource("4_mgsyj")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
 
-[node name="tree-large7" parent="Props" index="4" unique_id=1632154304 instance=ExtResource("3_cnfek")]
-transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, -46.457054, 0, -10.094404)
+[node name="tree-large7" type="Node3D" parent="Props" index="4" unique_id=912511329]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -46.457054, 0, -10.094404)
+script = ExtResource("4_mgsyj")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
 
-[node name="tree-large8" parent="Props" index="5" unique_id=326774507 instance=ExtResource("3_cnfek")]
-transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, -28.709236, 0, -9.593531)
+[node name="tree-large8" type="Node3D" parent="Props" index="5" unique_id=1872199145]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28.709236, 0, -9.593531)
+script = ExtResource("4_mgsyj")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
 
-[node name="tree-large9" parent="Props" index="6" unique_id=1426980388 instance=ExtResource("3_cnfek")]
-transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, -7.9081726, 0, -19.673088)
+[node name="tree-large9" type="Node3D" parent="Props" index="6" unique_id=538902294]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.9081726, 0, -19.673088)
+script = ExtResource("4_mgsyj")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
 
-[node name="tree-large6" parent="Props" index="7" unique_id=1541030037 instance=ExtResource("3_cnfek")]
-transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, 49.264015, 4.9133406, -55.02762)
+[node name="tree-large6" type="Node3D" parent="Props" index="7" unique_id=746205903]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 49.264015, 4.9133406, -55.02762)
+script = ExtResource("4_mgsyj")
+model = "res://assets/kenney/city_kit_suburban/tree-large.glb"
+solid_part = Vector3(0.45, 1, 0.45)
 
 [node name="Ring" type="MeshInstance3D" parent="." index="9" unique_id=97418098]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.011, 0)

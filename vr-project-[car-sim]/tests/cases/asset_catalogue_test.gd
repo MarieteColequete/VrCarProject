@@ -1,8 +1,8 @@
 extends TestCase
 ## The asset packs: the catalogue finds every model with its category, a folder without a pack
 ## file is listed under Other at the models' own size, and a map asset shows its model, solid or
-## looks only, bakes into an obstacle, and steps to the next model of its category. Packs are told
-## apart by their short names.
+## looks only, bakes into an obstacle, and steps to the next model of its category; road signs' and
+## traffic lights' poles bake into obstacles too. Packs are told apart by their short names.
 
 const PLAIN := "res://tests/fixtures/assets/"
 
@@ -127,7 +127,13 @@ func _test_bake() -> void:
 	var van := AssetCatalogue.make(catalogue_entry("van"))
 	van.position = Vector3(5, 0, -10)
 	var path_asset := AssetCatalogue.make(catalogue_entry("path-short"))
-	for node: Node in [spawn, van, path_asset]:
+	var sign := RoadSign.new()
+	sign.name = "Sign"
+	sign.position = Vector3(5, 0, -20)
+	var light := TrafficLight.new()
+	light.name = "Light"
+	light.position = Vector3(5, 0, -30)
+	for node: Node in [spawn, van, path_asset, sign, light]:
 		road_map.add_child(node)
 		node.owner = road_map
 	var packed := PackedScene.new()
@@ -140,6 +146,11 @@ func _test_bake() -> void:
 	runner.load_map(packed)
 	await process_frame
 	var obstacles := runner.world().store(Schema.OBSTACLE)
-	expect(obstacles.size() == 1, "a solid map asset bakes into one obstacle, scenery none")
+	var names: Array[StringName] = []
+	for id in obstacles.sorted_ids():
+		names.append(obstacles.get_value(id, &"name"))
+	expect(obstacles.size() == 3 and names.has(&"Sign") and names.has(&"Light"),
+		"a solid map asset, a sign's pole, and a traffic light's pole each bake into one obstacle, "
+		+ "scenery none: %s" % [names])
 	runner.queue_free()
 	await process_frame
