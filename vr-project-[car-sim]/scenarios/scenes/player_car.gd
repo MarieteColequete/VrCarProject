@@ -92,7 +92,8 @@ var throttle := 0.0
 var wheel_angle := 0.0
 ## Controls set from code instead of [DriverInput], for tests: [code]{throttle, brake, steer,
 ## handbrake}[/code] each from 0 to 1, steer from -1 (full right) to 1 (full left), and
-## [code]select[/code] a lever position by letter (P, R, N, D) to put the gearbox in, and
+## [code]select[/code] a lever position by letter (P, R, N, D) to put the gearbox in (for the
+## player, a wheel's gear shifter gives it when moved: [method DriverInput.shifter_select]), and
 ## [code]ignition[/code] whether the key is held; empty to read the player's controls.
 var held_controls := {}
 ## Whether each wheel touches the road.
@@ -393,7 +394,8 @@ func _controls() -> Dictionary:
 			ignition = bool(held_controls.get("ignition", false))}
 	return {throttle = DriverInput.throttle(), brake = DriverInput.brake(),
 		handbrake = 1.0 if DriverInput.handbrake() else 0.0, steer = DriverInput.steer(),
-		shift = shift, held = false, select = "", ignition = _key(), park = park}
+		shift = shift, held = false, select = DriverInput.shifter_select(), ignition = _key(),
+		park = park}
 
 
 ## The key as the car reads it: never while [member key_live] is off, and once on, only after it

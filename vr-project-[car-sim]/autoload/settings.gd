@@ -10,9 +10,6 @@ extends Node
 ##   across scene changes and is also what the headset renders through.
 ## - Display settings (window mode, resolution, V-Sync) apply on a monitor only; in VR the
 ##   headset controls the display.
-## - The gearbox (automatic or manual) is the project setting [constant GEARBOX_SETTING], which the
-##   player car reads when it is spawned, so a change applies from the next drive. Headless runs
-##   (the tests) keep the project's own value.
 
 const SAVE_PATH := "user://settings.cfg"
 
@@ -40,11 +37,6 @@ const MSAA_NAMES: PackedStringArray = ["Off", "2x", "4x"]
 
 const DEFAULT_VOLUME := 0.8
 
-## Names of the gearboxes; [member transmission] indexes them, and the lower-case name is the value
-## of [constant GEARBOX_SETTING].
-const TRANSMISSION_NAMES: PackedStringArray = ["Automatic", "Manual"]
-const GEARBOX_SETTING := "car/gearbox"
-
 ## Linear volume (0 to 1) for each bus in AUDIO_BUSES.
 var volumes: Dictionary = {}
 var fullscreen := false
@@ -53,8 +45,6 @@ var vsync := true
 var render_scale := 1.0
 ## Index into MSAA_LEVELS.
 var msaa := 1
-## Index into TRANSMISSION_NAMES.
-var transmission := 0
 
 
 func _ready() -> void:
@@ -72,7 +62,6 @@ func reset_to_defaults(apply := true) -> void:
 	vsync = true
 	render_scale = 1.0
 	msaa = 1
-	transmission = 0
 	if apply:
 		apply_all()
 
@@ -82,7 +71,6 @@ func apply_all() -> void:
 		_apply_volume(bus)
 	_apply_quality()
 	_apply_display()
-	_apply_gearbox()
 
 
 # Audio
@@ -185,19 +173,6 @@ func _apply_window() -> void:
 	window.move_to_center()
 
 
-# Driving
-
-func set_transmission(index: int) -> void:
-	transmission = clampi(index, 0, TRANSMISSION_NAMES.size() - 1)
-	_apply_gearbox()
-
-
-func _apply_gearbox() -> void:
-	if DisplayServer.get_name() == "headless":
-		return
-	ProjectSettings.set_setting(GEARBOX_SETTING, TRANSMISSION_NAMES[transmission].to_lower())
-
-
 # Saving and loading
 
 func save_settings() -> void:
@@ -209,7 +184,6 @@ func save_settings() -> void:
 	config.set_value("video", "vsync", vsync)
 	config.set_value("video", "render_scale", render_scale)
 	config.set_value("video", "msaa", msaa)
-	config.set_value("driving", "transmission", TRANSMISSION_NAMES[transmission].to_lower())
 	var error := config.save(SAVE_PATH)
 	if error != OK:
 		push_warning("Settings: could not save settings (error %d)." % error)
@@ -228,6 +202,3 @@ func load_settings() -> void:
 	vsync = bool(config.get_value("video", "vsync", vsync))
 	render_scale = clampf(float(config.get_value("video", "render_scale", render_scale)), 0.25, 2.0)
 	msaa = clampi(int(config.get_value("video", "msaa", msaa)), 0, MSAA_LEVELS.size() - 1)
-	var saved_transmission := str(config.get_value("driving", "transmission", "")).capitalize()
-	if TRANSMISSION_NAMES.has(saved_transmission):
-		transmission = TRANSMISSION_NAMES.find(saved_transmission)

@@ -99,14 +99,24 @@ static func park_pressed(event: InputEvent) -> bool:
 	return event.is_action_pressed(PARK)
 
 
-## Whether [param event] is the gamepad's shift_down, which parks when held
-## ([constant PARK_HOLD]) and so moves the lever only when let go sooner.
+## The lever position, by letter, a wheel's gear shifter has moved to since the last physics step
+## ([method WheelInput.shifter_change]); empty when it has not moved.
+static func shifter_select() -> String:
+	return wheel.shifter_change()
+
+
+## Whether [param event] is the gamepad's shift_down, or a wheel's down paddle
+## ([method WheelInput.paddle]), which parks when held ([constant PARK_HOLD]) and so moves the
+## lever only when let go sooner.
 static func is_pad_shift_down(event: InputEvent) -> bool:
-	return event is InputEventJoypadButton and event.is_action(SHIFT_DOWN)
+	return event is InputEventJoypadButton \
+		and (event.is_action(SHIFT_DOWN) or wheel.paddle(event) == -1)
 
 
-## The gear change [param event] asks for: +1 up, -1 down, 0 none.
+## The gear change [param event] asks for: +1 up, -1 down, 0 none. A wheel's up paddle shifts up.
 static func shift_pressed(event: InputEvent) -> int:
+	if event.is_pressed() and not event.is_echo() and wheel.paddle(event) == 1:
+		return 1
 	if event.is_action_pressed(SHIFT_UP):
 		return 1
 	if event.is_action_pressed(SHIFT_DOWN):
