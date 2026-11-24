@@ -394,8 +394,8 @@ scene under `vr-project-[car-sim]/scenarios/scenes/<name>/` that inherits
 the zones only checks use, and any steps. The base gives the `Scenario` root and a `Checks` node
 already holding `ContactCheck`, `LineCheck`, and `TrafficConflictCheck`. The car starts at the
 scenario's `spawn_point`, or else at the map's first `MapSpawn`. Scenarios are laid out with the car
-driving towards -Z on the right-hand side of the road, in the lane centred on x = 1.75. Nine of the
-ten scenarios are set on the map of the same name in `maps/`; `hill_start` is set on `hill_road`.
+driving towards -Z on the right-hand side of the road, in the lane centred on x = 1.75. Each scenario
+is set on the map of the same name in `maps/`.
 
 Its `ScenarioDefinition`, `definition.tres` beside the scene, gives the id, the title, the menu
 category and difficulty, the briefing, the time limit, the scoring policy, and the car scene to
@@ -408,7 +408,6 @@ a rule entity judged by the rule's pure functions (`scenarios/rules/`):
 | Check | Rule |
 |---|---|
 | `StopCheck` | A complete stop inside the approach zone before the line zone is entered |
-| `RollBackCheck` | Once stopped inside its zone on a hill, rolling back more than `max_roll` (0.5 m) before moving on |
 | `SpeedLimitCheck` | The speed limit over a zone, with a grace time and a serious margin |
 | `RouteCheck` | Staying in the lane of a `Path3D` centreline, on the road, and not against traffic |
 | `LineCheck` | Crossing a solid line, crossing a dashed line without indicating that way, riding on a line, hitting a kerb (a tyre touching or crossing it) |
@@ -643,9 +642,7 @@ and deleting maps, and the save before playing, are not. The work behind it is `
 its modules (`MapFiles`, `MapPalette`, `RoadNetwork`, `MapProblems`, `TerrainAuthoring`,
 `AssetTools`), which run without the editor; the dock only wires them to its controls.
 `maps/sample_town/` is built with the kit alone: a main road
-crossed by two side roads that give way, oncoming traffic, signs, parked cars, buildings, and trees. `maps/hill_road/` is the same town on a hill: its main road climbs about 12% from the south onto
-a plateau, where the side roads cross it and fall away east and west; the `hill_start` scenario
-stops the car halfway up and judges it on rolling back.
+crossed by two side roads that give way, oncoming traffic, signs, parked cars, buildings, and trees.
 
 To build a map (in more detail in [docs/map-guide.md](docs/map-guide.md)):
 
