@@ -48,10 +48,11 @@ func _test_added_during_attempt() -> void:
 	var runner := spawn_runner()
 	runner.car.input_enabled = false
 	await process_frame
+	# Across the stop junction's land where none of its houses or trees stands.
 	var lane := Path3D.new()
 	lane.curve = Curve3D.new()
-	lane.curve.add_point(Vector3(30, 0, 60))
-	lane.curve.add_point(Vector3(30, 0, -60))
+	lane.curve.add_point(Vector3(60, 0, 60))
+	lane.curve.add_point(Vector3(60, 0, -60))
 	runner.scenario.add_child(lane)
 	var agent := ScriptedAgent.new()
 	agent.name = "Latecomer"
@@ -63,7 +64,7 @@ func _test_added_during_attempt() -> void:
 		"a road user added during the attempt is baked into the world and drives")
 	var van: StaticBody3D = PARKED_CAR.instantiate()
 	runner.scenario.add_child(van)
-	van.global_position = Vector3(30, 0.75, 0)
+	van.global_position = Vector3(60, 0.75, 0)
 	runner.add_obstacle(van)
 	await frames(900)
 	var a := agent_state(runner, &"Latecomer")

@@ -4,9 +4,10 @@ extends Node3D
 ## The land of a map that is not flat: a [HeightField] [member size] metres across, centred on the
 ## node, its points [member cell] metres apart. The height is the [member heightmap] (white is
 ## [member heightmap_height] metres), then each [TerrainShape] of the map in tree order, then the
-## roads: under every [RoadSegment] and [RoadJunction] the land is cut or filled to
-## [constant ROAD_SINK] below the road, across the asphalt, the pavements, and a
-## [constant SHOULDER] beyond, and eased back to the land over [member road_blend]. The land is drawn
+## roads: under every [RoadSegment] and [RoadJunction], and every road drawn by hand
+## ([method is_drawn_road]), the land is cut or filled to [constant ROAD_SINK] below the road,
+## across the asphalt, the pavements, and a [constant SHOULDER] beyond, and eased back to the land
+## over [member road_blend]. The land is drawn
 ## as a mesh in chunks of [constant CHUNK] cells and is solid ground, a [HeightMapShape3D] of the
 ## ground [BodyType]; the map's [RoadEnvironment] should have its flat ground off, which Map Kit's
 ## Add terrain does and the terrain warns of otherwise. Rebuilt in the editor when it, a shape, or
@@ -57,6 +58,8 @@ const UV_SCALE := 4.0
 const GROUP := &"map_terrain"
 ## Seconds after the last change in the editor before the collider is rebuilt.
 const COLLIDER_DELAY := 0.4
+## The material that makes a mesh road ([method is_drawn_road]).
+const ASPHALT := preload("res://scenarios/kit/asphalt.tres")
 
 var _field: HeightField
 var _body: StaticBody3D
@@ -158,6 +161,31 @@ static func notify_leaving(node: Node3D) -> void:
 		terrain.queue_rebuild()
 
 
+## Whether [param node] is a road drawn by hand: a flat mesh with the asphalt material, as the Map
+## Kit's Set as road gives it. The land lies under its whole box, along its longer side. Moving one
+## in the editor does not rebuild the land; the next build follows it.
+static func is_drawn_road(node: Node) -> bool:
+	if not node is MeshInstance3D or (node as MeshInstance3D).mesh == null:
+		return false
+	var mesh := node as MeshInstance3D
+	return mesh.material_override == ASPHALT or (mesh.get_surface_override_material_count() > 0
+		and mesh.get_surface_override_material(0) == ASPHALT)
+
+
+## The ends of a road drawn by hand, in [param placed]'s space (the mesh's placement), at the top of
+## its box, and half its width across: its middle line along its longer side.
+static func drawn_road_line(mesh: MeshInstance3D, placed: Transform3D) -> Array:
+	var box := mesh.mesh.get_aabb()
+	var middle := box.get_center()
+	middle.y = box.end.y
+	var along := Vector3(box.size.x / 2.0, 0, 0)
+	var across := box.size.z / 2.0
+	if box.size.z > box.size.x:
+		along = Vector3(0, 0, box.size.z / 2.0)
+		across = box.size.x / 2.0
+	return [placed * (middle - along), placed * (middle + along), across]
+
+
 ## Whether [param node] shapes the land: a shape, a road, or a junction.
 static func _shapes_land(node: Node) -> bool:
 	return node is TerrainShape or node is RoadSegment or node is RoadJunction
@@ -192,6 +220,12 @@ func piece_area(node: Node3D) -> Rect2:
 		var far := junction.road_width / 2.0 + junction.arm_length + RoadKit.PAVEMENT \
 			+ SHOULDER + road_blend
 		return Rect2(Vector2(placed.origin.x, placed.origin.z), Vector2.ZERO).grow(far * sqrt(2.0))
+	if is_drawn_road(node):
+		var line := drawn_road_line(node as MeshInstance3D, placed)
+		var a: Vector3 = line[0]
+		var b: Vector3 = line[1]
+		return Rect2(Vector2(a.x, a.z), Vector2.ZERO).expand(Vector2(b.x, b.z)) \
+			.grow(line[2] + SHOULDER + road_blend)
 	return Rect2()
 
 
@@ -274,7 +308,8 @@ func intersect_ray(from: Vector3, direction: Vector3, reach := 2000.0) -> Varian
 	return into * (hit as Vector3)
 
 
-## Cuts and fills [param out] (in the terrain's space) to the map's roads and junctions.
+## Cuts and fills [param out] (in the terrain's space) to the map's roads, junctions, and roads
+## drawn by hand.
 func stamp_roads(out: HeightField) -> void:
 	var map := map_of(self)
 	var to_terrain := RoadMap.to_map(self, map).affine_inverse()
@@ -307,6 +342,10 @@ func stamp_roads(out: HeightField) -> void:
 			var junction := node as RoadJunction
 			_stamp_pad(out, to_terrain * RoadMap.to_map(junction, map), junction, weight, target,
 				near)
+		elif is_drawn_road(node):
+			var line := drawn_road_line(node as MeshInstance3D,
+				to_terrain * RoadMap.to_map(node as Node3D, map))
+			_stamp_stretch(out, line[0], line[1], line[2] + SHOULDER, weight, target, near)
 	for k in out.heights.size():
 		if weight[k] > 0.0:
 			out.heights[k] = lerpf(out.heights[k], target[k], weight[k])

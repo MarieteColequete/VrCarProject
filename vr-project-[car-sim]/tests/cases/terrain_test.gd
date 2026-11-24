@@ -1,6 +1,6 @@
 extends TestCase
 ## Terrain and sloped roads: the height field's sampling, the terrain shapes, a heightmap, the
-## corridor cut and filled under a road, the land's collider, a road on a grade, and draping a
+## corridor cut and filled under a road and under a road drawn by hand, the land's collider, a road on a grade, and draping a
 ## road on a hill no steeper than the grade allowed. Then the editing: a shape's handles and its
 ## outline on the land, the land built again only where a shape changed (the same as built whole,
 ## and faster), and the Map Kit's shape edits.
@@ -13,6 +13,7 @@ func run() -> void:
 	_test_shapes()
 	_test_heightmap()
 	_test_corridor()
+	_test_drawn_road()
 	await _test_collider()
 	await _test_sloped_road()
 	_test_drape()
@@ -137,6 +138,39 @@ func _test_corridor() -> void:
 		"the land lies 5 cm under the road out to its shoulder: %.3f, %.3f" % [under, edge])
 	expect(easing > 0.0 and easing < 2.0 and is_equal_approx(past, 2.0),
 		"and eases back to the land over the blend: %.3f, %.3f" % [easing, past])
+	map.free()
+
+
+func _test_drawn_road() -> void:
+	var map := RoadMap.new()
+	var terrain := Terrain.new()
+	terrain.size = Vector2(80, 80)
+	var plateau := TerrainShape.new()
+	plateau.kind = TerrainShape.Kind.PLATEAU
+	plateau.height = 2.0
+	plateau.radius = 200.0
+	map.add_child(terrain)
+	terrain.add_child(plateau)
+	var road := MeshInstance3D.new()
+	var slab := BoxMesh.new()
+	slab.size = Vector3(7, 0.02, 40)
+	road.mesh = slab
+	road.material_override = Terrain.ASPHALT
+	road.position = Vector3(-10, 0.01, 0)
+	map.add_child(road)
+	var grass := MeshInstance3D.new()
+	grass.mesh = slab
+	grass.position = Vector3(20, 0.01, 0)
+	map.add_child(grass)
+	var top := 0.02 - Terrain.ROAD_SINK
+	var middle := terrain.height_at(Vector3(-10, 0, 0))
+	var edge := terrain.height_at(Vector3(-10 + 3.5 + Terrain.SHOULDER - 0.5, 0, 15))
+	var past_end := terrain.height_at(Vector3(-10, 0, -20 - 3.5 - Terrain.SHOULDER - terrain.road_blend - 1.0))
+	expect(is_equal_approx(middle, top) and absf(edge - top) < 0.01,
+		"the land lies 5 cm under a road drawn by hand, out to its shoulder: %.3f, %.3f" % [middle, edge])
+	expect(Terrain.is_drawn_road(road) and not Terrain.is_drawn_road(grass)
+		and is_equal_approx(terrain.height_at(Vector3(20, 0, 0)), 2.0) and is_equal_approx(past_end, 2.0),
+		"a mesh without the asphalt is not road, and the land is its own past the road's end")
 	map.free()
 
 

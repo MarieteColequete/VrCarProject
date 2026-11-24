@@ -156,14 +156,15 @@ func _light(light: TrafficLight) -> void:
 
 
 ## Every box shape of a static body on a judged layer ([constant Layers.JUDGED]) among
-## [param list], such as a parked van, and of the bodies of each [Prop] and [MapAsset] among it.
+## [param list], such as a parked van, and of the bodies of each node among it that keeps its own
+## as internal children ([method Prop.bodies]): props, map assets, road signs, and traffic lights.
 ## Kerbs and pavements are not obstacles: the kerb lines judge them. Returns them as a delta
 ## spawning one obstacle a box.
 static func obstacles(list: Array) -> Delta:
 	var out := Delta.new()
 	for node: Node in list:
-		if node is Prop or node is MapAsset:
-			for body in node.bodies():
+		if node.has_method(&"bodies"):
+			for body: StaticBody3D in node.call(&"bodies"):
 				_body_obstacles(out, body, node.name)
 			continue
 		if node is StaticBody3D:

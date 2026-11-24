@@ -3,7 +3,9 @@ class_name RoadSign
 extends Node3D
 ## A road sign on a pole, its face towards +Z, to the traffic coming down -Z. It is scenery: the
 ## rule it shows is a lane's or a check's, so a speed limit sign beside a 30 zone goes with a
-## [SpeedLimitCheck] or the lanes' speed limit.
+## [SpeedLimitCheck] or the lanes' speed limit. Its pole is solid, a static body of the obstacle
+## [BodyType], so the car collides with it, road users see it, and [ContactCheck] judges touching
+## it.
 
 enum Kind { STOP, GIVE_WAY, SPEED_LIMIT, NO_ENTRY, PEDESTRIAN_CROSSING, ROUNDABOUT, NO_PARKING,
 	ONE_WAY }
@@ -27,6 +29,8 @@ const RED := Color(0.8, 0.05, 0.05)
 const BLUE := Color(0.1, 0.3, 0.75)
 const WHITE := Color(0.95, 0.95, 0.95)
 const METAL := Color(0.6, 0.6, 0.62)
+## Width and depth of the pole's solid box, metres.
+const POLE_BOX := 0.12
 ## Per kind: the plate's sides (0 for round), its colour, its text, and the text's colour.
 const LOOKS := {
 	Kind.STOP: [8, RED, "STOP", WHITE],
@@ -40,11 +44,21 @@ const LOOKS := {
 }
 
 var _parts: Node3D
+var _body: StaticBody3D
 var _rebuild_queued := false
 
 
 func _ready() -> void:
 	rebuild()
+
+
+## The pole's body, for the bake to turn into an obstacle: an internal child, which a scene walk
+## leaves out.
+func bodies() -> Array[StaticBody3D]:
+	var out: Array[StaticBody3D] = []
+	if _body:
+		out.append(_body)
+	return out
 
 
 func rebuild() -> void:
@@ -53,6 +67,11 @@ func rebuild() -> void:
 		_parts.queue_free()
 	_parts = Node3D.new()
 	add_child(_parts, false, INTERNAL_MODE_BACK)
+	if _body:
+		remove_child(_body)
+		_body.queue_free()
+	_body = PoleBody.make(Vector3(POLE_BOX, height, POLE_BOX))
+	add_child(_body, false, INTERNAL_MODE_BACK)
 	var pole := CylinderMesh.new()
 	pole.top_radius = 0.04
 	pole.bottom_radius = 0.04

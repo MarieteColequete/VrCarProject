@@ -22,11 +22,14 @@ const BUILDINGS: PackedStringArray = ["a", "b", "c", "d", "e", "f", "g", "h", "i
 	"m", "n", "o", "p", "q", "r", "s", "t", "u"]
 
 static var _meshes := {}
+## Each model's [method fitting], by path.
+static var _fittings := {}
 
 
 ## Forgets the meshes built, so models and packs changed on disk are read again.
 static func forget() -> void:
 	_meshes.clear()
+	_fittings.clear()
 	AssetPack.forget()
 	RoadKit.forget()
 
@@ -35,6 +38,7 @@ static func forget() -> void:
 static func forget_model(model_path: String) -> void:
 	_meshes.erase(model_path)
 	_meshes.erase(model_path + "#unit")
+	_fittings.erase(model_path)
 
 
 ## The number of triangles in the model's mesh; zero when it does not load.
@@ -96,6 +100,14 @@ static func unit_mesh(model_path: String) -> ArrayMesh:
 	return _mesh(model_path, true)
 
 
+## How the model's own file is moved, turned, and scaled into its [method mesh]: the file's root at
+## the identity drawn through it lies where the mesh does. Identity when it does not load.
+static func fitting(model_path: String) -> Transform3D:
+	if not _fittings.has(model_path):
+		mesh(model_path)
+	return _fittings.get(model_path, Transform3D.IDENTITY)
+
+
 ## The model's size in metres; zero when it does not load.
 static func size_of(model_path: String) -> Vector3:
 	var built := mesh(model_path)
@@ -119,6 +131,7 @@ static func _mesh(model_path: String, unit: bool) -> ArrayMesh:
 	var bounds: AABB = placed * _bounds(parts)
 	var base := Vector3(bounds.get_center().x, bounds.position.y, bounds.get_center().z)
 	var fitted := Transform3D(Basis.IDENTITY, -base) * placed
+	_fittings[model_path] = fitted
 	if unit:
 		var size := bounds.size.max(Vector3.ONE * 0.001)
 		fitted = Transform3D(Basis.from_scale(Vector3.ONE / size), Vector3.ZERO) * fitted

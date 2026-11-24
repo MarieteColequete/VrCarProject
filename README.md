@@ -465,7 +465,8 @@ solid line it waits. In the editor a lane shows its direction and its stop line.
 a flow of reactive cars at headways and routes drawn from its seed, each entering only with room
 to stop; the `busy_junction` scenario combines flows, lights, a lane blocked by a van, a crossing,
 and a side road. A `TrafficLight` cycles on timers, or holds green until the car approaches and
-then changes, so a scenario can place the change at a chosen distance. An `AgentSpawner` fills
+then changes, so a scenario can place the change at a chosen distance; its pole and housing are
+solid, of the obstacle type, as a sign's pole is. An `AgentSpawner` fills
 parking bays with parked cars chosen from a seed: the same seed gives the same car park.
 
 The car only needs a `VehicleProbe` child: the simulation reads the car's pose through it, with the
@@ -515,7 +516,7 @@ The authoring nodes in `scenarios/map/` build the usual parts of a map from a fe
 |---|---|
 | `RoadSegment` | The road along its curve, in the roads kit's look (see Models), from the lanes each way, the lane width, one way or not, and the kerbs with their pavement width. Its buttons generate the `TrafficLane`s, on the right of their direction of travel, with the speed limit and neighbours set, and the kerbs, centre line, and lane lines as `RoadMarking`s |
 | `RoadJunction` | A crossroads or T junction pad for roads of a given width, in the roads kit's look. Its buttons generate a stop or give way line on each controlled arm, and the lanes through the pad from each arm to every other, for one lane each way; who gives way, and lights, are set on those lanes by hand. `arm_end` is where a road leaving by an arm starts |
-| `RoadSign` | A sign on a pole: stop, give way, speed limit with its number, no entry, pedestrian crossing, roundabout, no parking, or one way. It is scenery; the rule it shows comes from a lane or a check |
+| `RoadSign` | A sign on a pole: stop, give way, speed limit with its number, no entry, pedestrian crossing, roundabout, no parking, or one way. Its pole is solid, of the obstacle type, so the car collides with it, road users see it, and `ContactCheck` judges touching it; the rule it shows comes from a lane or a check |
 | `Prop` | Not in the palette any more: the Asset Library places models. A parked car, van, cone, barrier, bollard, house, tree, small tree, fence panel, planter, or crate, solid, of the obstacle type (the vehicle type for the cars and vans), so the car collides with it, road users see it, and `ContactCheck` judges touching it. Most show a model of the Kenney kits; `variant` picks among the cars, vans, and houses, and a building's house is stretched to its `building_size` |
 | `Scenery` | Not in the palette any more. A footpath, stone path, or driveway from the suburban kit, lying on the ground. It is looks only: nothing collides with it or judges it |
 | `Checkpoint` | A point road users drive to. It draws a ring and a flag in the editor and nothing in the game |
@@ -530,7 +531,8 @@ A map whose land is not flat has a `Terrain` (`scenarios/map/terrain.gd`) and it
 `ground` turned off. The land is a height grid of `cell` metres over `size`: a heightmap image first
 (white stands `heightmap_height` metres up), then each `TerrainShape` of the map in tree order: a
 hill, a valley, a ramp, or a plateau, each with a height, a radius or a size, and a falloff over
-which it eases into the land. Under every road and junction the land lies 5 cm below the asphalt,
+which it eases into the land. Under every road and junction, and every road drawn by hand (a flat
+mesh with the asphalt material, along its longer side), the land lies 5 cm below the asphalt,
 across the pavements and a 1 m shoulder, and eases back to its own height over `road_blend`. The
 land is drawn in chunks and is solid ground. A road climbs and falls with its curve's height and
 never banks; a junction is a flat pad at its own height. In the Map Kit, **Add terrain** adds the
@@ -557,11 +559,13 @@ dock beside the inspector, in folding sections that stay as they were left:
   `scenarios/debug/map_sandbox.tscn`.
 - **Problems** lists the open map's problems as it is edited, warnings before notices, and
   the dock's tab counts the warnings. A missing spawn, a zone without a box, a road with no lanes
-  or markings, and a lane whose end meets another's start without a link each have a fix; a lane
-  leading nowhere, a spawn off the road, and spawns on top of each other are notices. Selecting one
+  or markings, a lane whose end meets another's start without a link, a loose model dragged in
+  from the FileSystem dock (made a map asset), and a solid map asset in road users' way (made
+  looks only) each have a fix, and a solid prop, sign, or traffic light in their way is flagged; a lane leading nowhere, a spawn off the road, spawns on top of each
+  other, and a mesh that shows nothing (deleted) are notices. Selecting one
   selects its node; **Fix all** applies every fix at once.
 - **Selection** sets the selected meshes as road (the asphalt material), gives them a solid body on
-  the obstacle layer, links the lanes whose ends meet (the selected ones, or all of the map's),
+  the obstacle layer, makes loose models map assets that look the same, links the lanes whose ends meet (the selected ones, or all of the map's),
   snaps them to the grid, adds terrain, or drapes them on it (see Terrain). **Next look** steps
   the selected map assets to the next model of their category, and props and scenery to their next
   look.

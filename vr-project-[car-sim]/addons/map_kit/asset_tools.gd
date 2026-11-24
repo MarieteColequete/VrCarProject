@@ -1,8 +1,8 @@
 @tool
 class_name AssetTools
 extends RefCounted
-## The map's models: a solid body for a mesh, and the next look of a prop, scenery, or map
-## asset.
+## The map's models: a solid body for a mesh, the next look of a prop, scenery, or map asset, and
+## loose models made into map assets.
 
 ## A static body of the obstacle [BodyType] with a box around [param node]'s meshes, local to it; null
 ## when it has no meshes.
@@ -100,4 +100,72 @@ static func set_as_obstacle(nodes: Array) -> MapKitTools.Edit:
 			var body := obstacle_body(node)
 			if body:
 				edit.add(node, body)
+	return edit
+
+
+## Whether [param node] is a loose model: a [code].glb[/code] under [constant AssetCatalogue.ROOT]
+## dragged from the FileSystem dock straight onto the map. Nothing collides with it, road users do
+## not see it, and the Map Kit cannot step through its looks.
+static func is_loose_model(node: Node) -> bool:
+	return node is Node3D and node.scene_file_path.begins_with(AssetCatalogue.ROOT) \
+		and node.scene_file_path.get_extension() == "glb"
+
+
+## The loose models among [param nodes] and their descendants, a model's own parts left out.
+static func loose_models(nodes: Array) -> Array[Node3D]:
+	var out: Array[Node3D] = []
+	for node: Node in nodes:
+		_find_loose(node, out)
+	return out
+
+
+static func _find_loose(node: Node, out: Array[Node3D]) -> void:
+	if is_loose_model(node):
+		if not out.has(node):
+			out.append(node)
+		return
+	for child in node.get_children():
+		_find_loose(child, out)
+
+
+## A [MapAsset] in place of the loose [param model], looking as it does: the same name, place,
+## turn, and size, and the body its category in [param entries] (the [AssetCatalogue]'s scan)
+## gives, or an obstacle's for a model in none. A model stretched unevenly keeps its stretch as the
+## asset's [member MapAsset.fit].
+static func as_map_asset(model: Node3D, entries: Array[AssetCatalogue.Entry]) -> MapAsset:
+	var path := model.scene_file_path
+	var asset: MapAsset = null
+	for entry in entries:
+		if entry.path == path:
+			asset = AssetCatalogue.make(entry)
+			break
+	if asset == null:
+		asset = MapAsset.new()
+		asset.model = path
+	asset.name = model.name
+	# The model's file drawn at the model's transform, as the asset draws its mesh: the asset's
+	# transform times its scale times the fitting is the model's transform.
+	var drawn := model.transform * KitModels.fitting(path).affine_inverse()
+	var stretch := drawn.basis.get_scale()
+	asset.transform = Transform3D(drawn.basis.orthonormalized(), drawn.origin)
+	if is_equal_approx(stretch.x, stretch.y) and is_equal_approx(stretch.y, stretch.z):
+		asset.fit = Vector3.ZERO
+		asset.extra_scale = stretch.x
+	else:
+		asset.fit = stretch * KitModels.size_of(path)
+		asset.extra_scale = 1.0
+	return asset
+
+
+## Each loose model among [param nodes] and their descendants made into a [MapAsset] looking as it
+## does ([method as_map_asset]).
+static func make_map_assets(nodes: Array) -> MapKitTools.Edit:
+	var edit := MapKitTools.Edit.new()
+	var models := loose_models(nodes)
+	if models.is_empty():
+		return edit
+	var entries := AssetCatalogue.scan()
+	for model in models:
+		edit.remove(model)
+		edit.add(model.get_parent(), as_map_asset(model, entries))
 	return edit

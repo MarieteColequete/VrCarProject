@@ -174,6 +174,9 @@ with **Check now**. The problems and their fixes:
 | A lane lists a crossing that is not a Crossing node | None: list the Crossing area itself |
 | An agent driving to a checkpoint follows a path that is not a lane | None: set a `TrafficLane` as its path |
 | A map asset has no model, or its model does not load | None: pick a model in the Asset Library |
+| A model is loose: dragged in from the FileSystem dock, so nothing collides with it and **Next look** cannot change it | **Make map asset** |
+| A solid map asset, prop, sign, or traffic light stands on a lane, on a road user's path, or just past either's end, where road users stop at it | **Make look only** (map assets); move the others |
+| A mesh or multimesh shows nothing (notice) | **Delete** |
 | A lane leads nowhere (notice) | None: road users leave the map there |
 | A spawn is off the road (when the map has roads), or overlaps another (notice) | None |
 
@@ -182,6 +185,10 @@ with **Check now**. The problems and their fixes:
 - **Set as road** gives meshes the asphalt material.
 - **Set as obstacle** gives nodes a solid box on the obstacle layer: the car hits them, road
   users see them, and touching them is a fault.
+- **Make map assets** makes loose models, dragged in from the FileSystem dock, into map assets
+  that look the same: the selected ones, or with none selected the whole map's. Each becomes
+  solid as its category says, and **Next look** works on it. Place models from the Asset Library
+  to have map assets from the start.
 - **Connect lanes** links the selected lanes, or all of the map's, whose ends meet.
 - **Snap to grid** moves nodes onto the grid.
 - **Next look** steps map assets to the next model of their category, and props and scenery to
@@ -328,7 +335,10 @@ onto that land. The pictures here show a crossroads raised onto a plateau, with 
 
 5. **Lay the roads on the land.** Roads and junctions are drawn at their own heights; under each
    one the land is cut or filled to just below the road, across the asphalt, the pavements, and a
-   metre beyond, and eased back to the land over the road blend. To make the roads follow the
+   metre beyond, and eased back to the land over the road blend. A road drawn by hand, a flat mesh
+   given the asphalt with **Set as road**, gets the same along its longer side; moving one does
+   not rebuild the land by itself, so the land follows it at the next change or when the map
+   loads. To make the roads follow the
    land instead of keeping their heights, press **Drape on terrain** under **Selection**: with
    nodes selected it drapes those, with none the whole map. Roads take the land's heights along
    their length, never steeper than 12%; junctions stand on the land; lanes, markings, spawns,
