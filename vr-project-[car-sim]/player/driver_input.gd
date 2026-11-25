@@ -44,6 +44,14 @@ static var wheel: WheelInput:
 		return wheel
 
 
+## Whether [param event] comes from the steering wheel ([WheelInput]), the joypad it is.
+static func from_wheel(event: InputEvent) -> bool:
+	if not (event is InputEventJoypadButton or event is InputEventJoypadMotion):
+		return false
+	var id := wheel.joypad()
+	return id >= 0 and event.device == id
+
+
 ## Accelerator, 0 to 1: the throttle action or a wheel's pedal, whichever is further down.
 static func throttle() -> float:
 	return maxf(Input.get_action_strength(THROTTLE), wheel.throttle())

@@ -24,6 +24,7 @@ XRManager="*res://autoload/xr_manager.gd"
 Settings="*res://autoload/settings.gd"
 UISounds="*res://autoload/ui_sounds.gd"
 PauseMenu="*res://autoload/pause_menu.gd"
+WheelGuard="*res://autoload/wheel_guard.gd"
 
 [display]
 

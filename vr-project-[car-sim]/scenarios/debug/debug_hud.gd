@@ -83,7 +83,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		runner.session.begin()
 	elif event.is_action_pressed(&"exam_restart"):
 		runner.session.restart()
-	elif event.is_action_pressed(&"exam_next"):
+	elif event.is_action_pressed(&"exam_next") and not DriverInput.from_wheel(event):
+		# Not from a wheel: a G29's first gear is the same button as the D-pad's down.
 		next()
 	else:
 		return

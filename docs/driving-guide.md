@@ -258,6 +258,8 @@ Project settings, set in the editor's Project Settings or in `override.cfg` besi
 
 - The VR controllers, the gamepad, and a steering wheel are laid out but not yet tried on the
   hardware; the controls are tested in the game's headless tests.
-- A wheel's force feedback is not driven, only rumble; a clutch pedal and an H-shifter are not
-  read.
+- A wheel's force feedback is not driven, only rumble; a clutch pedal is not read.
+- On a Logitech G29 the H-shifter's first to third gears are the same buttons as the D-pad's
+  down, left and right, so they work the indicators (and tilt a picked mirror); its fifth gear is
+  D, fourth P, and reverse R.
 - Controllers without face buttons (Vive wands, Windows Mixed Reality) have no layout.
