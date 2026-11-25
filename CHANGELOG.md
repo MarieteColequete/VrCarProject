@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.7.1-alpha - 2026-11-25
+
+### Changed
+
+- See each contributor under one name in git log and blame, Taggerkov's two commit emails joined by a mailmap
+
+### Removed
+
+- Work without the GitLab pipeline and the list of trusted signing keys, part of the agent configuration that stays out of the repository
+
 ## v0.7.0-alpha - 2026-11-25
 
 ### Changed
