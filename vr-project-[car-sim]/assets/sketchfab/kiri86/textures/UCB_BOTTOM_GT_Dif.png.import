@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://bttrscuex2t5i"
 path.s3tc="res://.godot/imported/UCB_BOTTOM_GT_Dif.png-5ed65ba79a95b2a2f8e95f4f53382d6a.s3tc.ctex"
+path.etc2="res://.godot/imported/UCB_BOTTOM_GT_Dif.png-5ed65ba79a95b2a2f8e95f4f53382d6a.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/sketchfab/kiri86/textures/UCB_BOTTOM_GT_Dif.png"
-dest_files=["res://.godot/imported/UCB_BOTTOM_GT_Dif.png-5ed65ba79a95b2a2f8e95f4f53382d6a.s3tc.ctex"]
+dest_files=["res://.godot/imported/UCB_BOTTOM_GT_Dif.png-5ed65ba79a95b2a2f8e95f4f53382d6a.s3tc.ctex", "res://.godot/imported/UCB_BOTTOM_GT_Dif.png-5ed65ba79a95b2a2f8e95f4f53382d6a.etc2.ctex"]
 
 [params]
 

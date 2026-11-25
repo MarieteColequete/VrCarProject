@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://dinuungeedr4"
 path.s3tc="res://.godot/imported/Plastic012A_1K-JPG_NormalGL.jpg-b99ca329cc4ab3b19cd7fe006bc5fc6f.s3tc.ctex"
+path.etc2="res://.godot/imported/Plastic012A_1K-JPG_NormalGL.jpg-b99ca329cc4ab3b19cd7fe006bc5fc6f.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/ambientcg/Plastic012A/Plastic012A_1K-JPG_NormalGL.jpg"
-dest_files=["res://.godot/imported/Plastic012A_1K-JPG_NormalGL.jpg-b99ca329cc4ab3b19cd7fe006bc5fc6f.s3tc.ctex"]
+dest_files=["res://.godot/imported/Plastic012A_1K-JPG_NormalGL.jpg-b99ca329cc4ab3b19cd7fe006bc5fc6f.s3tc.ctex", "res://.godot/imported/Plastic012A_1K-JPG_NormalGL.jpg-b99ca329cc4ab3b19cd7fe006bc5fc6f.etc2.ctex"]
 
 [params]
 

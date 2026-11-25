@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://c261bbtmwb4gw"
 path.s3tc="res://.godot/imported/Numberplates_Misk_U_Dif.png-94f881939a0dd1e7c2e20004e89e8151.s3tc.ctex"
+path.etc2="res://.godot/imported/Numberplates_Misk_U_Dif.png-94f881939a0dd1e7c2e20004e89e8151.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/sketchfab/kiri86/textures/Numberplates_Misk_U_Dif.png"
-dest_files=["res://.godot/imported/Numberplates_Misk_U_Dif.png-94f881939a0dd1e7c2e20004e89e8151.s3tc.ctex"]
+dest_files=["res://.godot/imported/Numberplates_Misk_U_Dif.png-94f881939a0dd1e7c2e20004e89e8151.s3tc.ctex", "res://.godot/imported/Numberplates_Misk_U_Dif.png-94f881939a0dd1e7c2e20004e89e8151.etc2.ctex"]
 
 [params]
 

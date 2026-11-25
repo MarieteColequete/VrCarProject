@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://c0s10cmu3sl5p"
 path.s3tc="res://.godot/imported/Carbadges_misc_U_dif.png-e69ad17e34101886d5ea004338534ac7.s3tc.ctex"
+path.etc2="res://.godot/imported/Carbadges_misc_U_dif.png-e69ad17e34101886d5ea004338534ac7.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/sketchfab/kiri86/textures/Carbadges_misc_U_dif.png"
-dest_files=["res://.godot/imported/Carbadges_misc_U_dif.png-e69ad17e34101886d5ea004338534ac7.s3tc.ctex"]
+dest_files=["res://.godot/imported/Carbadges_misc_U_dif.png-e69ad17e34101886d5ea004338534ac7.s3tc.ctex", "res://.godot/imported/Carbadges_misc_U_dif.png-e69ad17e34101886d5ea004338534ac7.etc2.ctex"]
 
 [params]
 
