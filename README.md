@@ -98,7 +98,10 @@ controller's menu button, which `DriverView` turns into the action while driving
 Options apply game wide and are saved to `user://settings.cfg`. They set the volume of the Master,
 Music, and SFX buses, the 3D resolution scale and multisample anti-aliasing of the root viewport,
 and, on a monitor, the window mode, resolution, and V-Sync. A sound follows the volume options when
-it plays on one of those buses.
+it plays on one of those buses. In VR a 3D scale of 1.0 is applied as 0.99: once the driver's view
+gives the headset its own viewport, Godot fails every frame the window draws its 3D at exactly 1.0
+("Layers of our texture doesn't match view count for this framebuffer"), and the flood of errors
+takes the headset down to a few frames a second.
 
 In a headset each menu is a panel in front of the player, used with a laser pointer on each
 controller and the trigger. The panel and the pointers are added under the scene's current
