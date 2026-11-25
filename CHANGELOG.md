@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Start the engine and drive with a Logitech G29 under G HUB, which read its D-pad as the shifter in D, so the key was refused in gear and the throttle did nothing; the shifter's D is now fifth gear
+- Look straight ahead with a wheel and no headset, the view no longer turned to the bottom right by the wheel's resting pedals, which also drifted the menus' focus
+- Stay on the scenario when a G29's shifter goes into first gear, the same button as the D-pad's down
+
 ## v0.6.0-alpha - 2026-11-24
 
 ### Changed

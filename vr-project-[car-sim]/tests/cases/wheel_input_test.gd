@@ -81,13 +81,15 @@ func _test_settings() -> void:
 		"a G29 in native mode shifts up with its right paddle (button 4), down with its left (5)")
 	var held := func(buttons: Array) -> Callable:
 		return func(button: int) -> bool: return buttons.has(button)
-	expect(defaults.shifter_position(held.call([14]), native) == "D"
+	expect(defaults.shifter_position(held.call([16]), native) == "D"
 		and defaults.shifter_position(held.call([15]), native) == "P"
 		and defaults.shifter_position(held.call([18]), native) == "R",
-		"a G29's shifter in third is D, in fourth P, and in reverse R")
+		"a G29's shifter in fifth is D, in fourth P, and in reverse R")
 	expect(defaults.shifter_position(held.call([]), native) == "N"
 		and defaults.shifter_position(held.call([12]), native) == "N",
 		"the shifter in neutral, or in a gear with no lever position, is N")
+	expect(defaults.shifter_position(held.call([11, 12, 13, 14]), native) == "N",
+		"the D-pad, which shares buttons 11 to 14 with first to third gear, moves no lever")
 	expect(defaults.shifter_position(held.call([14]), {"vendor_id": "1", "product_id": "2"}) == "",
 		"a joypad with no shifter set has no shifter position")
 	var shifter := WheelInput.new()
@@ -114,6 +116,13 @@ func _test_settings() -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(file_path))
 	expect(overridden.pedal_settings("throttle", g29) == Vector3(2, 0, -1),
 		"a setting in the file wins over the profile, which still gives the rest")
+	var guard: GDScript = load("res://autoload/wheel_guard.gd")
+	expect(guard.devices(-1, -1, [0, 1]) == [-1] and guard.devices(1, -1, [0]) == [1],
+		"with no wheel an action's joypad axes stay bound as they are")
+	expect(guard.devices(-1, 0, [1, 2]) == [1, 2] and guard.devices(-1, 0, []) == [],
+		"with a wheel an axis bound for every joypad is bound for each other one, none alone")
+	expect(guard.devices(0, 0, [1]) == [] and guard.devices(1, 0, [1]) == [1],
+		"an axis bound for the wheel itself goes, one bound for another joypad stays")
 
 
 func _test_on_car() -> void:

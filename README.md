@@ -57,13 +57,17 @@ where the shifter is when it moves: D, P or R in their set positions and N in an
 shifter resting in neutral when a drive starts leaves the car as the scenario starts it. A
 Logitech G29 is set for its native mode, which Logitech G HUB switches it to (the throttle on
 axis 1 and the brake on axis 2, each resting at 1 and fully pressed at -1, the right paddle on
-button 4 and the left on button 5, the shifter's third gear as D, fourth as P and reverse as R,
-and the rim turning 900 degrees as G HUB's default operating range), and for its PS3
+button 4 and the left on button 5, the shifter's fifth gear as D, fourth as P and reverse as R,
+and the rim turning 900 degrees as G HUB's default operating range; its first to third gears are
+buttons 12 to 14, which Godot also gives the D-pad, so they do the D-pad's jobs and set no lever
+position, and a wheel never moves on to the next scenario), and for its PS3
 compatibility mode without G HUB (both pedals on axis 1, the throttle towards -1 and the brake
 towards 1, no paddles, and a rim range much shorter than its turn, so G HUB should be running). A
 pedal resting anywhere but 0 reads released until its axis first reports, as Godot gives a wheel's
-axes as 0 before its first report. A wheel's force feedback is not driven; only rumble reaches a
-joypad.
+axes as 0 before its first report. While a wheel is connected, the `WheelGuard` autoload rebinds
+every joypad axis an action binds to each other connected joypad, so pedals resting at the end of
+an axis neither turn the view nor move the menus' focus; the wheel's buttons keep their actions.
+A wheel's force feedback is not driven; only rumble reaches a joypad.
 
 With the Dev HUD on (see Maps), F3 to F9 drive its tools, as input actions; its free camera flies
 with the mouse, W, A, S, and D, Q and E for down and up, and Shift to go faster, keys that are

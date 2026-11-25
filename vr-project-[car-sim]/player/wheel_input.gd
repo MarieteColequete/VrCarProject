@@ -35,8 +35,12 @@ const PROFILES := {
 	"1133:49743": {throttle_axis = 1, throttle_rest = 1.0, throttle_pressed = -1.0,
 		brake_axis = 2, brake_rest = 1.0, brake_pressed = -1.0,
 		shift_up_button = 4, shift_down_button = 5,
-		# Its shifter: third gear (button 14) is D, fourth (15) P, and reverse (18) R.
-		shifter_d_button = 14, shifter_p_button = 15, shifter_r_button = 18},
+		# Its shifter's gears are buttons 12 (first) to 17 (sixth) and 18 (reverse), but Godot
+		# also gives its D-pad as buttons 11 to 14 (up, down, left, right), so first to third
+		# cannot be told from the D-pad, and the D-pad's right can read held from the wheel's first
+		# report until it is pressed. The lever positions keep clear of them: fifth gear (16) is D,
+		# fourth (15) P, and reverse (18) R.
+		shifter_d_button = 16, shifter_p_button = 15, shifter_r_button = 18},
 	# Logitech G29 in its PS3 compatibility mode, with no G HUB: both pedals on axis 1, the
 	# throttle towards -1 and the brake towards 1.
 	"1133:49812": {throttle_axis = 1, throttle_rest = 0.0, throttle_pressed = -1.0,
