@@ -510,7 +510,7 @@ a rule entity judged by the rule's pure functions (`scenarios/rules/`):
 | `LineCheck` | Crossing a solid line, crossing a dashed line without indicating that way, riding on a line, hitting a kerb (a tyre touching or crossing it) |
 | `ParkingCheck` | Once settled in a `ParkingBay`: overhanging it, facing the wrong way, too many direction changes, taking too long |
 | `TrafficLightCheck` | Crossing the stop line on red, or on amber when the car could have stopped as it changed |
-| `CrossingCheck` | Driving onto a pedestrian crossing while someone is on it or about to cross, stopping on it |
+| `CrossingCheck` | Driving onto a pedestrian crossing while someone on it, or about to cross, is in the car's path or walking toward it (not once they have crossed it and walk away), stopping on it |
 | `GazeCheck` | Changing lanes (or moving off) without first looking in the mirror and over the shoulder on that side; optionally the interior mirror too, and the eyes off the road too long |
 | `FollowingDistanceCheck` | Staying under a two second time gap behind a road user in the same lane |
 | `YieldCheck` | Entering a conflict zone while a road user with priority is in it or due within a safe gap, and waiting too long when the way is clear |
