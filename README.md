@@ -186,6 +186,20 @@ godot --headless --path 'vr-project-[car-sim]' --export-release "Linux" ../build
 godot --headless --path 'vr-project-[car-sim]' --export-release "Windows" ../builds/windows/VrCarSim.exe
 ```
 
+The Quest preset exports an Android APK for Meta Quest 2, 3, 3S, and Pro (arm64) to `builds/quest/`.
+It runs on Godot's OpenXR vendors plugin (`addons/godotopenxrvendors/`, from GodotVR's
+`godot_openxr_vendors`), which brings Meta's OpenXR loader and marks the app as VR, and so it builds
+with Gradle: it needs Godot's Android build template installed in `android/build` (Project > Install
+Android Build Template, ignored by git), a JDK 17 or 21 (its Gradle 8.11 runs on no newer), and an
+Android SDK with build-tools and platform 36, set in the editor's Export > Android settings along
+with a debug keystore. Textures are imported in the ETC2/ASTC formats as well as the desktop ones.
+The plugin also loads on the desktop, and the desktop builds carry its library beside the program.
+
+```
+godot --headless --path 'vr-project-[car-sim]' --export-debug "Quest" ../builds/quest/VrCarSim.apk
+adb install -r builds/quest/VrCarSim.apk
+```
+
 The game starts with no splash image, on black, in borderless full screen until the player picks a
 window in the options; the main menu fades in from the black. The window opens as the options left
 it, never resizing once the game runs: the options write the window to

@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://wjsrypqy5rjd"
 path.s3tc="res://.godot/imported/Plastic012A_1K-JPG_Roughness.jpg-c3b38a98733a31c4cb14aeaa009e852d.s3tc.ctex"
+path.etc2="res://.godot/imported/Plastic012A_1K-JPG_Roughness.jpg-c3b38a98733a31c4cb14aeaa009e852d.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/ambientcg/Plastic012A/Plastic012A_1K-JPG_Roughness.jpg"
-dest_files=["res://.godot/imported/Plastic012A_1K-JPG_Roughness.jpg-c3b38a98733a31c4cb14aeaa009e852d.s3tc.ctex"]
+dest_files=["res://.godot/imported/Plastic012A_1K-JPG_Roughness.jpg-c3b38a98733a31c4cb14aeaa009e852d.s3tc.ctex", "res://.godot/imported/Plastic012A_1K-JPG_Roughness.jpg-c3b38a98733a31c4cb14aeaa009e852d.etc2.ctex"]
 
 [params]
 
