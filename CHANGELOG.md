@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## v0.7.0-alpha - 2026-11-25
+
+### Changed
+
+- Start the game straight in borderless full screen, on black with no splash image, the window opening as the options left it and the main menu fading in
+- Drive on once a pedestrian has crossed the car's path and walks away; only one in the car's path or walking toward it fails giving way at a crossing
+
+### Added
+
+- Build the game for Linux and Windows (x86_64) from the project's export presets
+- Build an APK for Meta Quest 2, 3, 3S, and Pro with Godot's OpenXR vendors plugin; it is not yet tried on a headset
 
 ### Fixed
 
