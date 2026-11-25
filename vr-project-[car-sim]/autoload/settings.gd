@@ -31,6 +31,8 @@ const RESOLUTIONS: Array[Vector2i] = [
 
 ## 3D render scale steps (1.0 is native resolution, lower is faster).
 const RENDER_SCALES: Array[float] = [0.5, 0.67, 0.75, 0.85, 1.0]
+## The window's 3D scale in VR for a chosen 1.0 ([method window_scale]).
+const VR_FULL_SCALE := 0.99
 
 ## Anti-aliasing steps, as multisample levels of the root viewport.
 const MSAA_LEVELS: Array[Viewport.MSAA] = [
@@ -116,8 +118,17 @@ func _apply_quality() -> void:
 	if DisplayServer.get_name() == "headless":
 		return
 	var root := get_tree().root
-	root.scaling_3d_scale = render_scale
+	root.scaling_3d_scale = window_scale(render_scale, XRManager.is_vr)
 	root.msaa_3d = MSAA_LEVELS[msaa]
+
+
+## The 3D scale the window is drawn at for a [param scale] chosen, in VR when [param vr]. In VR the
+## window gives the headset to its own viewport while driving ([DriverView]), and Godot then
+## fails every frame the window draws its 3D at exactly 1.0 ("Layers of our texture doesn't match
+## view count for this framebuffer"), a flood of errors that takes the headset down to a few
+## frames a second; a hair under 1.0 draws it through a buffer of its own, which works.
+static func window_scale(scale: float, vr: bool) -> float:
+	return VR_FULL_SCALE if vr and is_equal_approx(scale, 1.0) else scale
 
 
 # Display
